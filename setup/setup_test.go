@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lhbelfanti/corpus-creator/internal/setup"
+	"github.com/lhbelfanti/ditto/setup"
 )
 
 func TestInit_success(t *testing.T) {
