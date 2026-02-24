@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="Ditto - Go library created to avoid writing the same code over and over" src="media/ditto-logo.png" width="200">
+    <img alt="Ditto - Go library created to avoid writing the same code over and over" src="_media/ditto-logo.png" width="200">
 </p>
 <h3 align="center">Ditto</h3>
 <p align="center">Go library created to avoid writing the same code over and over<p>
