@@ -288,3 +288,38 @@ func MockCollectRows[T any](slice []T, err error) CollectRows[T] {
 		return slice, err
 	}
 }
+
+// MockSelect returns a Select[T] that always returns the given slice and error.
+func MockSelect[T any](slice []T, err error) Select[T] {
+	return func(ctx context.Context, query string, args ...any) ([]T, error) {
+		return slice, err
+	}
+}
+
+// MockSelectOne returns a SelectOne[T] that always returns the given value and error.
+func MockSelectOne[T any](val T, err error) SelectOne[T] {
+	return func(ctx context.Context, query string, args ...any) (T, error) {
+		return val, err
+	}
+}
+
+// MockInsert returns an Insert[T] that always returns the given value and error.
+func MockInsert[T any](val T, err error) Insert[T] {
+	return func(ctx context.Context, query string, args ...any) (T, error) {
+		return val, err
+	}
+}
+
+// MockDelete returns a Delete that always returns the given error.
+func MockDelete(err error) Delete {
+	return func(ctx context.Context, query string, args ...any) error {
+		return err
+	}
+}
+
+// MockUpdate returns an Update that always returns the given error.
+func MockUpdate(err error) Update {
+	return func(ctx context.Context, query string, args ...any) error {
+		return err
+	}
+}
