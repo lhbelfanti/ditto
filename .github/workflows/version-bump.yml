@@ -1,0 +1,99 @@
+name: Version Bump
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump:
+    name: Bump version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag
+        id: latest_tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "value=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Latest tag: $TAG"
+
+      - name: Determine bump type
+        id: bump_type
+        env:
+          LATEST_TAG: ${{ steps.latest_tag.outputs.value }}
+        run: |
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            SUBJECTS=$(git log --pretty=format:"%s")
+          else
+            SUBJECTS=$(git log --pretty=format:"%s" "${LATEST_TAG}..HEAD")
+          fi
+
+          if [ -z "$SUBJECTS" ]; then
+            echo "No commits found since last tag"
+            echo "value=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BUMP="none"
+
+          while IFS= read -r line; do
+            case "$line" in
+              # breaking: → breaking change → major bump
+              "breaking:"*)
+                BUMP="major"
+                ;;
+              # feat: → new feature → minor bump
+              "feat:"*)
+                [ "$BUMP" != "major" ] && BUMP="minor"
+                ;;
+              # fix, refactor, perf, build, chore → patch bump
+              "fix:"* | "refactor:"* | "perf:"* | "build:"* | "chore:"*)
+                [ "$BUMP" != "major" ] && [ "$BUMP" != "minor" ] && BUMP="patch"
+                ;;
+            esac
+          done <<< "$SUBJECTS"
+
+          echo "Bump type: $BUMP"
+          echo "value=$BUMP" >> "$GITHUB_OUTPUT"
+
+      - name: Calculate new version
+        id: new_version
+        if: steps.bump_type.outputs.value != 'none'
+        env:
+          LATEST_TAG: ${{ steps.latest_tag.outputs.value }}
+          BUMP: ${{ steps.bump_type.outputs.value }}
+        run: |
+          VERSION="${LATEST_TAG#v}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "New version: $NEW_VERSION"
+          echo "value=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        if: steps.bump_type.outputs.value != 'none'
+        env:
+          NEW_VERSION: ${{ steps.new_version.outputs.value }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$NEW_VERSION"
+          git push origin "$NEW_VERSION"
+          echo "Created and pushed tag $NEW_VERSION"
