@@ -47,16 +47,16 @@ jobs:
 
           while IFS= read -r line; do
             case "$line" in
-              # breaking: → breaking change → major bump
-              "breaking:"*)
+              # breaking: or breaking(...): → breaking change → major bump
+              "breaking:"* | "breaking("*)
                 BUMP="major"
                 ;;
-              # feat: → new feature → minor bump
-              "feat:"*)
+              # feat: or feat(...): → new feature → minor bump
+              "feat:"* | "feat("*)
                 [ "$BUMP" != "major" ] && BUMP="minor"
                 ;;
-              # fix, refactor, perf, build, chore → patch bump
-              "fix:"* | "refactor:"* | "perf:"* | "build:"* | "chore:"*)
+              # fix, refactor, perf, build, chore (with or without scope) → patch bump
+              "fix:"* | "fix("* | "refactor:"* | "refactor("* | "perf:"* | "perf("* | "build:"* | "build("* | "chore:"* | "chore("*)
                 [ "$BUMP" != "major" ] && [ "$BUMP" != "minor" ] && BUMP="patch"
                 ;;
             esac
