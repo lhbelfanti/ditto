@@ -26,6 +26,7 @@ type (
 	Response struct {
 		Body   string
 		Status string
+		Header http.Header
 	}
 )
 
@@ -37,27 +38,40 @@ func NewClient(timeout time.Duration) *CustomClient {
 }
 
 func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body interface{}) (Response, error) {
-	var jsonData []byte
-	var err error
+	var reqBody io.Reader
+	var hasJSONBody bool
 
-	switch v := body.(type) {
-	case []byte:
-		jsonData = v
-	default:
-		jsonData, err = json.Marshal(body)
-		if err != nil {
-			log.Error(ctx, err.Error())
-			return Response{}, FailedToMarshalBody
+	if body != nil {
+		var jsonData []byte
+		var err error
+
+		switch v := body.(type) {
+		case []byte:
+			jsonData = v
+		default:
+			jsonData, err = json.Marshal(body)
+			if err != nil {
+				log.Error(ctx, err.Error())
+				return Response{}, FailedToMarshalBody
+			}
 		}
+
+		reqBody = bytes.NewBuffer(jsonData)
+		hasJSONBody = true
 	}
 
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
 		log.Error(ctx, err.Error())
 		return Response{}, FailedToCreateRequest
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	// A nil body means the caller is making a body-less request (e.g. a GET with only
+	// query parameters, like an exchange klines endpoint) — Content-Type would be
+	// misleading there, so it is only set when a JSON body is actually being sent.
+	if hasJSONBody {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -80,5 +94,6 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 	return Response{
 		Body:   string(respBody),
 		Status: resp.Status,
+		Header: resp.Header,
 	}, nil
 }
