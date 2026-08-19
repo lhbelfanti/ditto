@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -24,9 +25,10 @@ type (
 
 	// Response represent the necessary data of the request response
 	Response struct {
-		Body   string
-		Status string
-		Header http.Header
+		Body       string
+		Status     string
+		StatusCode int
+		Header     http.Header
 	}
 )
 
@@ -52,7 +54,7 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 			jsonData, err = json.Marshal(body)
 			if err != nil {
 				log.Error(ctx, err.Error())
-				return Response{}, FailedToMarshalBody
+				return Response{}, fmt.Errorf("%w: %w", FailedToMarshalBody, err)
 			}
 		}
 
@@ -60,10 +62,10 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 		hasJSONBody = true
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
 		log.Error(ctx, err.Error())
-		return Response{}, FailedToCreateRequest
+		return Response{}, fmt.Errorf("%w: %w", FailedToCreateRequest, err)
 	}
 
 	// A nil body means the caller is making a body-less request (e.g. a GET with only
@@ -76,7 +78,7 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		log.Error(ctx, err.Error())
-		return Response{}, FailedToExecuteRequest
+		return Response{}, fmt.Errorf("%w: %w", FailedToExecuteRequest, err)
 	}
 	defer func(body io.ReadCloser) {
 		err = body.Close()
@@ -88,12 +90,13 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error(ctx, err.Error())
-		return Response{}, FailedToReadResponse
+		return Response{}, fmt.Errorf("%w: %w", FailedToReadResponse, err)
 	}
 
 	return Response{
-		Body:   string(respBody),
-		Status: resp.Status,
-		Header: resp.Header,
+		Body:       string(respBody),
+		Status:     resp.Status,
+		StatusCode: resp.StatusCode,
+		Header:     resp.Header,
 	}, nil
 }

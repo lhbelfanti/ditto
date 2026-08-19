@@ -27,6 +27,7 @@ func TestNewRequest_successWithJSONBody(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "200 OK", resp.Status)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, `{"ok":true}`, resp.Body)
 	assert.Equal(t, "present", resp.Header.Get("X-Test-Header"))
 }
@@ -44,6 +45,7 @@ func TestNewRequest_successWithNilBodyOmitsContentTypeAndSendsNoBody(t *testing.
 
 	assert.NoError(t, err)
 	assert.Equal(t, "200 OK", resp.Status)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestNewRequest_exposesResponseHeaders(t *testing.T) {
@@ -58,6 +60,7 @@ func TestNewRequest_exposesResponseHeaders(t *testing.T) {
 	resp, err := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
 
 	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
 	assert.Equal(t, "42", resp.Header.Get("X-MBX-USED-WEIGHT-1M"))
 	assert.Equal(t, "5", resp.Header.Get("Retry-After"))
 }
@@ -67,6 +70,23 @@ func TestNewRequest_failsWhenURLIsInvalid(t *testing.T) {
 	resp, err := client.NewRequest(context.Background(), http.MethodGet, "://invalid-url", nil)
 
 	assert.ErrorIs(t, err, dittohttp.FailedToCreateRequest)
+	assert.Equal(t, dittohttp.Response{}, resp)
+}
+
+func TestNewRequest_failsWhenContextIsCanceled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	client := dittohttp.NewClient(5 * time.Second)
+	resp, err := client.NewRequest(ctx, http.MethodGet, server.URL, nil)
+
+	assert.ErrorIs(t, err, dittohttp.FailedToExecuteRequest)
+	assert.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, dittohttp.Response{}, resp)
 }
 
