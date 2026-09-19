@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/lhbelfanti/ditto/log"
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 // Send writes a standardized JSON response to the client.

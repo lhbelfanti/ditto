@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/lhbelfanti/ditto/env"
+	"github.com/lhbelfanti/ditto/v2/env"
 )
 
 // CORS returns an HTTP middleware that sets CORS headers on every response.

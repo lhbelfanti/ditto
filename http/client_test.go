@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	dittohttp "github.com/lhbelfanti/ditto/http"
+	dittohttp "github.com/lhbelfanti/ditto/v2/http"
 )
 
 func TestNewRequest_successWithJSONBody(t *testing.T) {

@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/lhbelfanti/ditto/database"
+	"github.com/lhbelfanti/ditto/v2/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/lhbelfanti/ditto/migration"
+	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
 func TestMakeCreateTable_Success(t *testing.T) {

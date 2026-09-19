@@ -1,4 +1,4 @@
-module github.com/lhbelfanti/ditto
+module github.com/lhbelfanti/ditto/v2
 
 go 1.25.5
 

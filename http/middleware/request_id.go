@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"net/http"
 
-	"github.com/lhbelfanti/ditto/log"
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 const requestIDKey = "request_id"

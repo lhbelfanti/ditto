@@ -8,9 +8,9 @@ import (
 	"sort"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/lhbelfanti/ditto/database"
-	dittohttp "github.com/lhbelfanti/ditto/http"
-	"github.com/lhbelfanti/ditto/log"
+	"github.com/lhbelfanti/ditto/v2/database"
+	dittohttp "github.com/lhbelfanti/ditto/v2/http"
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 // MakeRunner returns a MigrationRunner that applies all *.sql files from migrationsDir

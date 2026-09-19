@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lhbelfanti/ditto/env"
+	"github.com/lhbelfanti/ditto/v2/env"
 )
 
 func TestGet_returnsValueWhenSet(t *testing.T) {

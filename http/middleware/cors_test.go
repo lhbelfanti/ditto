@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lhbelfanti/ditto/http/middleware"
+	"github.com/lhbelfanti/ditto/v2/http/middleware"
 )
 
 func TestCORS_successWithHeadersPresent(t *testing.T) {

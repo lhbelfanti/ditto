@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lhbelfanti/ditto/broker"
+	"github.com/lhbelfanti/ditto/v2/broker"
 )
 
 func TestMakeConnection(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lhbelfanti/ditto/database"
+	"github.com/lhbelfanti/ditto/v2/database"
 )
 
 type (

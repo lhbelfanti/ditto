@@ -9,12 +9,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	dittohttp "github.com/lhbelfanti/ditto/http"
+	dittohttp "github.com/lhbelfanti/ditto/v2/http"
 )
 
 func TestRegisterSystemRoutes_ping(t *testing.T) {
 	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux, nil)
+	dittohttp.RegisterSystemRoutes(mux, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/ping/v1", nil)
 	w := httptest.NewRecorder()
@@ -25,7 +25,7 @@ func TestRegisterSystemRoutes_ping(t *testing.T) {
 
 func TestRegisterSystemRoutes_migrationsSkippedWhenRunnerNil(t *testing.T) {
 	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux, nil)
+	dittohttp.RegisterSystemRoutes(mux, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/migrations/run/v1", nil)
 	w := httptest.NewRecorder()
@@ -37,7 +37,7 @@ func TestRegisterSystemRoutes_migrationsSkippedWhenRunnerNil(t *testing.T) {
 func TestRegisterSystemRoutes_migrationsSuccess(t *testing.T) {
 	mux := http.NewServeMux()
 	mockRunner := func(ctx context.Context) error { return nil }
-	dittohttp.RegisterSystemRoutes(mux, mockRunner)
+	dittohttp.RegisterSystemRoutes(mux, mockRunner, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/migrations/run/v1", nil)
 	w := httptest.NewRecorder()
@@ -49,11 +49,46 @@ func TestRegisterSystemRoutes_migrationsSuccess(t *testing.T) {
 func TestRegisterSystemRoutes_migrationsFailure(t *testing.T) {
 	mux := http.NewServeMux()
 	mockRunner := func(ctx context.Context) error { return errors.New("migration failed") }
-	dittohttp.RegisterSystemRoutes(mux, mockRunner)
+	dittohttp.RegisterSystemRoutes(mux, mockRunner, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/migrations/run/v1", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestRegisterSystemRoutes_databasePingSkippedWhenNil(t *testing.T) {
+	mux := http.NewServeMux()
+	dittohttp.RegisterSystemRoutes(mux, nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestRegisterSystemRoutes_databasePingSuccess(t *testing.T) {
+	mux := http.NewServeMux()
+	mockPing := func(ctx context.Context) error { return nil }
+	dittohttp.RegisterSystemRoutes(mux, nil, mockPing)
+
+	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestRegisterSystemRoutes_databasePingFailure(t *testing.T) {
+	mux := http.NewServeMux()
+	mockPing := func(ctx context.Context) error { return errors.New("database unreachable") }
+	dittohttp.RegisterSystemRoutes(mux, nil, mockPing)
+
+	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 }

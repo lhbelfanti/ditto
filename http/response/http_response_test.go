@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lhbelfanti/ditto/http/response"
+	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
 func TestSend_success(t *testing.T) {
