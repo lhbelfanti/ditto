@@ -11,4 +11,5 @@ var (
 	ErrFailedToCheckTableExists   = errors.New("migration: failed to check if migrations table exists")
 	ErrFailedToSelectAppliedNames = errors.New("migration: failed to select applied migration names")
 	ErrFailedToApply              = errors.New("migration: failed to apply migrations")
+	ErrUnknownCommand             = errors.New("migration: unknown command: use apply or status")
 )
