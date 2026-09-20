@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/lhbelfanti/ditto/v2/http/response"
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 // MigrationRunner is a function that executes pending database migrations.
@@ -39,7 +40,8 @@ func databasePingHandlerV1(ping DatabasePing) http.HandlerFunc {
 
 		err := ping(ctx)
 		if err != nil {
-			response.Send(ctx, w, http.StatusServiceUnavailable, "database unreachable", nil, err)
+			log.Err(ctx, err, ErrMsgDatabaseUnavailable)
+			response.Send(ctx, w, http.StatusServiceUnavailable, ErrMsgDatabaseUnavailable, nil, ErrDatabaseUnavailable)
 			return
 		}
 		response.Send(ctx, w, http.StatusOK, "pong", nil, nil)
@@ -48,10 +50,14 @@ func databasePingHandlerV1(ping DatabasePing) http.HandlerFunc {
 
 func migrationsRunHandlerV1(run MigrationRunner) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := run(r.Context()); err != nil {
-			response.Send(r.Context(), w, http.StatusInternalServerError, "Failed to run migrations", nil, err)
+		ctx := r.Context()
+
+		err := run(ctx)
+		if err != nil {
+			log.Err(ctx, err, ErrMsgMigrationsFailed)
+			response.Send(ctx, w, http.StatusInternalServerError, ErrMsgMigrationsFailed, nil, ErrMigrationsFailed)
 			return
 		}
-		response.Send(r.Context(), w, http.StatusOK, "Migrations applied successfully", nil, nil)
+		response.Send(ctx, w, http.StatusOK, "Migrations applied successfully", nil, nil)
 	}
 }
