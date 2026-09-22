@@ -33,6 +33,12 @@ func MakeCheck(ping Ping, timeout time.Duration) Check {
 	}
 }
 
+// MakeCheck creates a Check function bounding pg's own connection pool ping to timeout, so a
+// caller never needs to reach past Postgres into its underlying pool to build one.
+func (pg *Postgres) MakeCheck(timeout time.Duration) Check {
+	return MakeCheck(pg.Database().Ping, timeout)
+}
+
 // RequireEnv validates the exact environment variables resolveDatabaseURL/InitPostgres consume —
 // POSTGRES_DB_PORT (a valid TCP port) and POSTGRES_DB_NAME/USER/PASS (non-empty) — so a caller can
 // fail fast with a clear, credential-safe message before ever attempting a connection.

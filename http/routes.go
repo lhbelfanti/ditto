@@ -14,18 +14,30 @@ type MigrationRunner func(ctx context.Context) error
 // DatabasePing checks whether the database dependency is reachable.
 type DatabasePing func(ctx context.Context) error
 
-// RegisterSystemRoutes attaches standard system endpoints to the provided mux:
-//   - GET /ping/v1 (unconditional liveness — never touches the database)
-//   - GET /database/ping/v1 (only if dbPing is non-nil)
-//   - POST /migrations/run/v1 (only if runner is non-nil)
-func RegisterSystemRoutes(mux *http.ServeMux, runner MigrationRunner, dbPing DatabasePing) {
+// SystemRoutes mounts ditto's standard system endpoints on a mux, one opt-in route at a time.
+type SystemRoutes struct {
+	mux *http.ServeMux
+}
+
+// RegisterSystemRoutes mounts GET /ping/v1 (unconditional liveness — never touches the database)
+// and returns a SystemRoutes to opt into the routes a given service actually needs:
+//
+//	dittohttp.RegisterSystemRoutes(mux).WithMigrationRunner(runner).WithDatabasePing(dbPing)
+func RegisterSystemRoutes(mux *http.ServeMux) *SystemRoutes {
 	mux.HandleFunc("GET /ping/v1", pingHandlerV1())
-	if dbPing != nil {
-		mux.HandleFunc("GET /database/ping/v1", databasePingHandlerV1(dbPing))
-	}
-	if runner != nil {
-		mux.HandleFunc("POST /migrations/run/v1", migrationsRunHandlerV1(runner))
-	}
+	return &SystemRoutes{mux: mux}
+}
+
+// WithMigrationRunner mounts POST /migrations/run/v1.
+func (s *SystemRoutes) WithMigrationRunner(runner MigrationRunner) *SystemRoutes {
+	s.mux.HandleFunc("POST /migrations/run/v1", migrationsRunHandlerV1(runner))
+	return s
+}
+
+// WithDatabasePing mounts GET /database/ping/v1.
+func (s *SystemRoutes) WithDatabasePing(dbPing DatabasePing) *SystemRoutes {
+	s.mux.HandleFunc("GET /database/ping/v1", databasePingHandlerV1(dbPing))
+	return s
 }
 
 func pingHandlerV1() http.HandlerFunc {
