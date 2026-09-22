@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"time"
 
 	"github.com/lhbelfanti/ditto/v2/env"
 )
@@ -10,17 +11,19 @@ type (
 	// Ping verifies that a database connection is reachable.
 	Ping func(ctx context.Context) error
 
-	// Check proves database connectivity, hiding any underlying failure behind a credential-safe sentinel.
+	// Check proves database connectivity within a bounded deadline.
 	Check func(ctx context.Context) error
 )
 
-// MakeCheck creates a Check function. Its only job is hiding ping's raw failure — which may embed
-// a credential-bearing DSN — behind ErrDatabaseUnavailable; it never logs itself, since Check runs
-// both behind HTTP handlers (which already log via response.Send) and in non-HTTP startup paths.
-// Bounding ctx with a deadline before calling Check, like any other context.Context-based call, is
-// the caller's job — Check has no timeout of its own to configure.
-func MakeCheck(ping Ping) Check {
+// MakeCheck creates a Check function that bounds ping to timeout and, on failure, returns it
+// hidden behind ErrDatabaseUnavailable. It never logs itself — Check runs both behind HTTP
+// handlers (which already log via response.Send) and in non-HTTP startup paths, so logging is
+// the caller's decision, not this primitive's.
+func MakeCheck(ping Ping, timeout time.Duration) Check {
 	return func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+
 		err := ping(ctx)
 		if err != nil {
 			return WrapUnavailable(err)
