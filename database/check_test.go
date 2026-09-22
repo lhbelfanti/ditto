@@ -15,7 +15,7 @@ import (
 func TestMakeCheck_success(t *testing.T) {
 	ping := database.MockPing(nil)
 
-	check := database.MakeCheck(ping, time.Second)
+	check := database.MakeCheck(ping)
 
 	got := check(context.Background())
 
@@ -26,7 +26,7 @@ func TestMakeCheck_failsWhenPingFails(t *testing.T) {
 	credentialBearingDSN := errors.New("dial postgres://nebula_earth_user:super-secret@db:5432/nebula_earth failed")
 	ping := database.MockPing(credentialBearingDSN)
 
-	check := database.MakeCheck(ping, time.Second)
+	check := database.MakeCheck(ping)
 
 	want := database.ErrDatabaseUnavailable
 	got := check(context.Background())
@@ -36,13 +36,15 @@ func TestMakeCheck_failsWhenPingFails(t *testing.T) {
 	assert.NotContains(t, got.Error(), "super-secret")
 }
 
-func TestMakeCheck_failsWhenPingExceedsTimeout(t *testing.T) {
+func TestMakeCheck_failsWhenCallerContextDeadlineExceeded(t *testing.T) {
 	ping := database.MockBlockingPing(nil)
+	check := database.MakeCheck(ping)
 
-	check := database.MakeCheck(ping, 10*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
 
 	start := time.Now()
-	got := check(context.Background())
+	got := check(ctx)
 	elapsed := time.Since(start)
 
 	assert.ErrorIs(t, got, database.ErrDatabaseUnavailable)
@@ -53,7 +55,7 @@ func TestMakeCheck_renderedErrorExcludesCause(t *testing.T) {
 	credentialBearingDSN := errors.New("dial postgres://nebula_earth_user:super-secret@db:5432/nebula_earth failed")
 	ping := database.MockPing(credentialBearingDSN)
 
-	check := database.MakeCheck(ping, time.Second)
+	check := database.MakeCheck(ping)
 
 	want := database.ErrDatabaseUnavailable.Error()
 	got := check(context.Background()).Error()
