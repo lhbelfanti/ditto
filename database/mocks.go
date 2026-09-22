@@ -323,3 +323,22 @@ func MockUpdate(err error) Update {
 		return err
 	}
 }
+
+// MockPing returns a Ping that always returns the given error.
+func MockPing(err error) Ping {
+	return func(context.Context) error {
+		return err
+	}
+}
+
+// MockBlockingPing returns a Ping that blocks until ctx is done, then returns ctx's error, or err
+// if ctx carries none.
+func MockBlockingPing(err error) Ping {
+	return func(ctx context.Context) error {
+		<-ctx.Done()
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return err
+	}
+}

@@ -21,7 +21,7 @@ type DatabasePing func(ctx context.Context) error
 func RegisterSystemRoutes(mux *http.ServeMux, runner MigrationRunner, dbPing DatabasePing) {
 	mux.HandleFunc("GET /ping/v1", pingHandlerV1())
 	if dbPing != nil {
-		mux.HandleFunc("GET /database/ping/v1", databasePingHandlerV1(dbPing))
+		mux.HandleFunc("GET /database/ping/v1", DatabasePingHandler(dbPing))
 	}
 	if runner != nil {
 		mux.HandleFunc("POST /migrations/run/v1", migrationsRunHandlerV1(runner))
@@ -34,7 +34,10 @@ func pingHandlerV1() http.HandlerFunc {
 	}
 }
 
-func databasePingHandlerV1(ping DatabasePing) http.HandlerFunc {
+// DatabasePingHandler builds a handler that reports 200 on a successful ping and 503 on failure —
+// exported so a caller can mount it under a project-specific route (e.g. a "/ready/v1" readiness
+// contract) in addition to, or instead of, RegisterSystemRoutes' own "/database/ping/v1".
+func DatabasePingHandler(ping DatabasePing) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
