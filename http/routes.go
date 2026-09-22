@@ -43,7 +43,7 @@ func DatabasePingHandler(ping DatabasePing) http.HandlerFunc {
 
 		err := ping(ctx)
 		if err != nil {
-			log.Err(ctx, err, ErrMsgDatabaseUnavailable)
+			// response.Send already logs the message and err below (code >= 400) — do not log again here.
 			response.Send(ctx, w, http.StatusServiceUnavailable, ErrMsgDatabaseUnavailable, nil, ErrDatabaseUnavailable)
 			return
 		}

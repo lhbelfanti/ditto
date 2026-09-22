@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/lhbelfanti/ditto/v2/env"
-	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 type (
@@ -16,17 +15,17 @@ type (
 	Check func(ctx context.Context) error
 )
 
-// MakeCheck creates a Check function that bounds ping to timeout and, on failure, logs the
-// underlying cause once and returns it hidden behind ErrDatabaseUnavailable.
+// MakeCheck creates a Check function that bounds ping to timeout and, on failure, returns it
+// hidden behind ErrDatabaseUnavailable. It never logs itself — Check runs both behind HTTP
+// handlers (which already log via response.Send) and in non-HTTP startup paths, so logging is
+// the caller's decision, not this primitive's.
 func MakeCheck(ping Ping, timeout time.Duration) Check {
 	return func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 
 		if err := ping(ctx); err != nil {
-			safeErr := WrapUnavailable(err)
-			log.Err(ctx, safeErr, ErrDatabaseUnavailable.Error())
-			return safeErr
+			return WrapUnavailable(err)
 		}
 
 		return nil
