@@ -7,12 +7,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// InitPostgres creates a new postgres instance
+// InitPostgres creates a new postgres instance. A connection failure is returned hidden behind
+// the credential-safe ErrCantInitDatabase sentinel — callers never see the raw driver error.
 func InitPostgres() (*Postgres, error) {
 	var initErr error
 	pgOnce.Do(func() {
 		db, err := pgxpool.New(context.Background(), resolveDatabaseURL())
-		initErr = err
+		if err != nil {
+			initErr = WrapInitFailure(err)
+		}
 		pgInstance = &Postgres{db}
 	})
 

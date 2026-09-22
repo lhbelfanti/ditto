@@ -2,18 +2,13 @@ package database
 
 import "errors"
 
-const (
-	ErrMsgDatabaseUnavailable string = "database: unavailable"
-	ErrMsgCantInitDatabase    string = "database: can't initialize database"
-)
-
 var (
 	ErrNoRows  = errors.New("database: no rows found")
 	ErrQuery   = errors.New("database: query execution failed")
 	ErrCollect = errors.New("database: failed to collect rows")
 
-	ErrDatabaseUnavailable = errors.New(ErrMsgDatabaseUnavailable)
-	ErrCantInitDatabase    = errors.New(ErrMsgCantInitDatabase)
+	ErrDatabaseUnavailable = errors.New("database: unavailable")
+	ErrCantInitDatabase    = errors.New("database: can't initialize database")
 )
 
 // SafeError renders only its package-owned sentinel message, while still letting errors.Is
