@@ -2,6 +2,11 @@ package database
 
 import "errors"
 
+const (
+	ErrMsgDatabaseUnavailable string = "database: unavailable"
+	ErrMsgCantInitDatabase    string = "database: can't initialize database"
+)
+
 var (
 	// ErrNoRows is returned when a query finds no matching rows.
 	ErrNoRows = errors.New("database: no rows found")
@@ -13,10 +18,10 @@ var (
 	ErrCollect = errors.New("database: failed to collect rows")
 
 	// ErrDatabaseUnavailable is returned when a bounded Check fails to reach the database.
-	ErrDatabaseUnavailable = errors.New("database: unavailable")
+	ErrDatabaseUnavailable = errors.New(ErrMsgDatabaseUnavailable)
 
 	// ErrCantInitDatabase is returned when InitPostgres fails to establish a connection pool.
-	ErrCantInitDatabase = errors.New("database: can't initialize database")
+	ErrCantInitDatabase = errors.New(ErrMsgCantInitDatabase)
 )
 
 // SafeError renders only its package-owned sentinel message, while still letting errors.Is

@@ -24,7 +24,8 @@ func MakeCheck(ping Ping, timeout time.Duration) Check {
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 
-		if err := ping(ctx); err != nil {
+		err := ping(ctx)
+		if err != nil {
 			return WrapUnavailable(err)
 		}
 
@@ -36,12 +37,14 @@ func MakeCheck(ping Ping, timeout time.Duration) Check {
 // POSTGRES_DB_PORT (a valid TCP port) and POSTGRES_DB_NAME/USER/PASS (non-empty) — so a caller can
 // fail fast with a clear, credential-safe message before ever attempting a connection.
 func RequireEnv(lookup env.Lookup) error {
-	if _, err := env.RequirePort(lookup, "POSTGRES_DB_PORT"); err != nil {
+	_, err := env.RequirePort(lookup, "POSTGRES_DB_PORT")
+	if err != nil {
 		return err
 	}
 
 	for _, key := range []string{"POSTGRES_DB_NAME", "POSTGRES_DB_USER", "POSTGRES_DB_PASS"} {
-		if _, err := env.RequireValue(lookup, key); err != nil {
+		_, err := env.RequireValue(lookup, key)
+		if err != nil {
 			return err
 		}
 	}
