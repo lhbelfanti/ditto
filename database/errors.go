@@ -3,20 +3,12 @@ package database
 import "errors"
 
 var (
-	// ErrNoRows is returned when a query finds no matching rows.
-	ErrNoRows = errors.New("database: no rows found")
-
-	// ErrQuery is returned when a query execution fails.
-	ErrQuery = errors.New("database: query execution failed")
-
-	// ErrCollect is returned when row collection fails after a successful query.
+	ErrNoRows  = errors.New("database: no rows found")
+	ErrQuery   = errors.New("database: query execution failed")
 	ErrCollect = errors.New("database: failed to collect rows")
 
-	// ErrDatabaseUnavailable is returned when a bounded Check fails to reach the database.
 	ErrDatabaseUnavailable = errors.New("database: unavailable")
-
-	// ErrCantInitDatabase is returned when InitPostgres fails to establish a connection pool.
-	ErrCantInitDatabase = errors.New("database: can't initialize database")
+	ErrCantInitDatabase    = errors.New("database: can't initialize database")
 )
 
 // SafeError renders only its package-owned sentinel message, while still letting errors.Is

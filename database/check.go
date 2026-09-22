@@ -24,7 +24,8 @@ func MakeCheck(ping Ping, timeout time.Duration) Check {
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 
-		if err := ping(ctx); err != nil {
+		err := ping(ctx)
+		if err != nil {
 			return WrapUnavailable(err)
 		}
 
@@ -32,16 +33,24 @@ func MakeCheck(ping Ping, timeout time.Duration) Check {
 	}
 }
 
+// MakeCheck creates a Check function bounding pg's own connection pool ping to timeout, so a
+// caller never needs to reach past Postgres into its underlying pool to build one.
+func (pg *Postgres) MakeCheck(timeout time.Duration) Check {
+	return MakeCheck(pg.Database().Ping, timeout)
+}
+
 // RequireEnv validates the exact environment variables resolveDatabaseURL/InitPostgres consume —
 // POSTGRES_DB_PORT (a valid TCP port) and POSTGRES_DB_NAME/USER/PASS (non-empty) — so a caller can
 // fail fast with a clear, credential-safe message before ever attempting a connection.
 func RequireEnv(lookup env.Lookup) error {
-	if _, err := env.RequirePort(lookup, "POSTGRES_DB_PORT"); err != nil {
+	_, err := env.RequirePort(lookup, "POSTGRES_DB_PORT")
+	if err != nil {
 		return err
 	}
 
 	for _, key := range []string{"POSTGRES_DB_NAME", "POSTGRES_DB_USER", "POSTGRES_DB_PASS"} {
-		if _, err := env.RequireValue(lookup, key); err != nil {
+		_, err := env.RequireValue(lookup, key)
+		if err != nil {
 			return err
 		}
 	}
