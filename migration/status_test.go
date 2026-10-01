@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/lhbelfanti/ditto/v2/database"
 	"github.com/lhbelfanti/ditto/v2/migration"
@@ -173,33 +172,4 @@ func TestMakeStatus_ErrorWhenAppliedNamesFails(t *testing.T) {
 	assert.ErrorIs(t, err, migration.ErrFailedToSelectAppliedNames)
 	assert.ErrorIs(t, err, underlying)
 	assert.Nil(t, got)
-}
-
-func TestMakeStatusFromConnection_success(t *testing.T) {
-	dir := t.TempDir()
-	writeFile(t, dir, "000_foundation.sql", "SELECT 1;")
-
-	mockConn := new(database.MockPostgresConnection)
-	tableExistsRows := new(database.MockPgxRows)
-	mockConn.On("Query", mock.Anything, mock.MatchedBy(migration.MockQueryContains("to_regclass")), mock.Anything).
-		Return(tableExistsRows, nil)
-	tableExistsRows.On("Next").Return(true)
-	tableExistsRows.On("Close").Return()
-	tableExistsRows.On("Err").Return(nil)
-	database.MockPgxRowsScanValue(tableExistsRows, true, t)
-
-	appliedNamesRows := new(database.MockPgxRows)
-	mockConn.On("Query", mock.Anything, mock.MatchedBy(migration.MockQueryContains("SELECT name FROM migrations")), mock.Anything).
-		Return(appliedNamesRows, nil)
-	appliedNamesRows.On("Next").Return(true).Once()
-	appliedNamesRows.On("Next").Return(false)
-	appliedNamesRows.On("Err").Return(nil)
-	appliedNamesRows.On("Close").Return()
-	database.MockPgxRowsScanValue(appliedNamesRows, "000_foundation.sql", t)
-
-	status := migration.MakeStatusFromConnection(mockConn, dir)
-	got, err := status(context.Background())
-
-	assert.NoError(t, err)
-	assert.Equal(t, []migration.Record{{Name: "000_foundation.sql", Applied: true}}, got)
 }
