@@ -40,13 +40,11 @@ if err != nil {
 ```
 
 That's the entire wiring for a `migrations`/`status`-capable CLI. `MakeStatusFromConnection` is the
-single-call counterpart to `MakeRunner` — it composes `MakeListFiles`/`MakeTableExists`/
+single-call counterpart to `MakeRunner` — it wires `MakeListFiles`/`MakeTableExists`/
 `MakeAppliedNames` internally, so a caller never needs to hand-build a
 `database.SelectOne[bool]`/`database.Select[string]` with pgx-level scan glue just to check
-whether the tracking table exists or which files are recorded as applied. Reach for the individual
-`MakeListFiles`/`MakeTableExists`/`MakeAppliedNames` building blocks only if you need to inject a
-non-`database.Connection`-backed `TableExists`/`AppliedNames` (e.g. in a test, via
-`MockTableExists`/`MockAppliedNames`).
+whether the tracking table exists or which files are recorded as applied. `MakeStatus` remains
+available when those dependencies are already built or need to be injected, as in tests.
 
 ### Wiring the HTTP migrations route
 
