@@ -31,6 +31,7 @@ type (
 
 var (
 	pgInstance *Postgres
+	pgInitErr  error
 	pgOnce     sync.Once
 )
 
