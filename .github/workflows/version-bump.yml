@@ -55,9 +55,13 @@ jobs:
               "feat:"* | "feat("*)
                 [ "$BUMP" != "major" ] && BUMP="minor"
                 ;;
-              # fix, refactor, perf, build, chore (with or without scope) → patch bump
-              "fix:"* | "fix("* | "refactor:"* | "refactor("* | "perf:"* | "perf("* | "build:"* | "build("* | "chore:"* | "chore("*)
+              # fix, refactor, perf, build, chore, cleanup (with or without scope) → patch bump
+              "fix:"* | "fix("* | "refactor:"* | "refactor("* | "perf:"* | "perf("* | "build:"* | "build("* | "chore:"* | "chore("* | "cleanup:"* | "cleanup("*)
                 [ "$BUMP" != "major" ] && [ "$BUMP" != "minor" ] && BUMP="patch"
+                ;;
+              # test, docs, style, ci, assets, i18n (with or without scope) → no behavioral
+              # change, no bump — explicit here instead of falling through the default
+              "test:"* | "test("* | "docs:"* | "docs("* | "style:"* | "style("* | "ci:"* | "ci("* | "assets:"* | "assets("* | "i18n:"* | "i18n("*)
                 ;;
             esac
           done <<< "$SUBJECTS"
