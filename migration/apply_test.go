@@ -9,12 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 
-	dittohttp "github.com/lhbelfanti/ditto/v2/http"
 	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
 func TestMakeApply_Success(t *testing.T) {
-	mockRunner := dittohttp.MockMigrationRunner(nil)
+	mockRunner := migration.MockRunner(nil)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
 
 	apply := migration.MakeApply(mockRunner, mockStatus)
@@ -26,7 +25,7 @@ func TestMakeApply_Success(t *testing.T) {
 func TestMakeApply_ErrorWithFileAttributionWhenExecutionFails(t *testing.T) {
 	pgErr := &pgconn.PgError{Code: "42601"}
 	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, pgErr)
-	mockRunner := dittohttp.MockMigrationRunner(runnerErr)
+	mockRunner := migration.MockRunner(runnerErr)
 	records := []migration.Record{
 		{Name: "000_foundation.sql", Applied: true},
 		{Name: "001_second.sql", Applied: false},
@@ -46,7 +45,7 @@ func TestMakeApply_ErrorWithFileAttributionWhenExecutionFails(t *testing.T) {
 
 func TestMakeApply_ErrorWithoutFileAttributionWhenFailureIsPreFile(t *testing.T) {
 	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToCreateTable, errors.New("connection refused"))
-	mockRunner := dittohttp.MockMigrationRunner(runnerErr)
+	mockRunner := migration.MockRunner(runnerErr)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
 
 	apply := migration.MakeApply(mockRunner, mockStatus)
@@ -60,7 +59,7 @@ func TestMakeApply_ErrorWithoutFileAttributionWhenFailureIsPreFile(t *testing.T)
 
 func TestMakeApply_ErrorWithoutFileAttributionWhenDiagnosticSnapshotFails(t *testing.T) {
 	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, errors.New("execution error"))
-	mockRunner := dittohttp.MockMigrationRunner(runnerErr)
+	mockRunner := migration.MockRunner(runnerErr)
 	mockStatus := migration.MockStatus(nil, errors.New("status query failed"))
 
 	apply := migration.MakeApply(mockRunner, mockStatus)
