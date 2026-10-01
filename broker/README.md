@@ -12,12 +12,23 @@ an internal semaphore. Both exist together because QoS alone only limits how man
 deliveries RabbitMQ will hand out — it does not, by itself, cap how many goroutines your own
 process spawns to handle them.
 
-`NewConsumer` opens the connection and declares the queue. `InitMessageConsumerWithFunction`
-configures QoS before registering the consumer, so the prefetch limit applies from the first
-delivery. Subscription failures are logged by `InitMessageConsumerWithFunction`.
+`NewConsumer` opens the connection and declares the queue; it no longer subscribes itself.
+`InitMessageConsumerWithFunction` configures QoS *before* subscribing, so the prefetch limit
+applies from the first delivery — and blocks for the consumer's lifetime, so call it in its own
+goroutine.
 
-The value must be greater than zero. Invalid values or a QoS setup failure are logged and stop
-the consumer before it receives deliveries.
+`concurrentMessages` must be greater than zero. `InitMessageConsumerWithFunction` returns a
+non-nil error immediately — without ever logging itself, the same as `database.Check` — if
+`concurrentMessages <= 0`, QoS setup fails, or subscribing fails, instead of silently doing
+nothing. Check it if you need startup to fail fast on a broken broker:
+
+```go
+go func() {
+    if err := consumerBroker.InitMessageConsumerWithFunction(5, process); err != nil {
+        log.Fatalf("consumer stopped: %s", err)
+    }
+}()
+```
 
 ## Shutdown
 
@@ -40,9 +51,9 @@ package does not provide it.
 
 `NewProducer` never sets the broker's `messages` channel. Calling
 `InitMessageConsumerWithFunction` on a broker built by `NewProducer` used to range over that nil
-channel and block forever, silently. It now detects this and logs
-`ErrNotAConsumer` instead of hanging — but the right fix is still to build the broker with the
-constructor matching how you intend to use it: `NewConsumer` to consume, `NewProducer` to publish.
+channel and block forever, silently. It now detects this and returns `ErrNotAConsumer` instead of
+hanging — but the right fix is still to build the broker with the constructor matching how you
+intend to use it: `NewConsumer` to consume, `NewProducer` to publish.
 
 ## Testing
 
