@@ -5,6 +5,10 @@ envelope (`response`), a thin synchronous client (`CustomClient`), ditto's own s
 (`RegisterSystemRoutes`), bounded graceful shutdown (`GracefulShutdown`), and three middlewares
 (`middleware.Auth`/`CORS`/`RequestID`).
 
+For client tests that need a response sequence (for example, 429 followed by 200), set
+`NewClient(0).HTTPClient.Transport` to `MockSequenceRoundTripper` with one `MockHTTPResult` per
+request. The transport returns an error if more requests are made than results provided.
+
 ## `RegisterSystemRoutes`
 
 ```go

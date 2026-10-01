@@ -12,6 +12,9 @@ an internal semaphore. Both exist together because QoS alone only limits how man
 deliveries RabbitMQ will hand out — it does not, by itself, cap how many goroutines your own
 process spawns to handle them.
 
+The value must be greater than zero. Invalid values or a QoS setup failure are logged and stop
+the consumer before it receives deliveries.
+
 ## Shutdown
 
 `CloseConnection()` waits up to 10 seconds for any in-flight `processorFunc` goroutines spawned by
@@ -19,6 +22,7 @@ process spawns to handle them.
 that's mid-processing when shutdown starts gets a real chance to `Ack`/`Nack` instead of being
 silently abandoned. A producer-only broker (built by `NewProducer`) closes immediately, since it
 never spawns any processing goroutines.
+Shutdown also stops the consumer loop from dispatching new work before waiting for in-flight work.
 
 ## Message-loss semantics
 
@@ -38,9 +42,8 @@ constructor matching how you intend to use it: `NewConsumer` to consume, `NewPro
 
 ## Testing
 
-`amqp091.Connection`/`Channel` are concrete types, not interfaces, so `dial`/`openChannel`/
-`declareQueue`/`NewConsumer`/`NewProducer` and the QoS/semaphore behavior inside
-`InitMessageConsumerWithFunction` can't be unit-tested without a real (or containerized) broker —
-only `dial`'s error-wrapping and ctx-cancellation branches, and the nil-`messages` guard, are
-covered today. `MockEnqueue` provides a `MessageBroker` test double for consumer code that doesn't
-need to exercise this package's own RabbitMQ wiring.
+An internal channel interface lets unit tests exercise queue declaration, publishing, QoS,
+concurrency limits, and Ack/Nack behavior without a running RabbitMQ server. Dial and constructor
+success paths still need an integration test with RabbitMQ. `MockEnqueue` provides a
+`MessageBroker` test double for consumer code that doesn't need to exercise this package's own
+RabbitMQ wiring.
