@@ -10,7 +10,7 @@ leaking driver detail.
 | Type | Role |
 |---|---|
 | `Runner` | Applies every pending file. Built by `MakeRunner`/`MakeRunnerWithDeps`. |
-| `Status` | Reports every file as applied/pending, without mutating the database. Built by `MakeStatus`/`MakeStatusFromConnection`. |
+| `Status` | Reports every file as applied/pending, without mutating the database. Built by `MakeStatus`. |
 | `Apply` | Wraps a `Runner` with credential-safe, file-attributed failure reporting. Built by `MakeApply`. |
 | `Record` | One file's name and applied/pending state, as reported by `Status`. |
 
@@ -30,7 +30,13 @@ if err != nil {
 defer pg.Close()
 
 runner := migration.MakeRunner(pg.Database(), "./migrations")
-status := migration.MakeStatusFromConnection(pg.Database(), "./migrations")
+selectOneBool := database.MakeSelectOne[bool](pg.Database(), pgx.RowTo[bool])
+selectNames := database.MakeSelect[string](pg.Database(), database.MakeCollectRows(pgx.RowTo[string]))
+status := migration.MakeStatus(
+    migration.MakeListFiles("./migrations"),
+    migration.MakeTableExists(selectOneBool),
+    migration.MakeAppliedNames(selectNames),
+)
 apply := migration.MakeApply(runner, status)
 
 err = migration.Dispatch(ctx, os.Args[1:], apply, status, os.Stdout)
@@ -39,12 +45,9 @@ if err != nil {
 }
 ```
 
-That's the entire wiring for a `migrations`/`status`-capable CLI. `MakeStatusFromConnection` is the
-single-call counterpart to `MakeRunner` — it wires `MakeListFiles`/`MakeTableExists`/
-`MakeAppliedNames` internally, so a caller never needs to hand-build a
-`database.SelectOne[bool]`/`database.Select[string]` with pgx-level scan glue just to check
-whether the tracking table exists or which files are recorded as applied. `MakeStatus` remains
-available when those dependencies are already built or need to be injected, as in tests.
+The CLI wires each operation explicitly: the database selects receive the connection, the
+migration makers receive those selects, and `MakeStatus` receives the three operations it uses.
+The example needs an import of `github.com/jackc/pgx/v5` for `pgx.RowTo`.
 
 ### Wiring the HTTP migrations route
 
