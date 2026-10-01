@@ -17,18 +17,20 @@ import (
 func setupMigrationDir(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
 		t.Fatal(err)
 	}
 	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {
+		err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644)
+		if err != nil {
 			t.Fatal(err)
 		}
 	}
 	return dir
 }
 
-func TestMakeRunner_AppliesFiles(t *testing.T) {
+func TestMakeRunnerWithDeps_successWhenMigrationFilesPending(t *testing.T) {
 	dir := setupMigrationDir(t, map[string]string{
 		"000_setup.sql": "CREATE TABLE test (id SERIAL);",
 	})
@@ -49,7 +51,7 @@ func TestMakeRunner_AppliesFiles(t *testing.T) {
 	mockConn.AssertNumberOfCalls(t, "Exec", 2)
 }
 
-func TestMakeRunner_SkipsApplied(t *testing.T) {
+func TestMakeRunnerWithDeps_successWhenMigrationsAlreadyApplied(t *testing.T) {
 	dir := setupMigrationDir(t, map[string]string{
 		"000_setup.sql": "CREATE TABLE test (id SERIAL);",
 	})
@@ -60,21 +62,18 @@ func TestMakeRunner_SkipsApplied(t *testing.T) {
 
 	sel := database.MockSelectOne[bool](true, nil)
 
-	insertCalled := false
-	ins := func(ctx context.Context, query string, args ...any) (int, error) {
-		insertCalled = true
-		return 1, nil
-	}
+	insertCalled := 0
+	ins := database.MockInsertCounting(1, nil, &insertCalled)
 
 	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
 	err := runner(context.Background())
 
 	assert.NoError(t, err)
-	assert.False(t, insertCalled)
+	assert.Zero(t, insertCalled)
 	mockConn.AssertNumberOfCalls(t, "Exec", 1)
 }
 
-func TestMakeRunner_CreateTableError(t *testing.T) {
+func TestMakeRunnerWithDeps_failsWhenTrackingTableCreationFails(t *testing.T) {
 	dir := setupMigrationDir(t, map[string]string{})
 
 	mockConn := new(database.MockPostgresConnection)
@@ -89,7 +88,7 @@ func TestMakeRunner_CreateTableError(t *testing.T) {
 	assert.ErrorIs(t, err, migration.ErrFailedToCreateTable)
 }
 
-func TestMakeRunner_GlobError(t *testing.T) {
+func TestMakeRunnerWithDeps_failsWhenPatternMalformed(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
 
@@ -102,10 +101,11 @@ func TestMakeRunner_GlobError(t *testing.T) {
 	assert.ErrorIs(t, err, migration.ErrUnableToReadFile)
 }
 
-func TestMakeRunner_ReadFileError(t *testing.T) {
+func TestMakeRunnerWithDeps_failsWhenMigrationFileUnreadable(t *testing.T) {
 	dir := t.TempDir()
 	// A directory matching the *.sql glob: filepath.Glob matches it, but os.ReadFile fails on it.
-	if err := os.Mkdir(filepath.Join(dir, "000_setup.sql"), 0755); err != nil {
+	err := os.Mkdir(filepath.Join(dir, "000_setup.sql"), 0755)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -116,12 +116,12 @@ func TestMakeRunner_ReadFileError(t *testing.T) {
 	ins := database.MockInsert[int](0, nil)
 
 	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
-	err := runner(context.Background())
+	err = runner(context.Background())
 
 	assert.ErrorIs(t, err, migration.ErrUnableToReadFile)
 }
 
-func TestMakeRunner_ExecFileError(t *testing.T) {
+func TestMakeRunnerWithDeps_failsWhenMigrationExecutionFails(t *testing.T) {
 	dir := setupMigrationDir(t, map[string]string{
 		"000_setup.sql": "CREATE TABLE test (id SERIAL);",
 	})

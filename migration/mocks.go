@@ -1,6 +1,9 @@
 package migration
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 // MockListFiles returns a ListFiles that always returns the given names and error.
 func MockListFiles(names []string, err error) ListFiles {
@@ -42,4 +45,8 @@ func MockRunner(err error) Runner {
 	return func(context.Context) error {
 		return err
 	}
+}
+
+func MockQueryContains(substr string) func(string) bool {
+	return func(query string) bool { return strings.Contains(query, substr) }
 }
