@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"sync"
 
 	"github.com/rabbitmq/amqp091-go"
 )
@@ -22,4 +23,9 @@ type RabbitMQBroker struct {
 	channel  *amqp091.Channel
 	queue    amqp091.Queue
 	messages <-chan amqp091.Delivery
+
+	// inFlight tracks message-processing goroutines spawned by InitMessageConsumerWithFunction,
+	// so CloseConnection can give them a bounded chance to finish before tearing the connection
+	// down. Zero-value on a producer-only broker, where it is never touched.
+	inFlight sync.WaitGroup
 }
