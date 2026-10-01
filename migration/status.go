@@ -72,26 +72,12 @@ func MakeAppliedNames(selectMany database.Select[string]) AppliedNames {
 	}
 }
 
-// MakeTableExistsFromConnection creates a TableExists backed directly by db, building its own
-// read-only scalar select internally — the same convenience MakeCreateTable already offers,
-// sparing a caller from hand-building a database.SelectOne[bool] with pgx-level scan glue just to
-// check whether the tracking table exists.
-func MakeTableExistsFromConnection(db database.Connection) TableExists {
-	sel := database.MakeSelectOne[bool](db, pgx.RowTo[bool])
-	return MakeTableExists(sel)
-}
-
-// MakeAppliedNamesFromConnection creates an AppliedNames backed directly by db.
-func MakeAppliedNamesFromConnection(db database.Connection) AppliedNames {
-	sel := database.MakeSelect[string](db, database.MakeCollectRows(pgx.RowTo[string]))
-	return MakeAppliedNames(sel)
-}
-
-// MakeStatusFromConnection creates a Status backed directly by db and migrationsDir, composing
-// MakeListFiles/MakeTableExistsFromConnection/MakeAppliedNamesFromConnection — the single-call
-// counterpart to MakeRunner, for a caller that doesn't need the individual building blocks.
+// MakeStatusFromConnection wires a Status from a database connection and migrations directory.
+// Use MakeStatus when the individual dependencies are already available or need to be injected.
 func MakeStatusFromConnection(db database.Connection, migrationsDir string) Status {
-	return MakeStatus(MakeListFiles(migrationsDir), MakeTableExistsFromConnection(db), MakeAppliedNamesFromConnection(db))
+	selectOne := database.MakeSelectOne[bool](db, pgx.RowTo[bool])
+	selectMany := database.MakeSelect[string](db, database.MakeCollectRows(pgx.RowTo[string]))
+	return MakeStatus(MakeListFiles(migrationsDir), MakeTableExists(selectOne), MakeAppliedNames(selectMany))
 }
 
 // MakeStatus creates a Status function that classifies every migration file as applied or
