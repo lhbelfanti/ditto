@@ -9,19 +9,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInitMessageConsumerWithFunction_success(t *testing.T) {
+func TestInitMessageConsumerWithFunction_processesMessageThenReportsUnexpectedClose(t *testing.T) {
 	messages := make(chan amqp091.Delivery, 1)
 	acknowledger := MockAcknowledger(1, 1)
 	bodies := make(chan []byte, 1)
 	messages <- amqp091.Delivery{DeliveryTag: 1, Acknowledger: acknowledger, Body: []byte("hello")}
-	close(messages)
+	close(messages) // closed directly, not via CloseConnection — simulates a dropped connection
 	ch := &mockChannel{}
 	b := &RabbitMQBroker{channel: ch, messages: messages}
 
 	err := b.InitMessageConsumerWithFunction(2, MockRecordingProcessor(bodies, nil))
 	b.inFlight.Wait()
 
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, ErrConsumerChannelClosed)
 	assert.Equal(t, []byte("hello"), <-bodies)
 	assert.Equal(t, 2, ch.qosCount)
 	assert.Equal(t, uint64(1), <-acknowledger.acks)
@@ -30,13 +30,13 @@ func TestInitMessageConsumerWithFunction_success(t *testing.T) {
 
 func TestInitMessageConsumerWithFunction_successWhenSubscriptionStartsAfterQoS(t *testing.T) {
 	messages := make(chan amqp091.Delivery)
-	close(messages)
+	close(messages) // closed directly, not via CloseConnection — simulates a dropped connection
 	ch := &mockChannel{messages: messages}
 	b := &RabbitMQBroker{channel: ch, queue: amqp091.Queue{Name: "work"}, consumer: true}
 
 	err := b.InitMessageConsumerWithFunction(3, MockProcessor(nil))
 
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, ErrConsumerChannelClosed)
 	assert.Equal(t, 1, ch.consumeCalls)
 	assert.Equal(t, 3, ch.qosAtConsume)
 }
@@ -58,13 +58,13 @@ func TestInitMessageConsumerWithFunction_successWhenProcessorFails(t *testing.T)
 	messages := make(chan amqp091.Delivery, 1)
 	acknowledger := MockAcknowledger(1, 1)
 	messages <- amqp091.Delivery{DeliveryTag: 2, Acknowledger: acknowledger}
-	close(messages)
+	close(messages) // closed directly, not via CloseConnection — simulates a dropped connection
 	b := &RabbitMQBroker{channel: &mockChannel{}, messages: messages}
 
 	err := b.InitMessageConsumerWithFunction(1, MockProcessor(errors.New("processing failed")))
 	b.inFlight.Wait()
 
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, ErrConsumerChannelClosed)
 	assert.Equal(t, uint64(2), <-acknowledger.nacks)
 	assert.Empty(t, acknowledger.acks)
 }
@@ -74,7 +74,7 @@ func TestInitMessageConsumerWithFunction_successWhenTwoMessagesAndLimitIsOne(t *
 	acknowledger := MockAcknowledger(2, 2)
 	messages <- amqp091.Delivery{DeliveryTag: 1, Acknowledger: acknowledger}
 	messages <- amqp091.Delivery{DeliveryTag: 2, Acknowledger: acknowledger}
-	close(messages)
+	close(messages) // closed directly, not via CloseConnection — simulates a dropped connection
 	b := &RabbitMQBroker{channel: &mockChannel{}, messages: messages}
 	started := make(chan struct{}, 2)
 	release := make(chan struct{})
@@ -104,8 +104,28 @@ func TestInitMessageConsumerWithFunction_successWhenTwoMessagesAndLimitIsOne(t *
 	}
 	b.inFlight.Wait()
 
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, ErrConsumerChannelClosed)
 	assert.Len(t, acknowledger.acks, 2)
+}
+
+func TestInitMessageConsumerWithFunction_returnsNilWhenStoppedViaCloseConnection(t *testing.T) {
+	messages := make(chan amqp091.Delivery)
+	b := &RabbitMQBroker{channel: &mockChannel{}, messages: messages}
+	done := make(chan struct{})
+	var err error
+	go func() {
+		err = b.InitMessageConsumerWithFunction(1, MockProcessor(nil))
+		close(done)
+	}()
+
+	b.CloseConnection()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("consumer did not stop after CloseConnection")
+	}
+	assert.NoError(t, err)
 }
 
 func TestInitMessageConsumerWithFunction_failsWhenQoSUnavailable(t *testing.T) {
