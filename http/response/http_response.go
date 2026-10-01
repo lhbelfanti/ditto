@@ -22,10 +22,11 @@ func Send(ctx context.Context, w http.ResponseWriter, code int, message string, 
 	}
 
 	if code >= 400 {
-		log.Error(ctx, message)
 		if err != nil {
 			resp.Error = err.Error()
-			log.Error(ctx, err.Error())
+			log.Err(ctx, err, message)
+		} else {
+			log.Error(ctx, message)
 		}
 	} else {
 		log.Info(ctx, message)
