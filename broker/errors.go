@@ -10,5 +10,6 @@ var (
 	ErrFailedToConsumeQueue   = errors.New("failed to consume rabbitmq queue")
 	ErrFailedToPublishMessage = errors.New("failed to publish message to rabbitmq")
 	ErrFailedToSetQoS         = errors.New("failed to set rabbitmq channel qos")
+	ErrInvalidConcurrency     = errors.New("concurrentMessages must be greater than zero")
 	ErrNotAConsumer           = errors.New("broker: InitMessageConsumerWithFunction called on a broker built by NewProducer")
 )

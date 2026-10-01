@@ -61,6 +61,14 @@ func (b *RabbitMQBroker) EnqueueMessage(ctx context.Context, body string) error 
 // finish, then closes the broker connection regardless. A producer-only broker (no goroutines
 // ever spawned) closes immediately, since inFlight is already at zero.
 func (b *RabbitMQBroker) CloseConnection() {
+	b.stopChannel()
+	b.shutdownOnce.Do(func() {
+		b.dispatchMu.Lock()
+		b.closing = true
+		close(b.stop)
+		b.dispatchMu.Unlock()
+	})
+
 	done := make(chan struct{})
 	go func() {
 		b.inFlight.Wait()

@@ -62,16 +62,45 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 		log.Error(context.Background(), ErrNotAConsumer.Error())
 		return
 	}
+	if concurrentMessages <= 0 {
+		log.Error(context.Background(), ErrInvalidConcurrency.Error())
+		return
+	}
 
 	if err := b.channel.Qos(concurrentMessages, 0, false); err != nil {
-		log.Error(context.Background(), fmt.Sprintf("%s: %s", ErrFailedToSetQoS, err))
+		log.Err(context.Background(), err, ErrFailedToSetQoS.Error())
+		return
 	}
 
 	semaphore := make(chan struct{}, concurrentMessages)
+	stop := b.stopChannel()
 
-	for msg := range b.messages {
+	for {
+		var msg amqp091.Delivery
+		select {
+		case <-stop:
+			return
+		case received, ok := <-b.messages:
+			if !ok {
+				return
+			}
+			msg = received
+		}
+
+		select {
+		case semaphore <- struct{}{}:
+		case <-stop:
+			return
+		}
+
+		b.dispatchMu.Lock()
+		if b.closing {
+			b.dispatchMu.Unlock()
+			<-semaphore
+			return
+		}
 		b.inFlight.Add(1)
-		semaphore <- struct{}{}
+		b.dispatchMu.Unlock()
 
 		go func(d amqp091.Delivery) {
 			defer b.inFlight.Done()
