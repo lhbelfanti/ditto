@@ -37,7 +37,7 @@ func (m *mockBroker) EnqueueMessage(_ context.Context, _ string) error {
 	return m.enqueueErr
 }
 
-func (m *mockBroker) InitMessageConsumerWithFunction(_ int, _ ProcessorFunction) {}
+func (m *mockBroker) InitMessageConsumerWithFunction(_ int, _ ProcessorFunction) error { return nil }
 
 func (m *mockBroker) CloseConnection() {}
 

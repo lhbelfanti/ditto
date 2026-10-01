@@ -2,11 +2,10 @@ package broker
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/rabbitmq/amqp091-go"
-
-	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 // NewConsumer creates a new RabbitMQBroker configured for consuming messages.
@@ -37,25 +36,25 @@ func NewConsumer(ctx context.Context, url, queueName string) (*RabbitMQBroker, e
 	}, nil
 }
 
-// InitMessageConsumerWithFunction initializes the message consumer and starts processing
-// messages, bounding both RabbitMQ's own delivery rate (via channel QoS) and the number of
-// concurrently running processorFunc goroutines to concurrentMessages. Calling this on a broker
-// built by NewProducer (no messages channel) logs and returns instead of blocking forever on a
-// nil channel.
-func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction) {
+// InitMessageConsumerWithFunction subscribes and starts processing messages, bounding both
+// RabbitMQ's own delivery rate (via channel QoS) and the number of concurrently running
+// processorFunc goroutines to concurrentMessages. It blocks for the consumer's lifetime — call it
+// in its own goroutine — returning nil once stopped via CloseConnection, or a non-nil error
+// immediately if setup (QoS, subscribing) fails; it never logs itself, so a caller that needs this
+// failure visible decides how, the same as database.Check. Calling this on a broker built by
+// NewProducer (no messages channel) returns ErrNotAConsumer instead of blocking forever on a nil
+// channel.
+func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction) error {
 	if !b.consumer && b.messages == nil {
-		log.Error(context.Background(), ErrNotAConsumer.Error())
-		return
+		return ErrNotAConsumer
 	}
 	if concurrentMessages <= 0 {
-		log.Error(context.Background(), ErrInvalidConcurrency.Error())
-		return
+		return ErrInvalidConcurrency
 	}
 
 	err := b.channel.Qos(concurrentMessages, 0, false)
 	if err != nil {
-		log.Err(context.Background(), err, ErrFailedToSetQoS.Error())
-		return
+		return fmt.Errorf("%w: %w", ErrFailedToSetQoS, err)
 	}
 	if b.messages == nil {
 		b.messages, err = b.channel.Consume(
@@ -68,8 +67,7 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 			nil,          // args
 		)
 		if err != nil {
-			log.Err(context.Background(), err, ErrFailedToConsumeQueue.Error())
-			return
+			return fmt.Errorf("%w: %w", ErrFailedToConsumeQueue, err)
 		}
 	}
 
@@ -81,10 +79,10 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 		var msg amqp091.Delivery
 		select {
 		case <-stop:
-			return
+			return nil
 		case received, ok := <-b.messages:
 			if !ok {
-				return
+				return nil
 			}
 			msg = received
 		}
@@ -92,14 +90,14 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 		select {
 		case semaphore <- struct{}{}:
 		case <-stop:
-			return
+			return nil
 		}
 
 		b.dispatchMu.Lock()
 		if b.closing {
 			b.dispatchMu.Unlock()
 			<-semaphore
-			return
+			return nil
 		}
 		b.inFlight.Add(1)
 		b.dispatchMu.Unlock()

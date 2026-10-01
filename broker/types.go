@@ -11,7 +11,7 @@ type (
 	// MessageBroker defines the contract for interacting with the message broker.
 	MessageBroker interface {
 		EnqueueMessage(ctx context.Context, body string) error
-		InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction)
+		InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction) error
 		CloseConnection()
 	}
 
