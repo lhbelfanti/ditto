@@ -32,6 +32,7 @@ type (
 		channel      channel
 		queue        amqp091.Queue
 		messages     <-chan amqp091.Delivery
+		consumer     bool
 		stopOnce     sync.Once
 		stop         chan struct{}
 		shutdownOnce sync.Once

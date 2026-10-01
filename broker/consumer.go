@@ -2,7 +2,6 @@ package broker
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/rabbitmq/amqp091-go"
@@ -30,26 +29,11 @@ func NewConsumer(ctx context.Context, url, queueName string) (*RabbitMQBroker, e
 		return nil, err
 	}
 
-	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		ch.Close()
-		conn.Close()
-		return nil, fmt.Errorf("%w: %w", ErrFailedToConsumeQueue, err)
-	}
-
 	return &RabbitMQBroker{
 		conn:     conn,
 		channel:  ch,
 		queue:    q,
-		messages: msgs,
+		consumer: true,
 	}, nil
 }
 
@@ -59,7 +43,7 @@ func NewConsumer(ctx context.Context, url, queueName string) (*RabbitMQBroker, e
 // built by NewProducer (no messages channel) logs and returns instead of blocking forever on a
 // nil channel.
 func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction) {
-	if b.messages == nil {
+	if !b.consumer && b.messages == nil {
 		log.Error(context.Background(), ErrNotAConsumer.Error())
 		return
 	}
@@ -72,6 +56,21 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 	if err != nil {
 		log.Err(context.Background(), err, ErrFailedToSetQoS.Error())
 		return
+	}
+	if b.messages == nil {
+		b.messages, err = b.channel.Consume(
+			b.queue.Name, // queue
+			"",           // consumer
+			false,        // auto-ack
+			false,        // exclusive
+			false,        // no-local
+			false,        // no-wait
+			nil,          // args
+		)
+		if err != nil {
+			log.Err(context.Background(), err, ErrFailedToConsumeQueue.Error())
+			return
+		}
 	}
 
 	semaphore := make(chan struct{}, concurrentMessages)
