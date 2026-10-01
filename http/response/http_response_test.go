@@ -1,16 +1,20 @@
 package response_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/http/response"
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 func TestSend_success(t *testing.T) {
@@ -80,4 +84,17 @@ func TestSend_success(t *testing.T) {
 			assert.JSONEq(t, string(jsonWant), string(jsonGot), "Response mismatch")
 		})
 	}
+}
+
+func TestSend_logsErrorOnce(t *testing.T) {
+	var output bytes.Buffer
+	log.NewCustomLogger(&output, zerolog.TraceLevel)
+	t.Cleanup(func() { log.NewCustomLogger(os.Stdout, zerolog.DebugLevel) })
+
+	w := httptest.NewRecorder()
+	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
+
+	assert.Equal(t, 1, bytes.Count(output.Bytes(), []byte(`"level":"error"`)))
+	assert.Contains(t, output.String(), `"message":"request failed"`)
+	assert.Contains(t, output.String(), `"error":"cause"`)
 }

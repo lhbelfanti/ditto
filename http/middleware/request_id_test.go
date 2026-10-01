@@ -13,7 +13,7 @@ import (
 	"github.com/lhbelfanti/ditto/v2/log"
 )
 
-func TestRequestID_headerIsSetAndNonEmpty(t *testing.T) {
+func TestRequestID_successWhenHeaderIsAbsent(t *testing.T) {
 	handler := middleware.RequestID(middleware.MockNoopHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -24,7 +24,7 @@ func TestRequestID_headerIsSetAndNonEmpty(t *testing.T) {
 	assert.NotEmpty(t, id)
 }
 
-func TestRequestID_uniquePerRequest(t *testing.T) {
+func TestRequestID_successWhenRequestsAreDistinct(t *testing.T) {
 	handler := middleware.RequestID(middleware.MockNoopHandler())
 
 	req1 := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -49,7 +49,7 @@ func TestRequestID_successWhenInboundHeaderPresent(t *testing.T) {
 	assert.Equal(t, "upstream-id-123", w.Header().Get("X-Request-ID"))
 }
 
-func TestRequestID_contextContainsRequestID(t *testing.T) {
+func TestRequestID_successWhenContextIsLogged(t *testing.T) {
 	var buf bytes.Buffer
 	log.NewCustomLogger(&buf, zerolog.TraceLevel)
 

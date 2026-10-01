@@ -10,7 +10,7 @@ import (
 	"github.com/lhbelfanti/ditto/v2/http/middleware"
 )
 
-func TestCORS_successWithHeadersPresent(t *testing.T) {
+func TestCORS_successWhenOriginIsAllowed(t *testing.T) {
 	next := middleware.MockOKHandler()
 
 	handler := middleware.CORS()(next)
@@ -22,6 +22,7 @@ func TestCORS_successWithHeadersPresent(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, "http://localhost:3000", rr.Header().Get("Access-Control-Allow-Origin"))
+	assert.Contains(t, rr.Header().Values("Vary"), "Origin")
 }
 
 func TestCORS_successWhenOriginIsNotAllowed(t *testing.T) {
@@ -51,7 +52,7 @@ func TestCORS_successWhenOriginIsMissing(t *testing.T) {
 	assert.Empty(t, rr.Header().Get("Access-Control-Allow-Origin"))
 }
 
-func TestCORS_successWithOptionsPreflightReturning204(t *testing.T) {
+func TestCORS_successWhenRequestIsPreflight(t *testing.T) {
 	nextCalled := false
 	next := middleware.MockNextHandler(&nextCalled)
 
@@ -69,7 +70,7 @@ func TestCORS_successWithOptionsPreflightReturning204(t *testing.T) {
 	assert.False(t, nextCalled)
 }
 
-func TestCORS_successWithAllowCredentials(t *testing.T) {
+func TestCORS_successWhenCredentialsAllowed(t *testing.T) {
 	next := middleware.MockOKHandler()
 
 	handler := middleware.CORS()(next)
@@ -85,7 +86,7 @@ func TestCORS_successWithAllowCredentials(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestCORS_successWithOriginFromEnv(t *testing.T) {
+func TestCORS_successWhenOriginIsConfigured(t *testing.T) {
 	t.Setenv("CORS_ALLOWED_ORIGIN", "http://example.com")
 
 	next := middleware.MockOKHandler()
