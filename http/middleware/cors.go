@@ -2,17 +2,26 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/lhbelfanti/ditto/v2/env"
 )
 
-// CORS returns an HTTP middleware that sets CORS headers on every response.
+// CORS returns an HTTP middleware that sets CORS headers on every response. CORS_ALLOWED_ORIGIN
+// may list more than one origin separated by commas — the request's own Origin header is echoed
+// back only when it matches one of them, since Access-Control-Allow-Origin accepts exactly one
+// value and Access-Control-Allow-Credentials being "true" below rules out a "*" wildcard.
 func CORS() func(http.Handler) http.Handler {
-	origin := env.Get("CORS_ALLOWED_ORIGIN", "http://localhost:3000")
+	allowed := strings.Split(env.Get("CORS_ALLOWED_ORIGIN", "http://localhost:3000"), ",")
+	for i := range allowed {
+		allowed[i] = strings.TrimSpace(allowed[i])
+	}
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
+			if origin := r.Header.Get("Origin"); isAllowedOrigin(origin, allowed) {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			}
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -26,4 +35,18 @@ func CORS() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func isAllowedOrigin(origin string, allowed []string) bool {
+	if origin == "" {
+		return false
+	}
+
+	for _, a := range allowed {
+		if a == origin {
+			return true
+		}
+	}
+
+	return false
 }
