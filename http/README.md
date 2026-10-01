@@ -49,7 +49,8 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 - **`CORS`** reads `CORS_ALLOWED_ORIGIN` as a comma-separated allow-list and reflects the
   request's `Origin` back only when it matches one of them (required once more than one origin is
   configured, since `Access-Control-Allow-Origin` accepts exactly one value, and
-  `Access-Control-Allow-Credentials: true` rules out a `*` wildcard).
+  `Access-Control-Allow-Credentials: true` rules out a `*` wildcard). It also sets `Vary: Origin`
+  so caches keep responses for different origins separate.
 - **`Auth`** validates a `Bearer` token via an injected `SelectUserIDByToken` and injects the
   resulting user ID into the request context (`UserIDFromContext`). Failures answer through
   `response.Send`'s JSON envelope, the same shape every other handler in this package uses.

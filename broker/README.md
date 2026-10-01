@@ -12,6 +12,10 @@ an internal semaphore. Both exist together because QoS alone only limits how man
 deliveries RabbitMQ will hand out — it does not, by itself, cap how many goroutines your own
 process spawns to handle them.
 
+`NewConsumer` opens the connection and declares the queue. `InitMessageConsumerWithFunction`
+configures QoS before registering the consumer, so the prefetch limit applies from the first
+delivery. Subscription failures are logged by `InitMessageConsumerWithFunction`.
+
 The value must be greater than zero. Invalid values or a QoS setup failure are logged and stop
 the consumer before it receives deliveries.
 
