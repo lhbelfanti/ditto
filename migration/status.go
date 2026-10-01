@@ -77,10 +77,7 @@ func MakeAppliedNames(selectMany database.Select[string]) AppliedNames {
 // sparing a caller from hand-building a database.SelectOne[bool] with pgx-level scan glue just to
 // check whether the tracking table exists.
 func MakeTableExistsFromConnection(db database.Connection) TableExists {
-	sel := database.MakeSelectOne[bool](db, func(row pgx.CollectableRow) (bool, error) {
-		var v bool
-		return v, row.Scan(&v)
-	})
+	sel := database.MakeSelectOne[bool](db, pgx.RowTo[bool])
 	return MakeTableExists(sel)
 }
 

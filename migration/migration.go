@@ -34,7 +34,8 @@ func MakeRunnerWithDeps(db database.Connection, sel database.SelectOne[bool], in
 	insertApplied := MakeInsertApplied(ins)
 
 	return func(ctx context.Context) error {
-		if err := createTable(ctx); err != nil {
+		err := createTable(ctx)
+		if err != nil {
 			return err
 		}
 
@@ -61,12 +62,14 @@ func MakeRunnerWithDeps(db database.Connection, sel database.SelectOne[bool], in
 				return fmt.Errorf("%w: %w", ErrUnableToReadFile, err)
 			}
 
-			if _, execErr := db.Exec(ctx, string(content)); execErr != nil {
+			_, execErr := db.Exec(ctx, string(content))
+			if execErr != nil {
 				log.Error(ctx, execErr.Error())
 				return fmt.Errorf("%w: %w", ErrFailedToExecute, execErr)
 			}
 
-			if err := insertApplied(ctx, name); err != nil {
+			err = insertApplied(ctx, name)
+			if err != nil {
 				return err
 			}
 		}
