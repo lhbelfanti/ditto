@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/rabbitmq/amqp091-go"
 
@@ -41,7 +42,7 @@ func NewConsumer(ctx context.Context, url, queueName string) (*RabbitMQBroker, e
 	if err != nil {
 		ch.Close()
 		conn.Close()
-		return nil, fmt.Errorf("%w: %v", ErrFailedToConsumeQueue, err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToConsumeQueue, err)
 	}
 
 	return &RabbitMQBroker{
@@ -67,13 +68,15 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 		return
 	}
 
-	if err := b.channel.Qos(concurrentMessages, 0, false); err != nil {
+	err := b.channel.Qos(concurrentMessages, 0, false)
+	if err != nil {
 		log.Err(context.Background(), err, ErrFailedToSetQoS.Error())
 		return
 	}
 
 	semaphore := make(chan struct{}, concurrentMessages)
 	stop := b.stopChannel()
+	process := makeProcessDelivery(processorFunc, semaphore, &b.inFlight)
 
 	for {
 		var msg amqp091.Delivery
@@ -102,16 +105,21 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 		b.inFlight.Add(1)
 		b.dispatchMu.Unlock()
 
-		go func(d amqp091.Delivery) {
-			defer b.inFlight.Done()
-			defer func() { <-semaphore }()
+		go process(msg)
+	}
+}
 
-			ctx := context.Background()
-			if err := processorFunc(ctx, d.Body); err != nil {
-				_ = d.Nack(false, false)
-				return
-			}
-			_ = d.Ack(false)
-		}(msg)
+func makeProcessDelivery(processor ProcessorFunction, semaphore chan struct{}, inFlight *sync.WaitGroup) func(amqp091.Delivery) {
+	return func(d amqp091.Delivery) {
+		defer inFlight.Done()
+		defer func() { <-semaphore }()
+
+		ctx := context.Background()
+		err := processor(ctx, d.Body)
+		if err != nil {
+			_ = d.Nack(false, false)
+			return
+		}
+		_ = d.Ack(false)
 	}
 }

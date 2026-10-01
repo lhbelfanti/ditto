@@ -52,7 +52,7 @@ func (b *RabbitMQBroker) EnqueueMessage(ctx context.Context, body string) error 
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrFailedToPublishMessage, err)
+		return fmt.Errorf("%w: %w", ErrFailedToPublishMessage, err)
 	}
 	return nil
 }

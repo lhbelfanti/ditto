@@ -17,7 +17,7 @@ func declareQueue(ch channel, name string) (amqp091.Queue, error) {
 		nil,   // arguments
 	)
 	if err != nil {
-		return amqp091.Queue{}, fmt.Errorf("%w: %v", ErrFailedToDeclareQueue, err)
+		return amqp091.Queue{}, fmt.Errorf("%w: %w", ErrFailedToDeclareQueue, err)
 	}
 	return q, nil
 }
