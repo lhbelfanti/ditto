@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
@@ -70,14 +69,6 @@ func MakeAppliedNames(selectMany database.Select[string]) AppliedNames {
 	return func(ctx context.Context) ([]string, error) {
 		return selectMany(ctx, queryAppliedNames)
 	}
-}
-
-// MakeStatusFromConnection wires a Status from a database connection and migrations directory.
-// Use MakeStatus when the individual dependencies are already available or need to be injected.
-func MakeStatusFromConnection(db database.Connection, migrationsDir string) Status {
-	selectOne := database.MakeSelectOne[bool](db, pgx.RowTo[bool])
-	selectMany := database.MakeSelect[string](db, database.MakeCollectRows(pgx.RowTo[string]))
-	return MakeStatus(MakeListFiles(migrationsDir), MakeTableExists(selectOne), MakeAppliedNames(selectMany))
 }
 
 // MakeStatus creates a Status function that classifies every migration file as applied or
