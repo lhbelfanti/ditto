@@ -36,3 +36,10 @@ func MockApply(err error) Apply {
 		return err
 	}
 }
+
+// MockRunner returns a Runner that always returns err.
+func MockRunner(err error) Runner {
+	return func(context.Context) error {
+		return err
+	}
+}

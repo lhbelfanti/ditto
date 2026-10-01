@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
-
-	dittohttp "github.com/lhbelfanti/ditto/v2/http"
 )
 
 // Apply runs pending migrations through the injected runner and returns a credential-safe,
@@ -48,7 +46,7 @@ func (e *ApplyError) Unwrap() []error {
 // MakeApply wraps runner with deterministic, credential-safe failure attribution: on failure it
 // extracts the allowlisted PostgreSQL SQLSTATE (never the raw driver error) and, when the failure
 // happened during file execution, the name of the file that failed.
-func MakeApply(runner dittohttp.MigrationRunner, status Status) Apply {
+func MakeApply(runner Runner, status Status) Apply {
 	return func(ctx context.Context) error {
 		err := runner(ctx)
 		if err == nil {
