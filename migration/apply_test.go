@@ -12,7 +12,7 @@ import (
 	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
-func TestMakeApply_Success(t *testing.T) {
+func TestMakeApply_success(t *testing.T) {
 	mockRunner := migration.MockRunner(nil)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
 
@@ -22,7 +22,7 @@ func TestMakeApply_Success(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestMakeApply_ErrorWithFileAttributionWhenExecutionFails(t *testing.T) {
+func TestMakeApply_failsWhenExecutionFails(t *testing.T) {
 	pgErr := &pgconn.PgError{Code: "42601"}
 	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, pgErr)
 	mockRunner := migration.MockRunner(runnerErr)
@@ -43,7 +43,7 @@ func TestMakeApply_ErrorWithFileAttributionWhenExecutionFails(t *testing.T) {
 	assert.Equal(t, "42601", applyErr.Code)
 }
 
-func TestMakeApply_ErrorWithoutFileAttributionWhenFailureIsPreFile(t *testing.T) {
+func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
 	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToCreateTable, errors.New("connection refused"))
 	mockRunner := migration.MockRunner(runnerErr)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
@@ -57,7 +57,7 @@ func TestMakeApply_ErrorWithoutFileAttributionWhenFailureIsPreFile(t *testing.T)
 	assert.Equal(t, "", applyErr.File)
 }
 
-func TestMakeApply_ErrorWithoutFileAttributionWhenDiagnosticSnapshotFails(t *testing.T) {
+func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
 	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, errors.New("execution error"))
 	mockRunner := migration.MockRunner(runnerErr)
 	mockStatus := migration.MockStatus(nil, errors.New("status query failed"))
