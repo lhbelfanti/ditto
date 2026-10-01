@@ -12,13 +12,15 @@ type (
 	}
 
 	mockChannel struct {
-		qosErr     error
-		qosCount   int
-		queueErr   error
-		publishErr error
-		consumeErr error
-		messages   <-chan amqp091.Delivery
-		published  amqp091.Publishing
+		qosErr       error
+		qosCount     int
+		queueErr     error
+		publishErr   error
+		consumeErr   error
+		consumeCalls int
+		qosAtConsume int
+		messages     <-chan amqp091.Delivery
+		published    amqp091.Publishing
 	}
 
 	mockAcknowledger struct {
@@ -45,6 +47,8 @@ func (m *mockChannel) Qos(count, _ int, _ bool) error {
 }
 
 func (m *mockChannel) Consume(_, _ string, _, _, _, _ bool, _ amqp091.Table) (<-chan amqp091.Delivery, error) {
+	m.consumeCalls++
+	m.qosAtConsume = m.qosCount
 	return m.messages, m.consumeErr
 }
 

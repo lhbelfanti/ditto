@@ -27,6 +27,28 @@ func TestInitMessageConsumerWithFunction_success(t *testing.T) {
 	assert.Empty(t, acknowledger.nacks)
 }
 
+func TestInitMessageConsumerWithFunction_successWhenSubscriptionStartsAfterQoS(t *testing.T) {
+	messages := make(chan amqp091.Delivery)
+	close(messages)
+	ch := &mockChannel{messages: messages}
+	b := &RabbitMQBroker{channel: ch, queue: amqp091.Queue{Name: "work"}, consumer: true}
+
+	b.InitMessageConsumerWithFunction(3, MockProcessor(nil))
+
+	assert.Equal(t, 1, ch.consumeCalls)
+	assert.Equal(t, 3, ch.qosAtConsume)
+}
+
+func TestInitMessageConsumerWithFunction_failsWhenSubscriptionFails(t *testing.T) {
+	ch := &mockChannel{consumeErr: errors.New("subscription failed")}
+	b := &RabbitMQBroker{channel: ch, queue: amqp091.Queue{Name: "work"}, consumer: true}
+
+	b.InitMessageConsumerWithFunction(2, MockProcessor(nil))
+
+	assert.Equal(t, 1, ch.consumeCalls)
+	assert.Equal(t, 2, ch.qosAtConsume)
+}
+
 func TestInitMessageConsumerWithFunction_successWhenProcessorFails(t *testing.T) {
 	messages := make(chan amqp091.Delivery, 1)
 	acknowledger := MockAcknowledger(1, 1)
