@@ -226,6 +226,13 @@ func MockPgxCollectableRowMethods(m *MockPgxCollectableRow, values []any, t *tes
 	})
 }
 
+func MockPgxRowsScanValue(rows *MockPgxRows, value any, t *testing.T) {
+	rows.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		dest := args.Get(0).([]any)
+		parseScanValue(value, dest[0], t)
+	})
+}
+
 // parseScanValue assigns a value from `val` to the provided `dest` based on its type, validating supported types.
 // It uses `t` for error reporting in tests when the type is unsupported or mismatched.
 func parseScanValue(val any, dest interface{}, t *testing.T) {
@@ -235,7 +242,8 @@ func parseScanValue(val any, dest interface{}, t *testing.T) {
 	case **int:
 		*d = val.(*int)
 	case *string:
-		if s, ok := val.(*string); ok {
+		s, ok := val.(*string)
+		if ok {
 			*d = *s
 		} else {
 			*d = val.(string)
@@ -264,14 +272,16 @@ func parseScanValue(val any, dest interface{}, t *testing.T) {
 			d.Valid = false
 		}
 	case *pgtype.Timestamp:
-		if v, ok := val.(time.Time); ok {
+		v, ok := val.(time.Time)
+		if ok {
 			d.Time = v
 			d.Valid = true
 		} else {
 			d.Valid = false
 		}
 	case *pgtype.Bool:
-		if v, ok := val.(bool); ok {
+		v, ok := val.(bool)
+		if ok {
 			d.Bool = v
 			d.Valid = true
 		} else {
@@ -306,6 +316,13 @@ func MockSelectOne[T any](val T, err error) SelectOne[T] {
 // MockInsert returns an Insert[T] that always returns the given value and error.
 func MockInsert[T any](val T, err error) Insert[T] {
 	return func(ctx context.Context, query string, args ...any) (T, error) {
+		return val, err
+	}
+}
+
+func MockInsertCounting[T any](val T, err error, calls *int) Insert[T] {
+	return func(context.Context, string, ...any) (T, error) {
+		(*calls)++
 		return val, err
 	}
 }

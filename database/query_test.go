@@ -25,7 +25,7 @@ func TestMakeSelect_success(t *testing.T) {
 	assert.Equal(t, []string{"a", "b"}, got)
 }
 
-func TestMakeSelect_queryError(t *testing.T) {
+func TestMakeSelect_failsWhenQueryFails(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).
 		Return((*database.MockPgxRows)(nil), pgx.ErrTxClosed)
@@ -38,7 +38,7 @@ func TestMakeSelect_queryError(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-func TestMakeSelect_collectError(t *testing.T) {
+func TestMakeSelect_failsWhenCollectFails(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockRows := new(database.MockPgxRows)
 	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(mockRows, nil)
@@ -58,41 +58,30 @@ func TestMakeSelectOne_success(t *testing.T) {
 	mockRows.On("Next").Return(true)
 	mockRows.On("Close").Return()
 	mockRows.On("Err").Return(nil)
-	mockRows.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		dest := args.Get(0).([]any)
-		*(dest[0].(*bool)) = true
-	})
-	scanBool := func(row pgx.CollectableRow) (bool, error) {
-		var v bool
-		return v, row.Scan(&v)
-	}
+	database.MockPgxRowsScanValue(mockRows, true, t)
 
-	selOne := database.MakeSelectOne[bool](mockConn, scanBool)
+	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
 	got, err := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 
 	assert.NoError(t, err)
 	assert.True(t, got)
 }
 
-func TestMakeSelectOne_noRows(t *testing.T) {
+func TestMakeSelectOne_failsWhenNoRowsFound(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockRows := new(database.MockPgxRows)
 	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(mockRows, nil)
 	mockRows.On("Next").Return(false)
 	mockRows.On("Err").Return(nil)
 	mockRows.On("Close").Return()
-	scanBool := func(row pgx.CollectableRow) (bool, error) {
-		var v bool
-		return v, row.Scan(&v)
-	}
 
-	selOne := database.MakeSelectOne[bool](mockConn, scanBool)
+	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
 	_, err := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 
 	assert.ErrorIs(t, err, database.ErrNoRows)
 }
 
-func TestMakeSelectOne_queryError(t *testing.T) {
+func TestMakeSelectOne_failsWhenQueryFails(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).
 		Return((*database.MockPgxRows)(nil), pgx.ErrTxClosed)
@@ -107,10 +96,7 @@ func TestMakeInsert_success(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockRow := new(database.MockPgxRow)
 	mockConn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(mockRow)
-	mockRow.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		dest := args.Get(0).([]any)
-		*(dest[0].(*int)) = 42
-	})
+	database.MockScan(mockRow, []any{42}, t)
 
 	insert := database.MakeInsert[int](mockConn)
 	got, err := insert(context.Background(), "INSERT INTO t DEFAULT VALUES RETURNING id")
@@ -119,7 +105,7 @@ func TestMakeInsert_success(t *testing.T) {
 	assert.Equal(t, 42, got)
 }
 
-func TestMakeInsert_error(t *testing.T) {
+func TestMakeInsert_failsWhenQueryFails(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockRow := new(database.MockPgxRow)
 	mockConn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(mockRow)
@@ -141,7 +127,7 @@ func TestMakeDelete_success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMakeDelete_error(t *testing.T) {
+func TestMakeDelete_failsWhenQueryFails(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, pgx.ErrTxClosed)
 
@@ -161,7 +147,7 @@ func TestMakeUpdate_success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMakeUpdate_error(t *testing.T) {
+func TestMakeUpdate_failsWhenQueryFails(t *testing.T) {
 	mockConn := new(database.MockPostgresConnection)
 	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, pgx.ErrTxClosed)
 

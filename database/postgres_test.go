@@ -12,7 +12,7 @@ import (
 // since any other test calling it first would decide the singleton's outcome for the rest of this
 // package's test binary. A malformed port fails pgxpool.New's own config parsing immediately, with
 // no real network I/O needed to exercise the failure path.
-func TestInitPostgres_returnsSameErrorOnRetryAfterFailure(t *testing.T) {
+func TestInitPostgres_failsWhenCalledAgainAfterInitializationFailure(t *testing.T) {
 	t.Setenv("POSTGRES_DB_USER", "u")
 	t.Setenv("POSTGRES_DB_PASS", "p")
 	t.Setenv("POSTGRES_DB_NAME", "d")
