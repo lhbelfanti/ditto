@@ -18,10 +18,7 @@ type Runner func(ctx context.Context) error
 // MakeRunner returns a Runner that applies all *.sql files from migrationsDir
 // in lexicographic order, skipping already-applied files.
 func MakeRunner(db database.Connection, migrationsDir string) Runner {
-	sel := database.MakeSelectOne[bool](db, func(row pgx.CollectableRow) (bool, error) {
-		var v bool
-		return v, row.Scan(&v)
-	})
+	sel := database.MakeSelectOne[bool](db, pgx.RowTo[bool])
 	ins := database.MakeInsert[int](db)
 	return MakeRunnerWithDeps(db, sel, ins, migrationsDir)
 }
