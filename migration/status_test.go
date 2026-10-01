@@ -5,11 +5,13 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/lhbelfanti/ditto/v2/database"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
+	"github.com/lhbelfanti/ditto/v2/database"
 	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
@@ -172,4 +174,84 @@ func TestMakeStatus_ErrorWhenAppliedNamesFails(t *testing.T) {
 	assert.ErrorIs(t, err, migration.ErrFailedToSelectAppliedNames)
 	assert.ErrorIs(t, err, underlying)
 	assert.Nil(t, got)
+}
+
+func TestMakeTableExistsFromConnection_Success(t *testing.T) {
+	mockConn := new(database.MockPostgresConnection)
+	mockRows := new(database.MockPgxRows)
+	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(mockRows, nil)
+	mockRows.On("Next").Return(true)
+	mockRows.On("Close").Return()
+	mockRows.On("Err").Return(nil)
+	mockRows.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		dest := args.Get(0).([]any)
+		*(dest[0].(*bool)) = true
+	})
+
+	tableExists := migration.MakeTableExistsFromConnection(mockConn)
+	got, err := tableExists(context.Background())
+
+	assert.NoError(t, err)
+	assert.True(t, got)
+}
+
+func TestMakeAppliedNamesFromConnection_Success(t *testing.T) {
+	mockConn := new(database.MockPostgresConnection)
+	mockRows := new(database.MockPgxRows)
+	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(mockRows, nil)
+	mockRows.On("Next").Return(true).Once()
+	mockRows.On("Next").Return(false)
+	mockRows.On("Err").Return(nil)
+	mockRows.On("Close").Return()
+	mockRows.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		dest := args.Get(0).([]any)
+		*(dest[0].(*string)) = "000_foundation.sql"
+	})
+
+	appliedNames := migration.MakeAppliedNamesFromConnection(mockConn)
+	got, err := appliedNames(context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"000_foundation.sql"}, got)
+}
+
+func TestMakeStatusFromConnection_Success(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "000_foundation.sql", "SELECT 1;")
+
+	mockConn := new(database.MockPostgresConnection)
+	tableExistsRows := new(database.MockPgxRows)
+	mockConn.On("Query", mock.Anything, mock.MatchedBy(matchesQuery("to_regclass")), mock.Anything).
+		Return(tableExistsRows, nil)
+	tableExistsRows.On("Next").Return(true)
+	tableExistsRows.On("Close").Return()
+	tableExistsRows.On("Err").Return(nil)
+	tableExistsRows.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		dest := args.Get(0).([]any)
+		*(dest[0].(*bool)) = true
+	})
+
+	appliedNamesRows := new(database.MockPgxRows)
+	mockConn.On("Query", mock.Anything, mock.MatchedBy(matchesQuery("SELECT name FROM migrations")), mock.Anything).
+		Return(appliedNamesRows, nil)
+	appliedNamesRows.On("Next").Return(true).Once()
+	appliedNamesRows.On("Next").Return(false)
+	appliedNamesRows.On("Err").Return(nil)
+	appliedNamesRows.On("Close").Return()
+	appliedNamesRows.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		dest := args.Get(0).([]any)
+		*(dest[0].(*string)) = "000_foundation.sql"
+	})
+
+	status := migration.MakeStatusFromConnection(mockConn, dir)
+	got, err := status(context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, []migration.Record{{Name: "000_foundation.sql", Applied: true}}, got)
+}
+
+func matchesQuery(substr string) func(string) bool {
+	return func(query string) bool {
+		return strings.Contains(query, substr)
+	}
 }

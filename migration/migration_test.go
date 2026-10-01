@@ -88,3 +88,53 @@ func TestMakeRunner_CreateTableError(t *testing.T) {
 
 	assert.ErrorIs(t, err, migration.ErrFailedToCreateTable)
 }
+
+func TestMakeRunner_GlobError(t *testing.T) {
+	mockConn := new(database.MockPostgresConnection)
+	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
+
+	sel := database.MockSelectOne[bool](false, nil)
+	ins := database.MockInsert[int](0, nil)
+
+	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, "[")
+	err := runner(context.Background())
+
+	assert.ErrorIs(t, err, migration.ErrUnableToReadFile)
+}
+
+func TestMakeRunner_ReadFileError(t *testing.T) {
+	dir := t.TempDir()
+	// A directory matching the *.sql glob: filepath.Glob matches it, but os.ReadFile fails on it.
+	if err := os.Mkdir(filepath.Join(dir, "000_setup.sql"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	mockConn := new(database.MockPostgresConnection)
+	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
+
+	sel := database.MockSelectOne[bool](false, nil)
+	ins := database.MockInsert[int](0, nil)
+
+	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
+	err := runner(context.Background())
+
+	assert.ErrorIs(t, err, migration.ErrUnableToReadFile)
+}
+
+func TestMakeRunner_ExecFileError(t *testing.T) {
+	dir := setupMigrationDir(t, map[string]string{
+		"000_setup.sql": "CREATE TABLE test (id SERIAL);",
+	})
+
+	mockConn := new(database.MockPostgresConnection)
+	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
+	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, database.ErrQuery).Once()
+
+	sel := database.MockSelectOne[bool](false, nil)
+	ins := database.MockInsert[int](0, nil)
+
+	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
+	err := runner(context.Background())
+
+	assert.ErrorIs(t, err, migration.ErrFailedToExecute)
+}
