@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/lhbelfanti/ditto/v2/database"
-	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 // Runner applies all pending migrations and returns an error on failure. Assignable to
@@ -64,7 +63,6 @@ func MakeRunnerWithDeps(db database.Connection, sel database.SelectOne[bool], in
 
 			_, execErr := db.Exec(ctx, string(content))
 			if execErr != nil {
-				log.Error(ctx, execErr.Error())
 				return fmt.Errorf("%w: %w", ErrFailedToExecute, execErr)
 			}
 
