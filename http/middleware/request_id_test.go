@@ -38,6 +38,17 @@ func TestRequestID_uniquePerRequest(t *testing.T) {
 	assert.NotEqual(t, w1.Header().Get("X-Request-ID"), w2.Header().Get("X-Request-ID"))
 }
 
+func TestRequestID_honorsInboundHeader(t *testing.T) {
+	handler := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", "upstream-id-123")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, "upstream-id-123", w.Header().Get("X-Request-ID"))
+}
+
 func TestRequestID_contextContainsRequestID(t *testing.T) {
 	var buf bytes.Buffer
 	log.NewCustomLogger(&buf, zerolog.TraceLevel)

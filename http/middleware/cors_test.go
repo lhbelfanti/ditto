@@ -18,11 +18,43 @@ func TestCORS_successWithHeadersPresent(t *testing.T) {
 	handler := middleware.CORS()(next)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
 
-	assert.NotEmpty(t, rr.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "http://localhost:3000", rr.Header().Get("Access-Control-Allow-Origin"))
+}
+
+func TestCORS_omitsAllowOriginWhenRequestOriginIsNotAllowed(t *testing.T) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := middleware.CORS()(next)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Origin", "http://not-allowed.example.com")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Empty(t, rr.Header().Get("Access-Control-Allow-Origin"))
+}
+
+func TestCORS_omitsAllowOriginWhenRequestHasNoOriginHeader(t *testing.T) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := middleware.CORS()(next)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Empty(t, rr.Header().Get("Access-Control-Allow-Origin"))
 }
 
 func TestCORS_successWithOptionsPreflightReturning204(t *testing.T) {
@@ -74,6 +106,7 @@ func TestCORS_successWithOriginFromEnv(t *testing.T) {
 	handler := middleware.CORS()(next)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Origin", "http://example.com")
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -82,4 +115,24 @@ func TestCORS_successWithOriginFromEnv(t *testing.T) {
 	got := rr.Header().Get("Access-Control-Allow-Origin")
 
 	assert.Equal(t, want, got)
+}
+
+func TestCORS_successWithMultipleOriginsFromEnv(t *testing.T) {
+	t.Setenv("CORS_ALLOWED_ORIGIN", "http://a.example.com, http://b.example.com")
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := middleware.CORS()(next)
+
+	for _, origin := range []string{"http://a.example.com", "http://b.example.com"} {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Origin", origin)
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, origin, rr.Header().Get("Access-Control-Allow-Origin"))
+	}
 }
