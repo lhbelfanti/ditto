@@ -10,12 +10,16 @@ import (
 
 const requestIDKey = "request_id"
 
-// RequestID is an HTTP middleware that generates a unique request ID,
-// injects it into the request context via log.With, and sets the
-// X-Request-ID response header.
+// RequestID is an HTTP middleware that honors an inbound X-Request-ID header, or generates one
+// if absent, injects it into the request context via log.With, and sets the X-Request-ID response
+// header — so a chain of ditto-based services shares one ID across the whole call instead of each
+// hop minting its own.
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := generateID()
+		id := r.Header.Get("X-Request-ID")
+		if id == "" {
+			id = generateID()
+		}
 		ctx := log.With(r.Context(), log.Param(requestIDKey, id))
 		w.Header().Set("X-Request-ID", id)
 		next.ServeHTTP(w, r.WithContext(ctx))
