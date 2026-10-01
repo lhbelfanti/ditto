@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
@@ -69,6 +70,31 @@ func MakeAppliedNames(selectMany database.Select[string]) AppliedNames {
 	return func(ctx context.Context) ([]string, error) {
 		return selectMany(ctx, queryAppliedNames)
 	}
+}
+
+// MakeTableExistsFromConnection creates a TableExists backed directly by db, building its own
+// read-only scalar select internally — the same convenience MakeCreateTable already offers,
+// sparing a caller from hand-building a database.SelectOne[bool] with pgx-level scan glue just to
+// check whether the tracking table exists.
+func MakeTableExistsFromConnection(db database.Connection) TableExists {
+	sel := database.MakeSelectOne[bool](db, func(row pgx.CollectableRow) (bool, error) {
+		var v bool
+		return v, row.Scan(&v)
+	})
+	return MakeTableExists(sel)
+}
+
+// MakeAppliedNamesFromConnection creates an AppliedNames backed directly by db.
+func MakeAppliedNamesFromConnection(db database.Connection) AppliedNames {
+	sel := database.MakeSelect[string](db, database.MakeCollectRows(pgx.RowTo[string]))
+	return MakeAppliedNames(sel)
+}
+
+// MakeStatusFromConnection creates a Status backed directly by db and migrationsDir, composing
+// MakeListFiles/MakeTableExistsFromConnection/MakeAppliedNamesFromConnection — the single-call
+// counterpart to MakeRunner, for a caller that doesn't need the individual building blocks.
+func MakeStatusFromConnection(db database.Connection, migrationsDir string) Status {
+	return MakeStatus(MakeListFiles(migrationsDir), MakeTableExistsFromConnection(db), MakeAppliedNamesFromConnection(db))
 }
 
 // MakeStatus creates a Status function that classifies every migration file as applied or
