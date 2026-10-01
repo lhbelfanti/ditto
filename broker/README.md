@@ -39,6 +39,12 @@ silently abandoned. A producer-only broker (built by `NewProducer`) closes immed
 never spawns any processing goroutines.
 Shutdown also stops the consumer loop from dispatching new work before waiting for in-flight work.
 
+`InitMessageConsumerWithFunction` only ever returns `nil` once `CloseConnection` ran — a disconnect
+is never read as a clean shutdown. If the delivery channel itself closes first (the broker
+connection dropped, the channel was closed server-side, …) without `CloseConnection` having run,
+it returns `ErrConsumerChannelClosed` instead, so a caller checking the return value can tell "I
+asked it to stop" apart from "it stopped on its own."
+
 ## Message-loss semantics
 
 Queues are declared `durable=true` with **no dead-letter exchange**. A `processorFunc` failure
