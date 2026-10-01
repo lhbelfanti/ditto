@@ -11,9 +11,7 @@ import (
 )
 
 func TestCORS_successWithHeadersPresent(t *testing.T) {
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	next := middleware.MockOKHandler()
 
 	handler := middleware.CORS()(next)
 
@@ -26,10 +24,8 @@ func TestCORS_successWithHeadersPresent(t *testing.T) {
 	assert.Equal(t, "http://localhost:3000", rr.Header().Get("Access-Control-Allow-Origin"))
 }
 
-func TestCORS_omitsAllowOriginWhenRequestOriginIsNotAllowed(t *testing.T) {
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+func TestCORS_successWhenOriginIsNotAllowed(t *testing.T) {
+	next := middleware.MockOKHandler()
 
 	handler := middleware.CORS()(next)
 
@@ -42,10 +38,8 @@ func TestCORS_omitsAllowOriginWhenRequestOriginIsNotAllowed(t *testing.T) {
 	assert.Empty(t, rr.Header().Get("Access-Control-Allow-Origin"))
 }
 
-func TestCORS_omitsAllowOriginWhenRequestHasNoOriginHeader(t *testing.T) {
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+func TestCORS_successWhenOriginIsMissing(t *testing.T) {
+	next := middleware.MockOKHandler()
 
 	handler := middleware.CORS()(next)
 
@@ -59,10 +53,7 @@ func TestCORS_omitsAllowOriginWhenRequestHasNoOriginHeader(t *testing.T) {
 
 func TestCORS_successWithOptionsPreflightReturning204(t *testing.T) {
 	nextCalled := false
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		nextCalled = true
-		w.WriteHeader(http.StatusOK)
-	})
+	next := middleware.MockNextHandler(&nextCalled)
 
 	handler := middleware.CORS()(next)
 
@@ -79,9 +70,7 @@ func TestCORS_successWithOptionsPreflightReturning204(t *testing.T) {
 }
 
 func TestCORS_successWithAllowCredentials(t *testing.T) {
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	next := middleware.MockOKHandler()
 
 	handler := middleware.CORS()(next)
 
@@ -99,9 +88,7 @@ func TestCORS_successWithAllowCredentials(t *testing.T) {
 func TestCORS_successWithOriginFromEnv(t *testing.T) {
 	t.Setenv("CORS_ALLOWED_ORIGIN", "http://example.com")
 
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	next := middleware.MockOKHandler()
 
 	handler := middleware.CORS()(next)
 
@@ -117,12 +104,10 @@ func TestCORS_successWithOriginFromEnv(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestCORS_successWithMultipleOriginsFromEnv(t *testing.T) {
+func TestCORS_successWhenMultipleOriginsConfigured(t *testing.T) {
 	t.Setenv("CORS_ALLOWED_ORIGIN", "http://a.example.com, http://b.example.com")
 
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	next := middleware.MockOKHandler()
 
 	handler := middleware.CORS()(next)
 

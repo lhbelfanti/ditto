@@ -14,7 +14,7 @@ import (
 )
 
 func TestRequestID_headerIsSetAndNonEmpty(t *testing.T) {
-	handler := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	handler := middleware.RequestID(middleware.MockNoopHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
@@ -25,7 +25,7 @@ func TestRequestID_headerIsSetAndNonEmpty(t *testing.T) {
 }
 
 func TestRequestID_uniquePerRequest(t *testing.T) {
-	handler := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	handler := middleware.RequestID(middleware.MockNoopHandler())
 
 	req1 := httptest.NewRequest(http.MethodGet, "/", nil)
 	w1 := httptest.NewRecorder()
@@ -38,8 +38,8 @@ func TestRequestID_uniquePerRequest(t *testing.T) {
 	assert.NotEqual(t, w1.Header().Get("X-Request-ID"), w2.Header().Get("X-Request-ID"))
 }
 
-func TestRequestID_honorsInboundHeader(t *testing.T) {
-	handler := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+func TestRequestID_successWhenInboundHeaderPresent(t *testing.T) {
+	handler := middleware.RequestID(middleware.MockNoopHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("X-Request-ID", "upstream-id-123")
@@ -53,9 +53,7 @@ func TestRequestID_contextContainsRequestID(t *testing.T) {
 	var buf bytes.Buffer
 	log.NewCustomLogger(&buf, zerolog.TraceLevel)
 
-	handler := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Info(r.Context(), "test message")
-	}))
+	handler := middleware.RequestID(middleware.MockRequestIDLoggingHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
