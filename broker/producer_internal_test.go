@@ -29,25 +29,27 @@ func TestRabbitMQBroker_EnqueueMessage_failsWhenPublishFails(t *testing.T) {
 	err := b.EnqueueMessage(context.Background(), "{}")
 
 	assert.ErrorIs(t, err, ErrFailedToPublishMessage)
+	assert.ErrorIs(t, err, underlying)
 }
 
 func TestRabbitMQBroker_CloseConnection_successWhenProcessingIsInFlight(t *testing.T) {
 	messages := make(chan amqp091.Delivery, 1)
-	acknowledger := &mockAcknowledger{acks: make(chan uint64, 1), nacks: make(chan uint64, 1)}
+	acknowledger := MockAcknowledger(1, 1)
 	messages <- amqp091.Delivery{DeliveryTag: 1, Acknowledger: acknowledger}
 	b := &RabbitMQBroker{channel: &mockChannel{}, messages: messages}
 	started := make(chan struct{})
 	release := make(chan struct{})
 	consumerDone := make(chan struct{})
+	processor := MockBlockingProcessor(started, release, nil)
 	go func() {
-		b.InitMessageConsumerWithFunction(1, func(context.Context, []byte) error {
-			close(started)
-			<-release
-			return nil
-		})
+		b.InitMessageConsumerWithFunction(1, processor)
 		close(consumerDone)
 	}()
-	<-started
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("processor never started")
+	}
 
 	closed := make(chan struct{})
 	go func() {

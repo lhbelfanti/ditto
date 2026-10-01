@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -10,42 +9,41 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInitMessageConsumerWithFunction_successWhenProcessingSucceeds(t *testing.T) {
+func TestInitMessageConsumerWithFunction_success(t *testing.T) {
 	messages := make(chan amqp091.Delivery, 1)
-	acknowledger := &mockAcknowledger{acks: make(chan uint64, 1), nacks: make(chan uint64, 1)}
+	acknowledger := MockAcknowledger(1, 1)
+	bodies := make(chan []byte, 1)
 	messages <- amqp091.Delivery{DeliveryTag: 1, Acknowledger: acknowledger, Body: []byte("hello")}
 	close(messages)
 	ch := &mockChannel{}
 	b := &RabbitMQBroker{channel: ch, messages: messages}
 
-	b.InitMessageConsumerWithFunction(2, func(_ context.Context, body []byte) error {
-		assert.Equal(t, []byte("hello"), body)
-		return nil
-	})
+	b.InitMessageConsumerWithFunction(2, MockRecordingProcessor(bodies, nil))
 	b.inFlight.Wait()
 
+	assert.Equal(t, []byte("hello"), <-bodies)
 	assert.Equal(t, 2, ch.qosCount)
 	assert.Equal(t, uint64(1), <-acknowledger.acks)
 	assert.Empty(t, acknowledger.nacks)
 }
 
-func TestInitMessageConsumerWithFunction_successWhenProcessingFails(t *testing.T) {
+func TestInitMessageConsumerWithFunction_successWhenProcessorFails(t *testing.T) {
 	messages := make(chan amqp091.Delivery, 1)
-	acknowledger := &mockAcknowledger{acks: make(chan uint64, 1), nacks: make(chan uint64, 1)}
+	acknowledger := MockAcknowledger(1, 1)
 	messages <- amqp091.Delivery{DeliveryTag: 2, Acknowledger: acknowledger}
 	close(messages)
 	b := &RabbitMQBroker{channel: &mockChannel{}, messages: messages}
 
-	b.InitMessageConsumerWithFunction(1, func(context.Context, []byte) error { return errors.New("processing failed") })
+	b.InitMessageConsumerWithFunction(1, MockProcessor(errors.New("processing failed")))
 	b.inFlight.Wait()
 
 	assert.Equal(t, uint64(2), <-acknowledger.nacks)
 	assert.Empty(t, acknowledger.acks)
 }
 
-func TestInitMessageConsumerWithFunction_successWhenConcurrencyIsBounded(t *testing.T) {
+func TestInitMessageConsumerWithFunction_successWhenTwoMessagesAndLimitIsOne(t *testing.T) {
 	messages := make(chan amqp091.Delivery, 2)
-	acknowledger := &mockAcknowledger{acks: make(chan uint64, 2), nacks: make(chan uint64, 2)}
+	acknowledger := MockAcknowledger(2, 2)
 	messages <- amqp091.Delivery{DeliveryTag: 1, Acknowledger: acknowledger}
 	messages <- amqp091.Delivery{DeliveryTag: 2, Acknowledger: acknowledger}
 	close(messages)
@@ -53,12 +51,9 @@ func TestInitMessageConsumerWithFunction_successWhenConcurrencyIsBounded(t *test
 	started := make(chan struct{}, 2)
 	release := make(chan struct{})
 	done := make(chan struct{})
+	processor := MockBlockingProcessor(started, release, nil)
 	go func() {
-		b.InitMessageConsumerWithFunction(1, func(context.Context, []byte) error {
-			started <- struct{}{}
-			<-release
-			return nil
-		})
+		b.InitMessageConsumerWithFunction(1, processor)
 		close(done)
 	}()
 
@@ -83,23 +78,20 @@ func TestInitMessageConsumerWithFunction_successWhenConcurrencyIsBounded(t *test
 	assert.Len(t, acknowledger.acks, 2)
 }
 
-func TestInitMessageConsumerWithFunction_successWhenQoSFails(t *testing.T) {
+func TestInitMessageConsumerWithFunction_failsWhenQoSUnavailable(t *testing.T) {
 	messages := make(chan amqp091.Delivery, 1)
 	messages <- amqp091.Delivery{}
 	ch := &mockChannel{qosErr: errors.New("qos unavailable")}
 	b := &RabbitMQBroker{channel: ch, messages: messages}
-	called := false
+	bodies := make(chan []byte, 1)
 
-	b.InitMessageConsumerWithFunction(1, func(context.Context, []byte) error {
-		called = true
-		return nil
-	})
+	b.InitMessageConsumerWithFunction(1, MockRecordingProcessor(bodies, nil))
 
-	assert.False(t, called)
+	assert.Empty(t, bodies)
 	assert.Equal(t, 1, ch.qosCount)
 }
 
-func TestInitMessageConsumerWithFunction_successWhenConcurrencyIsInvalid(t *testing.T) {
+func TestInitMessageConsumerWithFunction_failsWhenConcurrencyIsInvalid(t *testing.T) {
 	messages := make(chan amqp091.Delivery)
 	ch := &mockChannel{}
 	b := &RabbitMQBroker{channel: ch, messages: messages}
@@ -107,4 +99,19 @@ func TestInitMessageConsumerWithFunction_successWhenConcurrencyIsInvalid(t *test
 	b.InitMessageConsumerWithFunction(0, nil)
 
 	assert.Zero(t, ch.qosCount)
+}
+
+func TestInitMessageConsumerWithFunction_failsWhenBrokerIsProducer(t *testing.T) {
+	b := &RabbitMQBroker{}
+	done := make(chan struct{})
+	go func() {
+		b.InitMessageConsumerWithFunction(1, MockProcessor(nil))
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("InitMessageConsumerWithFunction blocked on a nil messages channel")
+	}
 }

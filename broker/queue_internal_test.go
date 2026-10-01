@@ -17,9 +17,11 @@ func TestDeclareQueue_success(t *testing.T) {
 }
 
 func TestDeclareQueue_failsWhenChannelRejectsDeclaration(t *testing.T) {
-	ch := &mockChannel{queueErr: errors.New("unavailable")}
+	underlying := errors.New("unavailable")
+	ch := &mockChannel{queueErr: underlying}
 
 	_, err := declareQueue(ch, "work")
 
 	assert.ErrorIs(t, err, ErrFailedToDeclareQueue)
+	assert.ErrorIs(t, err, underlying)
 }
