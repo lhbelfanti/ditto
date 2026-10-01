@@ -39,11 +39,13 @@ func NewConsumer(ctx context.Context, url, queueName string) (*RabbitMQBroker, e
 // InitMessageConsumerWithFunction subscribes and starts processing messages, bounding both
 // RabbitMQ's own delivery rate (via channel QoS) and the number of concurrently running
 // processorFunc goroutines to concurrentMessages. It blocks for the consumer's lifetime — call it
-// in its own goroutine — returning nil once stopped via CloseConnection, or a non-nil error
-// immediately if setup (QoS, subscribing) fails; it never logs itself, so a caller that needs this
-// failure visible decides how, the same as database.Check. Calling this on a broker built by
-// NewProducer (no messages channel) returns ErrNotAConsumer instead of blocking forever on a nil
-// channel.
+// in its own goroutine — returning nil only once stopped deliberately via CloseConnection, or a
+// non-nil error otherwise: immediately if setup (QoS, subscribing) fails, or
+// ErrConsumerChannelClosed if the delivery channel closes on its own (e.g. a dropped connection)
+// before CloseConnection ever ran — a disconnect never reads as a clean shutdown. It never logs
+// itself; a caller that needs this failure visible decides how, the same as database.Check.
+// Calling this on a broker built by NewProducer (no messages channel) returns ErrNotAConsumer
+// instead of blocking forever on a nil channel.
 func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction) error {
 	if !b.consumer && b.messages == nil {
 		return ErrNotAConsumer
@@ -82,7 +84,12 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 			return nil
 		case received, ok := <-b.messages:
 			if !ok {
-				return nil
+				select {
+				case <-stop:
+					return nil
+				default:
+					return ErrConsumerChannelClosed
+				}
 			}
 			msg = received
 		}
