@@ -31,15 +31,32 @@ func MockServe(err error) Serve {
 	return func() error { return err }
 }
 
-// MockServeUntilDone builds a Serve that blocks until done is closed, then returns err.
-func MockServeUntilDone(done <-chan struct{}, err error) Serve {
+// MockServeBlocking builds a Serve that never returns, for exercising a caller's ctx-cancellation
+// path without racing a real server lifecycle.
+func MockServeBlocking() Serve {
 	return func() error {
-		<-done
-		return err
+		select {}
 	}
 }
 
 // MockShutdown builds a Shutdown that always returns err.
 func MockShutdown(err error) Shutdown {
 	return func(context.Context) error { return err }
+}
+
+// MockCountingShutdown builds a Shutdown that returns err and increments *calls on every call.
+func MockCountingShutdown(err error, calls *int) Shutdown {
+	return func(context.Context) error {
+		*calls++
+		return err
+	}
+}
+
+// MockCapturingShutdown builds a Shutdown that returns err and records the ctx of its most
+// recent call into *captured.
+func MockCapturingShutdown(err error, captured *context.Context) Shutdown {
+	return func(ctx context.Context) error {
+		*captured = ctx
+		return err
+	}
 }
