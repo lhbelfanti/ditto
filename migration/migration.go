@@ -9,29 +9,29 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/lhbelfanti/ditto/v2/database"
-	dittohttp "github.com/lhbelfanti/ditto/v2/http"
-	"github.com/lhbelfanti/ditto/v2/log"
 )
 
-// MakeRunner returns a MigrationRunner that applies all *.sql files from migrationsDir
+// Runner applies all pending migrations and returns an error on failure. Assignable to
+// http.MigrationRunner (identical underlying type) when registering the HTTP migrations route.
+type Runner func(ctx context.Context) error
+
+// MakeRunner returns a Runner that applies all *.sql files from migrationsDir
 // in lexicographic order, skipping already-applied files.
-func MakeRunner(db database.Connection, migrationsDir string) dittohttp.MigrationRunner {
-	sel := database.MakeSelectOne[bool](db, func(row pgx.CollectableRow) (bool, error) {
-		var v bool
-		return v, row.Scan(&v)
-	})
+func MakeRunner(db database.Connection, migrationsDir string) Runner {
+	sel := database.MakeSelectOne[bool](db, pgx.RowTo[bool])
 	ins := database.MakeInsert[int](db)
 	return MakeRunnerWithDeps(db, sel, ins, migrationsDir)
 }
 
 // MakeRunnerWithDeps is the injectable variant of MakeRunner used in tests.
-func MakeRunnerWithDeps(db database.Connection, sel database.SelectOne[bool], ins database.Insert[int], migrationsDir string) dittohttp.MigrationRunner {
+func MakeRunnerWithDeps(db database.Connection, sel database.SelectOne[bool], ins database.Insert[int], migrationsDir string) Runner {
 	createTable := MakeCreateTable(db)
 	isApplied := MakeIsApplied(sel)
 	insertApplied := MakeInsertApplied(ins)
 
 	return func(ctx context.Context) error {
-		if err := createTable(ctx); err != nil {
+		err := createTable(ctx)
+		if err != nil {
 			return err
 		}
 
@@ -58,12 +58,13 @@ func MakeRunnerWithDeps(db database.Connection, sel database.SelectOne[bool], in
 				return fmt.Errorf("%w: %w", ErrUnableToReadFile, err)
 			}
 
-			if _, execErr := db.Exec(ctx, string(content)); execErr != nil {
-				log.Error(ctx, execErr.Error())
+			_, execErr := db.Exec(ctx, string(content))
+			if execErr != nil {
 				return fmt.Errorf("%w: %w", ErrFailedToExecute, execErr)
 			}
 
-			if err := insertApplied(ctx, name); err != nil {
+			err = insertApplied(ctx, name)
+			if err != nil {
 				return err
 			}
 		}

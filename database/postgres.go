@@ -9,17 +9,20 @@ import (
 
 // InitPostgres creates a new postgres instance. A connection failure is returned hidden behind
 // the credential-safe ErrCantInitDatabase sentinel — callers never see the raw driver error.
+// The attempt runs at most once: every call, including ones after a failed attempt, returns the
+// same cached instance and the same cached error, rather than silently reporting a nil error on
+// retry.
 func InitPostgres() (*Postgres, error) {
-	var initErr error
 	pgOnce.Do(func() {
 		db, err := pgxpool.New(context.Background(), resolveDatabaseURL())
 		if err != nil {
-			initErr = WrapInitFailure(err)
+			pgInitErr = WrapInitFailure(err)
+			return
 		}
 		pgInstance = &Postgres{db}
 	})
 
-	return pgInstance, initErr
+	return pgInstance, pgInitErr
 }
 
 // Database returns the Postgres connection pool

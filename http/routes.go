@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/lhbelfanti/ditto/v2/http/response"
-	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 // MigrationRunner is a function that executes pending database migrations.
@@ -66,7 +65,7 @@ func migrationsRunHandlerV1(run MigrationRunner) http.HandlerFunc {
 
 		err := run(ctx)
 		if err != nil {
-			log.Err(ctx, err, ErrMsgMigrationsFailed)
+			// response.Send already logs the message and err below (code >= 400) — do not log again here.
 			response.Send(ctx, w, http.StatusInternalServerError, ErrMsgMigrationsFailed, nil, ErrMigrationsFailed)
 			return
 		}

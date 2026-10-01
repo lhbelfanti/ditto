@@ -2,13 +2,60 @@ package http
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
 
 	"github.com/stretchr/testify/mock"
 )
 
-// MockHTTPClient mocks HTTP client
-type MockHTTPClient struct {
-	mock.Mock
+type (
+	// MockHTTPResult describes one response from MockSequenceRoundTripper.
+	MockHTTPResult struct {
+		StatusCode int
+		Body       string
+		Header     http.Header
+		Err        error
+	}
+
+	mockSequenceRoundTripper struct {
+		mu      sync.Mutex
+		results []MockHTTPResult
+		next    int
+	}
+
+	// MockHTTPClient mocks HTTP client.
+	MockHTTPClient struct {
+		mock.Mock
+	}
+)
+
+func MockSequenceRoundTripper(results ...MockHTTPResult) http.RoundTripper {
+	return &mockSequenceRoundTripper{results: results}
+}
+
+func (m *mockSequenceRoundTripper) RoundTrip(_ *http.Request) (*http.Response, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.next >= len(m.results) {
+		return nil, fmt.Errorf("mock HTTP response sequence exhausted after %d requests", m.next)
+	}
+
+	result := m.results[m.next]
+	m.next++
+	if result.Err != nil {
+		return nil, result.Err
+	}
+
+	return &http.Response{
+		Status:     fmt.Sprintf("%d %s", result.StatusCode, http.StatusText(result.StatusCode)),
+		StatusCode: result.StatusCode,
+		Body:       io.NopCloser(strings.NewReader(result.Body)),
+		Header:     result.Header,
+	}, nil
 }
 
 func (m *MockHTTPClient) NewRequest(ctx context.Context, method, url string, body interface{}) (Response, error) {

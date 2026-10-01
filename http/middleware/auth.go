@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"strings"
+
+	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
 type contextKey string
@@ -20,20 +22,20 @@ func Auth(selectUserIDByToken SelectUserIDByToken) func(http.Handler) http.Handl
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, "Authorization header required", http.StatusUnauthorized)
+				response.Send(r.Context(), w, http.StatusUnauthorized, "authorization header required", nil, ErrMissingAuthHeader)
 				return
 			}
 
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+				response.Send(r.Context(), w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, ErrInvalidToken)
 				return
 			}
 
 			token := parts[1]
 			userID, err := selectUserIDByToken(r.Context(), token)
 			if err != nil {
-				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+				response.Send(r.Context(), w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, ErrInvalidToken)
 				return
 			}
 
