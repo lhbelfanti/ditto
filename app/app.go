@@ -83,7 +83,21 @@ func Run(opts Options) error {
 		}
 	}
 
-	handler := newHandler(opts, pg)
+	mux := http.NewServeMux()
+	systemRoutes := dittohttp.RegisterSystemRoutes(mux)
+	if pg != nil {
+		systemRoutes.WithDatabasePing(dittohttp.DatabasePing(pg.MakeCheck(pingCheckTimeout)))
+	}
+
+	if opts.Routes != nil {
+		opts.Routes(mux, pg)
+	}
+
+	var handler http.Handler = mux
+	if opts.Wrap != nil {
+		handler = opts.Wrap(mux)
+	}
+
 	addr := fmt.Sprintf(":%d", port)
 	server := &http.Server{Addr: addr, Handler: handler}
 
@@ -92,22 +106,4 @@ func Run(opts Options) error {
 
 	log.Info(ctx, "starting "+opts.Name+" on "+addr)
 	return dittohttp.GracefulShutdown(signalCtx, server.ListenAndServe, server.Shutdown, shutdownTimeout)
-}
-
-func newHandler(opts Options, pg *database.Postgres) http.Handler {
-	mux := http.NewServeMux()
-
-	routes := dittohttp.RegisterSystemRoutes(mux)
-	if pg != nil {
-		routes.WithDatabasePing(dittohttp.DatabasePing(pg.MakeCheck(pingCheckTimeout)))
-	}
-
-	if opts.Routes != nil {
-		opts.Routes(mux, pg)
-	}
-
-	if opts.Wrap != nil {
-		return opts.Wrap(mux)
-	}
-	return mux
 }
