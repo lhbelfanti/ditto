@@ -43,11 +43,21 @@ func Run(opts Options) error {
 	var pg *database.Postgres
 	var ping dittohttp.DatabasePing
 	if opts.MigrationsDir != "" {
-		pg, err = database.Init(timeouts.Startup)
+		err = database.RequireEnv(os.LookupEnv)
+		if err != nil {
+			return err
+		}
+
+		pg, err = database.InitPostgres()
 		if err != nil {
 			return err
 		}
 		defer pg.Close()
+
+		err = pg.MakeCheck(timeouts.Startup)(ctx)
+		if err != nil {
+			return err
+		}
 
 		err = migration.MakeRunner(pg.Database(), opts.MigrationsDir)(ctx)
 		if err != nil {
