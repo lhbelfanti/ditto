@@ -35,13 +35,23 @@ var (
 	pgOnce     sync.Once
 )
 
-const databaseURL string = "postgresql://%s:%s@postgres_db:%s/%s?sslmode=disable"
+const (
+	databaseURL   string = "postgresql://%s:%s@%s:%s/%s?sslmode=disable"
+	defaultDBHost string = "postgres_db"
+)
 
+// resolveDatabaseURL reads the connection target from the environment. POSTGRES_DB_HOST defaults
+// to the compose service name postgres_db, so services that do not set it keep working unchanged.
 func resolveDatabaseURL() string {
 	dbUser := os.Getenv("POSTGRES_DB_USER")
 	dbPass := os.Getenv("POSTGRES_DB_PASS")
+	dbHost := os.Getenv("POSTGRES_DB_HOST")
 	dbName := os.Getenv("POSTGRES_DB_NAME")
 	dbPort := os.Getenv("POSTGRES_DB_PORT")
 
-	return fmt.Sprintf(databaseURL, dbUser, dbPass, dbPort, dbName)
+	if dbHost == "" {
+		dbHost = defaultDBHost
+	}
+
+	return fmt.Sprintf(databaseURL, dbUser, dbPass, dbHost, dbPort, dbName)
 }
