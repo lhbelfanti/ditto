@@ -11,6 +11,8 @@ import (
 // extracts the allowlisted PostgreSQL SQLSTATE (never the raw driver error) and, when the failure
 // happened during file execution, the name of the file that failed.
 func MakeApply(runner Runner, status Status) Apply {
+	findPendingFile := makePendingFileFinder(status)
+
 	return func(ctx context.Context) error {
 		err := runner(ctx)
 		if err == nil {
@@ -23,7 +25,7 @@ func MakeApply(runner Runner, status Status) Apply {
 			return &ApplyError{Code: code, cause: err}
 		}
 
-		file, attribErr := firstPendingFile(ctx, status)
+		file, attribErr := findPendingFile(ctx)
 		if attribErr != nil {
 			return &ApplyError{Code: code, AttributionUnavailable: true, cause: err}
 		}
@@ -32,22 +34,24 @@ func MakeApply(runner Runner, status Status) Apply {
 	}
 }
 
-// firstPendingFile takes a read-only post-failure status snapshot and returns the first file
-// still pending, relying on MakeRunner's guaranteed lexicographic, sequential apply order to
-// identify the file whose execution failed.
-func firstPendingFile(ctx context.Context, status Status) (string, error) {
-	records, err := status(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	for _, record := range records {
-		if !record.Applied {
-			return record.Name, nil
+// makePendingFileFinder creates a pendingFileFinder that takes a read-only post-failure status
+// snapshot and returns the first file still pending, relying on MakeRunner's guaranteed
+// lexicographic, sequential apply order to identify the file whose execution failed.
+func makePendingFileFinder(status Status) pendingFileFinder {
+	return func(ctx context.Context) (string, error) {
+		records, err := status(ctx)
+		if err != nil {
+			return "", err
 		}
-	}
 
-	return "", errors.New("migration: no pending migration found in post-failure status snapshot")
+		for _, record := range records {
+			if !record.Applied {
+				return record.Name, nil
+			}
+		}
+
+		return "", errors.New("migration: no pending migration found in post-failure status snapshot")
+	}
 }
 
 // pgErrorCode extracts the allowlisted PostgreSQL SQLSTATE classification from err, if present. It

@@ -47,6 +47,10 @@ type (
 	// Status reports the applied/pending state of every migration file without mutating the
 	// database.
 	Status func(ctx context.Context) ([]Record, error)
+
+	statusRunner func(ctx context.Context) error
+
+	pendingFileFinder func(ctx context.Context) (string, error)
 )
 
 func (e *ApplyError) Error() string {

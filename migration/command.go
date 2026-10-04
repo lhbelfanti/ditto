@@ -32,28 +32,32 @@ func Dispatch(ctx context.Context, args []string, apply Apply, status Status, ou
 	case CommandApply:
 		return apply(ctx)
 	case CommandStatus:
-		return runStatus(ctx, status, out)
+		runStatus := makeStatusRunner(status, out)
+		return runStatus(ctx)
 	default:
 		return ErrUnknownCommand
 	}
 }
 
-func runStatus(ctx context.Context, status Status, out io.Writer) error {
-	records, err := status(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, record := range records {
-		state := "pending"
-		if record.Applied {
-			state = "applied"
-		}
-
-		if _, err := fmt.Fprintf(out, "%s %s\n", state, record.Name); err != nil {
+func makeStatusRunner(status Status, out io.Writer) statusRunner {
+	return func(ctx context.Context) error {
+		records, err := status(ctx)
+		if err != nil {
 			return err
 		}
-	}
 
-	return nil
+		for _, record := range records {
+			state := "pending"
+			if record.Applied {
+				state = "applied"
+			}
+
+			_, err = fmt.Fprintf(out, "%s %s\n", state, record.Name)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
 }
