@@ -8,7 +8,8 @@ import (
 // Get returns the value of the environment variable named by key.
 // If the variable is not set or empty, fallback is returned.
 func Get(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
+	v := os.Getenv(key)
+	if v != "" {
 		return v
 	}
 	return fallback
