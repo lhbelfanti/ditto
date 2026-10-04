@@ -1,6 +1,12 @@
 package migration
 
-import "context"
+import (
+	"context"
+
+	"github.com/stretchr/testify/mock"
+
+	"github.com/lhbelfanti/ditto/v2/database"
+)
 
 // MockListFiles returns a ListFiles that always returns the given names and error.
 func MockListFiles(names []string, err error) ListFiles {
@@ -42,4 +48,13 @@ func MockRunner(err error) Runner {
 	return func(context.Context) error {
 		return err
 	}
+}
+
+// MockPgxRowBool returns a pgx.Row whose Scan writes applied into a *bool destination.
+func MockPgxRowBool(applied bool) *database.MockPgxRow {
+	row := &database.MockPgxRow{}
+	row.On("Scan", mock.Anything).Run(func(args mock.Arguments) {
+		*args.Get(0).([]any)[0].(*bool) = applied
+	}).Return(nil)
+	return row
 }

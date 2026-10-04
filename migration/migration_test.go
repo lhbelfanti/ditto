@@ -2,25 +2,22 @@ package migration_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/lhbelfanti/ditto/v2/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/lhbelfanti/ditto/v2/database"
 	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
 func setupMigrationDir(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
-	err := os.MkdirAll(dir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
 	for name, content := range files {
 		err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644)
 		if err != nil {
@@ -30,111 +27,73 @@ func setupMigrationDir(t *testing.T, files map[string]string) string {
 	return dir
 }
 
-func TestMakeRunnerWithDeps_successWhenMigrationFilesPending(t *testing.T) {
-	dir := setupMigrationDir(t, map[string]string{
-		"000_setup.sql": "CREATE TABLE test (id SERIAL);",
-	})
+func TestMakeRunner_failsWhenBeginFails(t *testing.T) {
+	want := migration.ErrFailedToApply
+	errBegin := errors.New("begin failed")
+	db := &database.MockPostgresConnection{}
+	db.On("Begin", mock.Anything).Return((*database.MockPgxTx)(nil), errBegin)
 
-	mockConn := new(database.MockPostgresConnection)
-	// createTable call
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
-	// exec SQL file call
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
+	got := migration.MakeRunner(db, t.TempDir())(context.Background())
 
-	sel := database.MockSelectOne[bool](false, nil)
-	ins := database.MockInsert[int](1, nil)
+	assert.ErrorIs(t, got, want)
+}
 
-	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
-	err := runner(context.Background())
+func TestMakeRunner_failsWhenLockFails(t *testing.T) {
+	want := migration.ErrFailedToApply
+	tx := &database.MockPgxTx{}
+	tx.On("Exec", mock.Anything, "SELECT pg_advisory_xact_lock($1)", mock.Anything).Return(pgconn.CommandTag{}, errors.New("lock failed"))
+	tx.On("Rollback", mock.Anything).Return(nil)
+	db := &database.MockPostgresConnection{}
+	db.On("Begin", mock.Anything).Return(tx, nil)
+
+	got := migration.MakeRunner(db, t.TempDir())(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeRunner_failsWhenCreateTableFails(t *testing.T) {
+	want := migration.ErrFailedToCreateTable
+	tx := &database.MockPgxTx{}
+	tx.On("Exec", mock.Anything, "SELECT pg_advisory_xact_lock($1)", mock.Anything).Return(pgconn.CommandTag{}, nil)
+	tx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, errors.New("create failed"))
+	tx.On("Rollback", mock.Anything).Return(nil)
+	db := &database.MockPostgresConnection{}
+	db.On("Begin", mock.Anything).Return(tx, nil)
+
+	got := migration.MakeRunner(db, t.TempDir())(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeRunner_failsWhenMigrationFileFails(t *testing.T) {
+	want := migration.ErrFailedToExecute
+	tx := &database.MockPgxTx{}
+	tx.On("Exec", mock.Anything, "SELECT broken;", mock.Anything).Return(pgconn.CommandTag{}, errors.New("syntax error"))
+	tx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil)
+	tx.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(migration.MockPgxRowBool(false))
+	tx.On("Rollback", mock.Anything).Return(nil)
+	tx.On("Commit", mock.Anything).Return(nil)
+	db := &database.MockPostgresConnection{}
+	db.On("Begin", mock.Anything).Return(tx, nil)
+	dir := setupMigrationDir(t, map[string]string{"001_a.sql": "SELECT broken;"})
+
+	got := migration.MakeRunner(db, dir)(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeRunner_successWhenFileIsAlreadyApplied(t *testing.T) {
+	tx := &database.MockPgxTx{}
+	tx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil)
+	tx.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(migration.MockPgxRowBool(true))
+	tx.On("Rollback", mock.Anything).Return(nil)
+	tx.On("Commit", mock.Anything).Return(nil)
+	db := &database.MockPostgresConnection{}
+	db.On("Begin", mock.Anything).Return(tx, nil)
+	dir := setupMigrationDir(t, map[string]string{"001_a.sql": "CREATE TABLE a();"})
+
+	err := migration.MakeRunner(db, dir)(context.Background())
 
 	assert.NoError(t, err)
-	mockConn.AssertNumberOfCalls(t, "Exec", 2)
-}
-
-func TestMakeRunnerWithDeps_successWhenMigrationsAlreadyApplied(t *testing.T) {
-	dir := setupMigrationDir(t, map[string]string{
-		"000_setup.sql": "CREATE TABLE test (id SERIAL);",
-	})
-
-	mockConn := new(database.MockPostgresConnection)
-	// createTable call only
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
-
-	sel := database.MockSelectOne[bool](true, nil)
-
-	insertCalled := 0
-	ins := database.MockInsertCounting(1, nil, &insertCalled)
-
-	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
-	err := runner(context.Background())
-
-	assert.NoError(t, err)
-	assert.Zero(t, insertCalled)
-	mockConn.AssertNumberOfCalls(t, "Exec", 1)
-}
-
-func TestMakeRunnerWithDeps_failsWhenTrackingTableCreationFails(t *testing.T) {
-	dir := setupMigrationDir(t, map[string]string{})
-
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, database.ErrQuery)
-
-	sel := database.MockSelectOne[bool](false, nil)
-	ins := database.MockInsert[int](0, nil)
-
-	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
-	err := runner(context.Background())
-
-	assert.ErrorIs(t, err, migration.ErrFailedToCreateTable)
-}
-
-func TestMakeRunnerWithDeps_failsWhenPatternMalformed(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
-
-	sel := database.MockSelectOne[bool](false, nil)
-	ins := database.MockInsert[int](0, nil)
-
-	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, "[")
-	err := runner(context.Background())
-
-	assert.ErrorIs(t, err, migration.ErrUnableToReadFile)
-}
-
-func TestMakeRunnerWithDeps_failsWhenMigrationFileUnreadable(t *testing.T) {
-	dir := t.TempDir()
-	// A directory matching the *.sql glob: filepath.Glob matches it, but os.ReadFile fails on it.
-	err := os.Mkdir(filepath.Join(dir, "000_setup.sql"), 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
-
-	sel := database.MockSelectOne[bool](false, nil)
-	ins := database.MockInsert[int](0, nil)
-
-	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
-	err = runner(context.Background())
-
-	assert.ErrorIs(t, err, migration.ErrUnableToReadFile)
-}
-
-func TestMakeRunnerWithDeps_failsWhenMigrationExecutionFails(t *testing.T) {
-	dir := setupMigrationDir(t, map[string]string{
-		"000_setup.sql": "CREATE TABLE test (id SERIAL);",
-	})
-
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil).Once()
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, database.ErrQuery).Once()
-
-	sel := database.MockSelectOne[bool](false, nil)
-	ins := database.MockInsert[int](0, nil)
-
-	runner := migration.MakeRunnerWithDeps(mockConn, sel, ins, dir)
-	err := runner(context.Background())
-
-	assert.ErrorIs(t, err, migration.ErrFailedToExecute)
+	tx.AssertNotCalled(t, "Exec", mock.Anything, "CREATE TABLE a();", mock.Anything)
 }
