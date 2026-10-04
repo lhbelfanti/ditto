@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -29,19 +28,11 @@ func TestDial_failsWhenContextIsAlreadyCancelled(t *testing.T) {
 func TestCloseLateDial_successWhenDialFailed(t *testing.T) {
 	done := make(chan dialResult, 1)
 	done <- dialResult{err: errors.New("dial failed")}
-	returned := make(chan struct{})
-	go func() {
-		closeLateDial(done)
-		close(returned)
-	}()
 
-	want := true
-	got := false
-	select {
-	case <-returned:
-		got = true
-	case <-time.After(2 * time.Second):
-	}
+	closeLateDial(done)
+
+	want := 0
+	got := len(done)
 
 	assert.Equal(t, want, got)
 }

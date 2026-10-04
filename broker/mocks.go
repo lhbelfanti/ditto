@@ -114,3 +114,12 @@ func MockBlockingProcessor(started chan<- struct{}, release <-chan struct{}, err
 		return err
 	}
 }
+
+func MockClosedMessages(deliveries ...amqp091.Delivery) <-chan amqp091.Delivery {
+	messages := make(chan amqp091.Delivery, len(deliveries))
+	for _, d := range deliveries {
+		messages <- d
+	}
+	close(messages)
+	return messages
+}

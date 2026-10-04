@@ -9,18 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setUpProcessDelivery(err error) (func(amqp091.Delivery), *MockAckRecorder, chan struct{}, *sync.WaitGroup) {
+func TestMakeProcessDelivery_success(t *testing.T) {
 	semaphore := make(chan struct{}, 1)
 	semaphore <- struct{}{}
 	inFlight := &sync.WaitGroup{}
 	inFlight.Add(1)
 	acknowledger := MockAcknowledger(1, 1)
-	processDelivery := makeProcessDelivery(MockProcessor(err), semaphore, inFlight)
-	return processDelivery, acknowledger, semaphore, inFlight
-}
-
-func TestMakeProcessDelivery_success(t *testing.T) {
-	processDelivery, acknowledger, _, inFlight := setUpProcessDelivery(nil)
+	processDelivery := makeProcessDelivery(MockProcessor(nil), semaphore, inFlight)
 
 	processDelivery(amqp091.Delivery{DeliveryTag: 7, Acknowledger: acknowledger})
 	inFlight.Wait()
@@ -32,7 +27,12 @@ func TestMakeProcessDelivery_success(t *testing.T) {
 }
 
 func TestMakeProcessDelivery_successWhenSemaphoreIsReleased(t *testing.T) {
-	processDelivery, acknowledger, semaphore, inFlight := setUpProcessDelivery(nil)
+	semaphore := make(chan struct{}, 1)
+	semaphore <- struct{}{}
+	inFlight := &sync.WaitGroup{}
+	inFlight.Add(1)
+	acknowledger := MockAcknowledger(1, 1)
+	processDelivery := makeProcessDelivery(MockProcessor(nil), semaphore, inFlight)
 
 	processDelivery(amqp091.Delivery{DeliveryTag: 1, Acknowledger: acknowledger})
 	inFlight.Wait()
@@ -44,7 +44,12 @@ func TestMakeProcessDelivery_successWhenSemaphoreIsReleased(t *testing.T) {
 }
 
 func TestMakeProcessDelivery_failsWhenProcessorFails(t *testing.T) {
-	processDelivery, acknowledger, _, inFlight := setUpProcessDelivery(errors.New("processing failed"))
+	semaphore := make(chan struct{}, 1)
+	semaphore <- struct{}{}
+	inFlight := &sync.WaitGroup{}
+	inFlight.Add(1)
+	acknowledger := MockAcknowledger(1, 1)
+	processDelivery := makeProcessDelivery(MockProcessor(errors.New("processing failed")), semaphore, inFlight)
 
 	processDelivery(amqp091.Delivery{DeliveryTag: 9, Acknowledger: acknowledger})
 	inFlight.Wait()
