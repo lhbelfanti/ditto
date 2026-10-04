@@ -9,14 +9,29 @@ leaking driver detail.
 
 | Type | Role |
 |---|---|
-| `Runner` | Applies every pending file. Built by `MakeRunner`/`MakeRunnerWithDeps`. |
+| `Runner` | Applies every pending file under a lock. Built by `MakeRunner`. |
 | `Status` | Reports every file as applied/pending, without mutating the database. Built by `MakeStatus`. |
 | `Apply` | Wraps a `Runner` with credential-safe, file-attributed failure reporting. Built by `MakeApply`. |
 | `Record` | One file's name and applied/pending state, as reported by `Status`. |
 
-`Runner`'s underlying type (`func(ctx context.Context) error`) matches `http.MigrationRunner` —
-assignable with an explicit conversion when registering the HTTP migrations route, with no import
-of `http` needed by this package.
+## Startup migrations
+
+Services that declare a database run migrations at boot through `app.Run`, which is the normal
+path: the process applies every pending file before it serves traffic, and exits with an error if
+any file fails. Nothing has to be triggered by hand, and no migration endpoint is exposed over HTTP.
+
+## Concurrency and atomicity
+
+Each file is applied in its own transaction, together with its row in the `migrations` table:
+
+- A transaction-scoped advisory lock (`pg_advisory_xact_lock`) serializes runners. Replicas that
+  start together queue on it, and the first one to get it applies the file; the rest find it
+  applied and skip it.
+- A failing file rolls back completely, including any `CREATE TABLE` it ran before the failing
+  statement, so a retry starts clean.
+
+A migration file runs inside a transaction, so it cannot contain statements that Postgres rejects
+there, such as `CREATE INDEX CONCURRENTLY` or `VACUUM`.
 
 ---
 
@@ -48,13 +63,6 @@ if err != nil {
 The CLI wires each operation explicitly: the database selects receive the connection, the
 migration makers receive those selects, and `MakeStatus` receives the three operations it uses.
 The example needs an import of `github.com/jackc/pgx/v5` for `pgx.RowTo`.
-
-### Wiring the HTTP migrations route
-
-```go
-mux := http.NewServeMux()
-dittohttp.RegisterSystemRoutes(mux).WithMigrationRunner(dittohttp.MigrationRunner(runner))
-```
 
 ### `Dispatch`'s two commands
 

@@ -14,14 +14,15 @@ request. The transport returns an error if more requests are made than results p
 ```go
 mux := http.NewServeMux()
 dittohttp.RegisterSystemRoutes(mux).
-    WithMigrationRunner(dittohttp.MigrationRunner(runMigrations)).
     WithDatabasePing(dittohttp.DatabasePing(pg.MakeCheck(2*time.Second)))
 ```
 
 `RegisterSystemRoutes` always mounts `GET /ping/v1` (unconditional liveness — never touches the
-database). `WithMigrationRunner`/`WithDatabasePing` are opt-in: a service only chains in the ones
-it actually needs. See `migration/README.md` for wiring a `MigrationRunner`, and `database`'s
-`(*Postgres).MakeCheck` for a `DatabasePing`.
+database). `WithDatabasePing` is opt-in and mounts `GET /database/ping/v1` (readiness). Services
+built on `app.Run` get both without wiring them by hand.
+
+`WithMigrationRunner` is **deprecated**: it mounted `POST /migrations/run/v1`, which let any caller
+run DDL. Migrations now run at boot through `app.Run`, so new services should not chain it.
 
 ## `GracefulShutdown`
 
