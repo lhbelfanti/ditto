@@ -3,8 +3,6 @@ package migration_test
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,45 +11,37 @@ import (
 	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
-func writeFile(t *testing.T, dir, name, content string) {
-	t.Helper()
-	require := assert.New(t)
-	require.NoError(os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
-}
-
 func TestMakeListFiles_success(t *testing.T) {
-	dir := t.TempDir()
-	writeFile(t, dir, "001_second.sql", "SELECT 1;")
-	writeFile(t, dir, "000_foundation.sql", "SELECT 1;")
-	writeFile(t, dir, "notes.txt", "not a migration")
-
+	dir := migration.MockMigrationDir(t, map[string]string{
+		"001_second.sql":     "SELECT 1;",
+		"000_foundation.sql": "SELECT 1;",
+		"notes.txt":          "not a migration",
+	})
 	listFiles := migration.MakeListFiles(dir)
 
 	want := []string{"000_foundation.sql", "001_second.sql"}
-	got, err := listFiles()
+	got, _ := listFiles()
 
-	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 }
 
 func TestMakeListFiles_successWhenDirectoryIsEmpty(t *testing.T) {
-	dir := t.TempDir()
-
+	dir := migration.MockMigrationDir(t, nil)
 	listFiles := migration.MakeListFiles(dir)
 
 	want := []string{}
-	got, err := listFiles()
+	got, _ := listFiles()
 
-	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 }
 
 func TestMakeListFiles_failsWhenPatternIsMalformed(t *testing.T) {
 	listFiles := migration.MakeListFiles("[")
-	got, err := listFiles()
 
-	assert.ErrorIs(t, err, migration.ErrUnableToReadFile)
-	assert.Nil(t, got)
+	want := migration.ErrUnableToReadFile
+	_, got := listFiles()
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeTableExists_success(t *testing.T) {

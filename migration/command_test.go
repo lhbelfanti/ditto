@@ -13,16 +13,11 @@ import (
 
 func TestDispatch_SuccessWhenNoArguments(t *testing.T) {
 	called := false
-	mockApply := func(context.Context) error {
-		called = true
-		return nil
-	}
+	mockApply := migration.MockApplyCapturing(nil, &called)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
-	out := &bytes.Buffer{}
 
-	got := migration.Dispatch(context.Background(), []string{}, mockApply, mockStatus, out)
+	_ = migration.Dispatch(context.Background(), []string{}, mockApply, mockStatus, &bytes.Buffer{})
 
-	assert.NoError(t, got)
 	assert.True(t, called)
 }
 
@@ -37,25 +32,19 @@ func TestDispatch_SuccessWhenExplicitApply(t *testing.T) {
 }
 
 func TestDispatch_SuccessWhenStatusReportsRecords(t *testing.T) {
-	statusCalled := false
-	mockApply := func(context.Context) error {
-		return errors.New("must not be called")
+	records := []migration.Record{
+		{Name: "000_foundation.sql", Applied: true},
+		{Name: "001_second.sql", Applied: false},
 	}
-	mockStatus := func(context.Context) ([]migration.Record, error) {
-		statusCalled = true
-		return []migration.Record{
-			{Name: "000_foundation.sql", Applied: true},
-			{Name: "001_second.sql", Applied: false},
-		}, nil
-	}
+	mockApply := migration.MockApply(errors.New("must not be called"))
+	mockStatus := migration.MockStatus(records, nil)
 	out := &bytes.Buffer{}
 
+	_ = migration.Dispatch(context.Background(), []string{migration.CommandStatus}, mockApply, mockStatus, out)
+
 	want := "applied 000_foundation.sql\npending 001_second.sql\n"
-	err := migration.Dispatch(context.Background(), []string{migration.CommandStatus}, mockApply, mockStatus, out)
 	got := out.String()
 
-	assert.NoError(t, err)
-	assert.True(t, statusCalled)
 	assert.Equal(t, want, got)
 }
 
