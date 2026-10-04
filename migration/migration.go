@@ -54,15 +54,19 @@ func MakeRunner(db database.Connection, migrationsDir string) Runner {
 
 // beginLocked opens a transaction, takes the migration lock and ensures the tracking table exists.
 // The caller owns the transaction and must commit or roll it back.
-func beginLocked(ctx context.Context, db database.Connection) (pgx.Tx, error) {
+func beginLocked(ctx context.Context, db database.Connection) (_ pgx.Tx, err error) {
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToApply, err)
 	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
 
 	_, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", migrationLockKey)
 	if err != nil {
-		_ = tx.Rollback(ctx)
 		return nil, fmt.Errorf("%w: %w", ErrFailedToApply, err)
 	}
 
@@ -73,7 +77,6 @@ func beginLocked(ctx context.Context, db database.Connection) (pgx.Tx, error) {
 	)`
 	_, err = tx.Exec(ctx, createTable)
 	if err != nil {
-		_ = tx.Rollback(ctx)
 		return nil, fmt.Errorf("%w: %w", ErrFailedToCreateTable, err)
 	}
 
