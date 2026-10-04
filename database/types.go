@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
@@ -42,11 +41,11 @@ const databaseURL string = "postgresql://%s:%s@%s:%s/%s?sslmode=disable"
 // resolveDatabaseURL reads the connection target from the environment. POSTGRES_DB_HOST defaults
 // to the compose service name postgres_db, so services that do not set it keep working unchanged.
 func resolveDatabaseURL() string {
-	dbUser := os.Getenv("POSTGRES_DB_USER")
-	dbPass := os.Getenv("POSTGRES_DB_PASS")
+	dbUser := env.Get("POSTGRES_DB_USER", "")
+	dbPass := env.Get("POSTGRES_DB_PASS", "")
 	dbHost := env.Get("POSTGRES_DB_HOST", "postgres_db")
-	dbName := os.Getenv("POSTGRES_DB_NAME")
-	dbPort := os.Getenv("POSTGRES_DB_PORT")
+	dbName := env.Get("POSTGRES_DB_NAME", "")
+	dbPort := env.Get("POSTGRES_DB_PORT", "")
 
 	return fmt.Sprintf(databaseURL, dbUser, dbPass, dbHost, dbPort, dbName)
 }
