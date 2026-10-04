@@ -5,154 +5,139 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
 func TestMakeSelect_success(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockRows := new(database.MockPgxRows)
-	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(mockRows, nil)
+	mockConn := database.MockQueryConnection(&database.MockPgxRows{}, nil)
 	collectRows := database.MockCollectRows([]string{"a", "b"}, nil)
 
 	sel := database.MakeSelect[string](mockConn, collectRows)
-	got, err := sel(context.Background(), "SELECT name FROM t")
 
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"a", "b"}, got)
+	want := []string{"a", "b"}
+	got, _ := sel(context.Background(), "SELECT name FROM t")
+
+	assert.Equal(t, want, got)
 }
 
 func TestMakeSelect_failsWhenQueryFails(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).
-		Return((*database.MockPgxRows)(nil), pgx.ErrTxClosed)
+	mockConn := database.MockQueryConnection(nil, pgx.ErrTxClosed)
 	collectRows := database.MockCollectRows[string](nil, nil)
 
 	sel := database.MakeSelect[string](mockConn, collectRows)
-	got, err := sel(context.Background(), "SELECT name FROM t")
 
-	assert.ErrorIs(t, err, database.ErrQuery)
-	assert.Nil(t, got)
+	want := database.ErrQuery
+	_, got := sel(context.Background(), "SELECT name FROM t")
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeSelect_failsWhenCollectFails(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockRows := new(database.MockPgxRows)
-	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(mockRows, nil)
+	mockConn := database.MockQueryConnection(&database.MockPgxRows{}, nil)
 	collectRows := database.MockCollectRows[string](nil, pgx.ErrNoRows)
 
 	sel := database.MakeSelect[string](mockConn, collectRows)
-	got, err := sel(context.Background(), "SELECT name FROM t")
 
-	assert.ErrorIs(t, err, database.ErrCollect)
-	assert.Nil(t, got)
+	want := database.ErrCollect
+	_, got := sel(context.Background(), "SELECT name FROM t")
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeSelectOne_success(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockRows := new(database.MockPgxRows)
-	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(mockRows, nil)
-	mockRows.On("Next").Return(true)
-	mockRows.On("Close").Return()
-	mockRows.On("Err").Return(nil)
-	database.MockPgxRowsScanValue(mockRows, true, t)
+	mockConn := database.MockQueryConnection(database.MockRowsReturning(true, t), nil)
 
 	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
-	got, err := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 
-	assert.NoError(t, err)
+	got, _ := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
+
 	assert.True(t, got)
 }
 
 func TestMakeSelectOne_failsWhenNoRowsFound(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockRows := new(database.MockPgxRows)
-	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(mockRows, nil)
-	mockRows.On("Next").Return(false)
-	mockRows.On("Err").Return(nil)
-	mockRows.On("Close").Return()
+	mockConn := database.MockQueryConnection(database.MockEmptyRows(), nil)
 
 	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
-	_, err := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 
-	assert.ErrorIs(t, err, database.ErrNoRows)
+	want := database.ErrNoRows
+	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeSelectOne_failsWhenQueryFails(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Query", mock.Anything, mock.Anything, mock.Anything).
-		Return((*database.MockPgxRows)(nil), pgx.ErrTxClosed)
+	mockConn := database.MockQueryConnection(nil, pgx.ErrTxClosed)
 
 	selOne := database.MakeSelectOne[bool](mockConn, nil)
-	_, err := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 
-	assert.ErrorIs(t, err, database.ErrQuery)
+	want := database.ErrQuery
+	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeInsert_success(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockRow := new(database.MockPgxRow)
-	mockConn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(mockRow)
-	database.MockScan(mockRow, []any{42}, t)
+	mockConn := database.MockQueryRowConnection(database.MockRowReturning(42, t))
 
 	insert := database.MakeInsert[int](mockConn)
-	got, err := insert(context.Background(), "INSERT INTO t DEFAULT VALUES RETURNING id")
 
-	assert.NoError(t, err)
-	assert.Equal(t, 42, got)
+	want := 42
+	got, _ := insert(context.Background(), "INSERT INTO t DEFAULT VALUES RETURNING id")
+
+	assert.Equal(t, want, got)
 }
 
 func TestMakeInsert_failsWhenQueryFails(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockRow := new(database.MockPgxRow)
-	mockConn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(mockRow)
-	mockRow.On("Scan", mock.Anything).Return(pgx.ErrTxClosed)
+	mockConn := database.MockQueryRowConnection(database.MockRowFailing(pgx.ErrTxClosed))
 
 	insert := database.MakeInsert[int](mockConn)
-	_, err := insert(context.Background(), "INSERT INTO t DEFAULT VALUES RETURNING id")
 
-	assert.ErrorIs(t, err, database.ErrQuery)
+	want := database.ErrQuery
+	_, got := insert(context.Background(), "INSERT INTO t DEFAULT VALUES RETURNING id")
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeDelete_success(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil)
+	mockConn := database.MockExecConnection(nil)
 
 	del := database.MakeDelete(mockConn)
-	err := del(context.Background(), "DELETE FROM t WHERE id = $1", 1)
 
-	assert.NoError(t, err)
+	got := del(context.Background(), "DELETE FROM t WHERE id = $1", 1)
+
+	assert.NoError(t, got)
 }
 
 func TestMakeDelete_failsWhenQueryFails(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, pgx.ErrTxClosed)
+	mockConn := database.MockExecConnection(pgx.ErrTxClosed)
 
 	del := database.MakeDelete(mockConn)
-	err := del(context.Background(), "DELETE FROM t WHERE id = $1", 1)
 
-	assert.ErrorIs(t, err, database.ErrQuery)
+	want := database.ErrQuery
+	got := del(context.Background(), "DELETE FROM t WHERE id = $1", 1)
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeUpdate_success(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil)
+	mockConn := database.MockExecConnection(nil)
 
 	upd := database.MakeUpdate(mockConn)
-	err := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
 
-	assert.NoError(t, err)
+	got := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
+
+	assert.NoError(t, got)
 }
 
 func TestMakeUpdate_failsWhenQueryFails(t *testing.T) {
-	mockConn := new(database.MockPostgresConnection)
-	mockConn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, pgx.ErrTxClosed)
+	mockConn := database.MockExecConnection(pgx.ErrTxClosed)
 
 	upd := database.MakeUpdate(mockConn)
-	err := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
 
-	assert.ErrorIs(t, err, database.ErrQuery)
+	want := database.ErrQuery
+	got := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
+
+	assert.ErrorIs(t, got, want)
 }

@@ -365,3 +365,50 @@ func MockPostgres() *Postgres {
 	pool, _ := pgxpool.New(context.Background(), "postgresql://mock:mock@127.0.0.1:1/mock?sslmode=disable")
 	return &Postgres{db: pool}
 }
+
+func MockExecConnection(err error) *MockPostgresConnection {
+	conn := &MockPostgresConnection{}
+	conn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, err)
+	return conn
+}
+
+func MockQueryConnection(rows *MockPgxRows, err error) *MockPostgresConnection {
+	conn := &MockPostgresConnection{}
+	conn.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(rows, err)
+	return conn
+}
+
+func MockQueryRowConnection(row *MockPgxRow) *MockPostgresConnection {
+	conn := &MockPostgresConnection{}
+	conn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(row)
+	return conn
+}
+
+func MockRowsReturning(value any, t *testing.T) *MockPgxRows {
+	rows := &MockPgxRows{}
+	rows.On("Next").Return(true)
+	rows.On("Close").Return()
+	rows.On("Err").Return(nil)
+	MockPgxRowsScanValue(rows, value, t)
+	return rows
+}
+
+func MockEmptyRows() *MockPgxRows {
+	rows := &MockPgxRows{}
+	rows.On("Next").Return(false)
+	rows.On("Close").Return()
+	rows.On("Err").Return(nil)
+	return rows
+}
+
+func MockRowReturning(value any, t *testing.T) *MockPgxRow {
+	row := &MockPgxRow{}
+	MockScan(row, []any{value}, t)
+	return row
+}
+
+func MockRowFailing(err error) *MockPgxRow {
+	row := &MockPgxRow{}
+	row.On("Scan", mock.Anything).Return(err)
+	return row
+}
