@@ -38,10 +38,9 @@ func TestPostgres_Close_success(t *testing.T) {
 
 	pg.Close()
 
-	want := true
 	got := pool.Ping(context.Background()) != nil
 
-	assert.Equal(t, want, got)
+	assert.True(t, got)
 }
 
 func TestSafeError_Error_success(t *testing.T) {
