@@ -172,6 +172,7 @@ func TestMountSystemRoutes_successWhenPingIsNil(t *testing.T) {
 
 	want := http.StatusNotFound
 	got := rec.Code
+
 	assert.Equal(t, want, got)
 }
 
@@ -185,5 +186,6 @@ func TestMountSystemRoutes_successWhenPingIsSet(t *testing.T) {
 
 	want := http.StatusOK
 	got := rec.Code
+
 	assert.Equal(t, want, got)
 }
