@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -358,4 +359,9 @@ func MockBlockingPing(err error) Ping {
 		}
 		return err
 	}
+}
+
+func MockPostgres() *Postgres {
+	pool, _ := pgxpool.New(context.Background(), "postgresql://mock:mock@127.0.0.1:1/mock?sslmode=disable")
+	return &Postgres{db: pool}
 }
