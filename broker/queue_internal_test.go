@@ -8,7 +8,7 @@ import (
 )
 
 func TestDeclareQueue_success(t *testing.T) {
-	ch := &mockChannel{}
+	ch := &MockChannel{}
 
 	q, err := declareQueue(ch, "work")
 
@@ -18,7 +18,7 @@ func TestDeclareQueue_success(t *testing.T) {
 
 func TestDeclareQueue_failsWhenChannelRejectsDeclaration(t *testing.T) {
 	underlying := errors.New("unavailable")
-	ch := &mockChannel{queueErr: underlying}
+	ch := &MockChannel{QueueErr: underlying}
 
 	_, err := declareQueue(ch, "work")
 

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setUpProcessDelivery(err error) (func(amqp091.Delivery), *mockAcknowledger, chan struct{}, *sync.WaitGroup) {
+func setUpProcessDelivery(err error) (func(amqp091.Delivery), *MockAckRecorder, chan struct{}, *sync.WaitGroup) {
 	semaphore := make(chan struct{}, 1)
 	semaphore <- struct{}{}
 	inFlight := &sync.WaitGroup{}
@@ -26,7 +26,7 @@ func TestMakeProcessDelivery_success(t *testing.T) {
 	inFlight.Wait()
 
 	want := uint64(7)
-	got := <-acknowledger.acks
+	got := <-acknowledger.Acks
 
 	assert.Equal(t, want, got)
 }
@@ -50,7 +50,7 @@ func TestMakeProcessDelivery_failsWhenProcessorFails(t *testing.T) {
 	inFlight.Wait()
 
 	want := uint64(9)
-	got := <-acknowledger.nacks
+	got := <-acknowledger.Nacks
 
 	assert.Equal(t, want, got)
 }
