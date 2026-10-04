@@ -1,4 +1,4 @@
-package app
+package app_test
 
 import (
 	"fmt"
@@ -13,32 +13,45 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/lhbelfanti/ditto/v2/app"
 	"github.com/lhbelfanti/ditto/v2/database"
 	"github.com/lhbelfanti/ditto/v2/env"
 )
 
+type runOutcome struct {
+	pingCode         int
+	itemsCode        int
+	databasePingCode int
+	wrapped          string
+	shutdownErr      error
+}
+
 func TestRun_failsWhenPortIsMissing(t *testing.T) {
-	err := Run(Options{Name: "svc", PortEnv: "APP_TEST_MISSING_PORT"})
+	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_MISSING_PORT"})
 
 	var keyErr *env.KeyError
-	require.ErrorAs(t, err, &keyErr)
+	assert.ErrorAs(t, got, &keyErr)
 }
 
 func TestRun_failsWhenDatabaseEnvIsIncomplete(t *testing.T) {
 	t.Setenv("APP_TEST_PORT", "4000")
 	t.Setenv("POSTGRES_DB_PORT", "")
 
-	err := Run(Options{Name: "svc", PortEnv: "APP_TEST_PORT", MigrationsDir: "./migrations"})
+	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_PORT", MigrationsDir: "./migrations"})
 
-	assert.Error(t, err)
+	assert.Error(t, got)
 }
 
 // Run installs its signal handler before it starts listening, so once the liveness route answers,
 // sending SIGINT to this process exercises the real graceful shutdown path.
 func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {
-	port := freePort(t)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	port := listener.Addr().(*net.TCPAddr).Port
+	require.NoError(t, listener.Close())
 	t.Setenv("APP_TEST_PORT", strconv.Itoa(port))
-	opts := Options{
+
+	opts := app.Options{
 		Name:    "svc",
 		PortEnv: "APP_TEST_PORT",
 		Routes: func(mux *http.ServeMux, _ *database.Postgres) {
@@ -54,61 +67,59 @@ func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {
 		},
 	}
 	done := make(chan error, 1)
-	go func() { done <- Run(opts) }()
+	go func() { done <- app.Run(opts) }()
+
+	// The client never reuses connections, so no idle or unread connection can keep Shutdown waiting.
+	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
-	waitForServer(t, baseURL+"/ping/v1")
-
-	ping := get(t, baseURL+"/ping/v1")
-	items := get(t, baseURL+"/items/v1")
-	databasePing := get(t, baseURL+"/database/ping/v1")
-
-	assert.Equal(t, http.StatusOK, ping.StatusCode)
-	assert.Equal(t, http.StatusTeapot, items.StatusCode)
-	assert.Equal(t, "true", items.Header.Get("X-Wrapped"))
-	assert.Equal(t, http.StatusNotFound, databasePing.StatusCode)
-
-	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
-	select {
-	case err := <-done:
-		assert.NoError(t, err)
-	case <-time.After(10 * time.Second):
-		t.Fatal("Run did not shut down after SIGINT")
+	fetch := func(path string) (*http.Response, error) {
+		resp, err := client.Get(baseURL + path)
+		if err != nil {
+			return nil, err
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		return resp, nil
 	}
-}
 
-func freePort(t *testing.T) int {
-	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	defer func() { _ = listener.Close() }()
-	return listener.Addr().(*net.TCPAddr).Port
-}
-
-// The client never reuses connections, so no idle or unread connection can keep Shutdown waiting.
-var httpClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
-
-func waitForServer(t *testing.T, url string) {
-	t.Helper()
 	for i := 0; i < 100; i++ {
-		resp, err := httpClient.Get(url)
+		_, err = fetch("/ping/v1")
 		if err == nil {
-			drainAndClose(resp)
-			return
+			break
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("server at %s did not start", url)
-}
-
-func get(t *testing.T, url string) *http.Response {
-	t.Helper()
-	resp, err := httpClient.Get(url)
 	require.NoError(t, err)
-	drainAndClose(resp)
-	return resp
-}
 
-func drainAndClose(resp *http.Response) {
-	_, _ = io.Copy(io.Discard, resp.Body)
-	_ = resp.Body.Close()
+	ping, err := fetch("/ping/v1")
+	require.NoError(t, err)
+	items, err := fetch("/items/v1")
+	require.NoError(t, err)
+	databasePing, err := fetch("/database/ping/v1")
+	require.NoError(t, err)
+
+	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	var shutdownErr error
+	select {
+	case shutdownErr = <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Run did not shut down after SIGINT")
+	}
+
+	want := runOutcome{
+		pingCode:         http.StatusOK,
+		itemsCode:        http.StatusTeapot,
+		databasePingCode: http.StatusNotFound,
+		wrapped:          "true",
+		shutdownErr:      nil,
+	}
+	got := runOutcome{
+		pingCode:         ping.StatusCode,
+		itemsCode:        items.StatusCode,
+		databasePingCode: databasePing.StatusCode,
+		wrapped:          items.Header.Get("X-Wrapped"),
+		shutdownErr:      shutdownErr,
+	}
+
+	assert.Equal(t, want, got)
 }
