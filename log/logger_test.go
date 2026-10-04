@@ -15,10 +15,8 @@ func TestNewLogger_successWithNilWriter(t *testing.T) {
 	var buf bytes.Buffer
 	log.NewCustomLogger(&buf, zerolog.TraceLevel)
 
-	// Replaces the previous logger, so the buffer should not have logs
 	log.NewCustomLogger(nil, zerolog.TraceLevel)
 
-	// Write a test message
 	log.Info(context.Background(), "test message")
 
 	want := ""
@@ -51,7 +49,6 @@ func TestLogLevels_success(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			buf.Reset()
 
-			// Call the appropriate function based on the level
 			switch tt.level {
 			case zerolog.TraceLevel:
 				log.Trace(context.Background(), tt.msg)

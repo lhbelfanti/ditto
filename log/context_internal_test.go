@@ -102,7 +102,6 @@ func TestWith_success(t *testing.T) {
 		{"key1", "newValue"},
 	}
 
-	// Empty context
 	field1 := Param(want[0].Key, want[0].Value)
 	field2 := Param(want[1].Key, want[1].Value)
 
@@ -113,7 +112,6 @@ func TestWith_success(t *testing.T) {
 	assert.Equal(t, want[0].Value, got[want[0].Key])
 	assert.Equal(t, want[1].Value, got[want[1].Key])
 
-	// Context with params added
 	field3 := Param(want[2].Key, want[2].Value)
 	ctx = With(ctx, field3)
 
