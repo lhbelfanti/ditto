@@ -20,7 +20,8 @@ type (
 		Err        error
 	}
 
-	mockSequenceRoundTripper struct {
+	// MockSequenceTransport replays a fixed sequence of MockHTTPResult values, one per request.
+	MockSequenceTransport struct {
 		mu      sync.Mutex
 		results []MockHTTPResult
 		next    int
@@ -33,10 +34,10 @@ type (
 )
 
 func MockSequenceRoundTripper(results ...MockHTTPResult) http.RoundTripper {
-	return &mockSequenceRoundTripper{results: results}
+	return &MockSequenceTransport{results: results}
 }
 
-func (m *mockSequenceRoundTripper) RoundTrip(_ *http.Request) (*http.Response, error) {
+func (m *MockSequenceTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
