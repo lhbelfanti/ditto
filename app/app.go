@@ -4,10 +4,10 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -84,13 +84,13 @@ func Run(opts Options) error {
 	}
 
 	handler := newHandler(opts, pg)
-	addr := strconv.Itoa(port)
-	server := &http.Server{Addr: ":" + addr, Handler: handler}
+	addr := fmt.Sprintf(":%d", port)
+	server := &http.Server{Addr: addr, Handler: handler}
 
 	signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Info(ctx, "starting "+opts.Name+" on :"+addr)
+	log.Info(ctx, "starting "+opts.Name+" on "+addr)
 	return dittohttp.GracefulShutdown(signalCtx, server.ListenAndServe, server.Shutdown, shutdownTimeout)
 }
 
