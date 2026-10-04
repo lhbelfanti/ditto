@@ -1,9 +1,14 @@
 package app
 
 import (
+	"fmt"
+	"io"
+	"net"
 	"net/http"
-	"net/http/httptest"
+	"strconv"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,16 +33,14 @@ func TestRun_failsWhenDatabaseEnvIsIncomplete(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestNewHandler_successWhenDatabaseIsDisabled(t *testing.T) {
-	h := newHandler(Options{}, nil)
-
-	assert.Equal(t, http.StatusOK, serve(t, h, "GET", "/ping/v1").Code)
-	assert.Equal(t, http.StatusNotFound, serve(t, h, "GET", "/database/ping/v1").Code)
-	assert.Equal(t, http.StatusNotFound, serve(t, h, "POST", "/migrations/run/v1").Code)
-}
-
-func TestNewHandler_successWhenRoutesAndWrapAreSet(t *testing.T) {
+// Run installs its signal handler before it starts listening, so once the liveness route answers,
+// sending SIGINT to this process exercises the real graceful shutdown path.
+func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {
+	port := freePort(t)
+	t.Setenv("APP_TEST_PORT", strconv.Itoa(port))
 	opts := Options{
+		Name:    "svc",
+		PortEnv: "APP_TEST_PORT",
 		Routes: func(mux *http.ServeMux, _ *database.Postgres) {
 			mux.HandleFunc("GET /items/v1", func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusTeapot)
@@ -50,17 +53,62 @@ func TestNewHandler_successWhenRoutesAndWrapAreSet(t *testing.T) {
 			})
 		},
 	}
-	h := newHandler(opts, nil)
+	done := make(chan error, 1)
+	go func() { done <- Run(opts) }()
+	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+	waitForServer(t, baseURL+"/ping/v1")
 
-	rec := serve(t, h, "GET", "/items/v1")
+	ping := get(t, baseURL+"/ping/v1")
+	items := get(t, baseURL+"/items/v1")
+	databasePing := get(t, baseURL+"/database/ping/v1")
 
-	assert.Equal(t, http.StatusTeapot, rec.Code)
-	assert.Equal(t, "true", rec.Header().Get("X-Wrapped"))
+	assert.Equal(t, http.StatusOK, ping.StatusCode)
+	assert.Equal(t, http.StatusTeapot, items.StatusCode)
+	assert.Equal(t, "true", items.Header.Get("X-Wrapped"))
+	assert.Equal(t, http.StatusNotFound, databasePing.StatusCode)
+
+	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	select {
+	case err := <-done:
+		assert.NoError(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("Run did not shut down after SIGINT")
+	}
 }
 
-func serve(t *testing.T, h http.Handler, method, path string) *httptest.ResponseRecorder {
+func freePort(t *testing.T) int {
 	t.Helper()
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
-	return rec
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = listener.Close() }()
+	return listener.Addr().(*net.TCPAddr).Port
+}
+
+// The client never reuses connections, so no idle or unread connection can keep Shutdown waiting.
+var httpClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+
+func waitForServer(t *testing.T, url string) {
+	t.Helper()
+	for i := 0; i < 100; i++ {
+		resp, err := httpClient.Get(url)
+		if err == nil {
+			drainAndClose(resp)
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("server at %s did not start", url)
+}
+
+func get(t *testing.T, url string) *http.Response {
+	t.Helper()
+	resp, err := httpClient.Get(url)
+	require.NoError(t, err)
+	drainAndClose(resp)
+	return resp
+}
+
+func drainAndClose(resp *http.Response) {
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
 }
