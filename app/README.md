@@ -53,11 +53,3 @@ func main() {
 
 Every failure before step 5 is returned, not logged-and-exited, so the caller decides how to exit.
 `setup.Must` in the example turns it into a non-zero exit.
-
-## Errors
-
-`Run` returns the errors of the packages it calls: `env.KeyError` for a missing or malformed port,
-the `database` errors for an incomplete environment or an unreachable database, and the
-`migration` errors when a file fails. The `database` errors hide the connection detail. The
-`migration` errors include the SQL driver message, so they are only ever printed at startup and
-never reach an HTTP response, because migrations do not run over HTTP.
