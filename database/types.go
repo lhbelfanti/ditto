@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -82,4 +83,28 @@ func resolveDatabaseURL() string {
 	dbPort := env.Get("POSTGRES_DB_PORT", "")
 
 	return fmt.Sprintf(databaseURL, dbUser, dbPass, dbHost, dbPort, dbName)
+}
+
+// MakeCheck creates a Check function bounding pg's own connection pool ping to timeout, so a
+// caller never needs to reach past Postgres into its underlying pool to build one.
+func (pg *Postgres) MakeCheck(timeout time.Duration) Check {
+	return MakeCheck(pg.Database().Ping, timeout)
+}
+
+// Database returns the Postgres connection pool
+func (pg *Postgres) Database() *pgxpool.Pool {
+	return pg.db
+}
+
+// Close closes the database connection
+func (pg *Postgres) Close() {
+	pg.db.Close()
+}
+
+func (e *SafeError) Error() string {
+	return e.sentinel.Error()
+}
+
+func (e *SafeError) Unwrap() []error {
+	return []error{e.sentinel, e.cause}
 }

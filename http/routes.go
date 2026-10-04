@@ -23,20 +23,6 @@ func MountSystemRoutes(mux *http.ServeMux, ping DatabasePing) {
 	}
 }
 
-// WithMigrationRunner mounts POST /migrations/run/v1.
-//
-// Deprecated: exposes DDL over HTTP without authentication. app.Run applies migrations at boot.
-func (s *SystemRoutes) WithMigrationRunner(runner MigrationRunner) *SystemRoutes {
-	s.mux.HandleFunc("POST /migrations/run/v1", migrationsRunHandlerV1(runner))
-	return s
-}
-
-// WithDatabasePing mounts GET /database/ping/v1.
-func (s *SystemRoutes) WithDatabasePing(dbPing DatabasePing) *SystemRoutes {
-	s.mux.HandleFunc("GET /database/ping/v1", databasePingHandlerV1(dbPing))
-	return s
-}
-
 func pingHandlerV1() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		response.Send(r.Context(), w, http.StatusOK, "pong", nil, nil)

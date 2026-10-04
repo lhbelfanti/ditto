@@ -44,3 +44,16 @@ type (
 	// Wrap decorates the whole handler before it is served.
 	Wrap func(next http.Handler) http.Handler
 )
+
+func (t Timeouts) withDefaults() Timeouts {
+	if t.Startup == 0 {
+		t.Startup = defaultStartupTimeout
+	}
+	if t.Ping == 0 {
+		t.Ping = defaultPingTimeout
+	}
+	if t.Shutdown == 0 {
+		t.Shutdown = defaultShutdownTimeout
+	}
+	return t
+}

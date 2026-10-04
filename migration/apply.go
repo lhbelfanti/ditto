@@ -3,31 +3,9 @@ package migration
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
-
-func (e *ApplyError) Error() string {
-	switch {
-	case e.File != "" && e.Code != "":
-		return fmt.Sprintf("%s: file %s: postgresql error %s", ErrFailedToApply, e.File, e.Code)
-	case e.File != "":
-		return fmt.Sprintf("%s: file %s", ErrFailedToApply, e.File)
-	case e.AttributionUnavailable && e.Code != "":
-		return fmt.Sprintf("%s: file attribution unavailable: postgresql error %s", ErrFailedToApply, e.Code)
-	case e.AttributionUnavailable:
-		return fmt.Sprintf("%s: file attribution unavailable", ErrFailedToApply)
-	case e.Code != "":
-		return fmt.Sprintf("%s: postgresql error %s", ErrFailedToApply, e.Code)
-	default:
-		return ErrFailedToApply.Error()
-	}
-}
-
-func (e *ApplyError) Unwrap() []error {
-	return []error{ErrFailedToApply, e.cause}
-}
 
 // MakeApply wraps runner with deterministic, credential-safe failure attribution: on failure it
 // extracts the allowlisted PostgreSQL SQLSTATE (never the raw driver error) and, when the failure

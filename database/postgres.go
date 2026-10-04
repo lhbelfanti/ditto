@@ -25,16 +25,6 @@ func InitPostgres() (*Postgres, error) {
 	return pgInstance, pgInitErr
 }
 
-// Database returns the Postgres connection pool
-func (pg *Postgres) Database() *pgxpool.Pool {
-	return pg.db
-}
-
-// Close closes the database connection
-func (pg *Postgres) Close() {
-	pg.db.Close()
-}
-
 // MakeCollectRows creates a new CollectRows
 func MakeCollectRows[T any](fn pgx.RowToFunc[T]) CollectRows[T] {
 	return func(rows pgx.Rows) ([]T, error) {

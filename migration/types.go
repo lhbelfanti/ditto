@@ -2,6 +2,7 @@ package migration
 
 import (
 	"context"
+	"fmt"
 )
 
 type (
@@ -47,3 +48,24 @@ type (
 	// database.
 	Status func(ctx context.Context) ([]Record, error)
 )
+
+func (e *ApplyError) Error() string {
+	switch {
+	case e.File != "" && e.Code != "":
+		return fmt.Sprintf("%s: file %s: postgresql error %s", ErrFailedToApply, e.File, e.Code)
+	case e.File != "":
+		return fmt.Sprintf("%s: file %s", ErrFailedToApply, e.File)
+	case e.AttributionUnavailable && e.Code != "":
+		return fmt.Sprintf("%s: file attribution unavailable: postgresql error %s", ErrFailedToApply, e.Code)
+	case e.AttributionUnavailable:
+		return fmt.Sprintf("%s: file attribution unavailable", ErrFailedToApply)
+	case e.Code != "":
+		return fmt.Sprintf("%s: postgresql error %s", ErrFailedToApply, e.Code)
+	default:
+		return ErrFailedToApply.Error()
+	}
+}
+
+func (e *ApplyError) Unwrap() []error {
+	return []error{ErrFailedToApply, e.cause}
+}

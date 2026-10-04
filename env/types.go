@@ -12,3 +12,11 @@ type (
 		Err error
 	}
 )
+
+func (e *KeyError) Error() string {
+	return e.Key + ": " + e.Err.Error()
+}
+
+func (e *KeyError) Unwrap() error {
+	return e.Err
+}

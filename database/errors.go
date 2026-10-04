@@ -11,14 +11,6 @@ var (
 	ErrCantInitDatabase    = errors.New("database: can't initialize database")
 )
 
-func (e *SafeError) Error() string {
-	return e.sentinel.Error()
-}
-
-func (e *SafeError) Unwrap() []error {
-	return []error{e.sentinel, e.cause}
-}
-
 // WrapUnavailable hides cause behind the credential-safe ErrDatabaseUnavailable sentinel.
 func WrapUnavailable(cause error) error {
 	return &SafeError{sentinel: ErrDatabaseUnavailable, cause: cause}

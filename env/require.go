@@ -5,14 +5,6 @@ import (
 	"strings"
 )
 
-func (e *KeyError) Error() string {
-	return e.Key + ": " + e.Err.Error()
-}
-
-func (e *KeyError) Unwrap() error {
-	return e.Err
-}
-
 // RequireValue returns the trimmed, non-empty value of key, or a *KeyError wrapping ErrMissingKey.
 func RequireValue(lookup Lookup, key string) (string, error) {
 	value, ok := lookup(key)
