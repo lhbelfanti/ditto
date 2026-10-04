@@ -7,12 +7,6 @@ import (
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
-type (
-	CreateTable   func(ctx context.Context) error
-	IsApplied     func(ctx context.Context, name string) (bool, error)
-	InsertApplied func(ctx context.Context, name string) error
-)
-
 func MakeCreateTable(db database.Connection) CreateTable {
 	return func(ctx context.Context) error {
 		const q = `CREATE TABLE IF NOT EXISTS migrations (

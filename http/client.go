@@ -12,26 +12,6 @@ import (
 	"github.com/lhbelfanti/ditto/v2/log"
 )
 
-type (
-	// Client is an abstraction of the CustomClient methods
-	Client interface {
-		NewRequest(ctx context.Context, method, url string, body interface{}) (Response, error)
-	}
-
-	// CustomClient represent a custom http.CustomClient
-	CustomClient struct {
-		HTTPClient *http.Client
-	}
-
-	// Response represent the necessary data of the request response
-	Response struct {
-		Body       string
-		Status     string
-		StatusCode int
-		Header     http.Header
-	}
-)
-
 // NewClient create a new CustomClient
 func NewClient(timeout time.Duration) *CustomClient {
 	return &CustomClient{

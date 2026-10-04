@@ -8,20 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// Apply runs pending migrations through the injected runner and returns a credential-safe,
-// filename-attributed error on failure.
-type Apply func(ctx context.Context) error
-
-// ApplyError renders only a package-owned message, an optional attributed filename, and an
-// optional allowlisted PostgreSQL SQLSTATE classification, while still letting errors.Is/errors.As
-// reach the original runner failure through Unwrap.
-type ApplyError struct {
-	File                   string
-	Code                   string
-	AttributionUnavailable bool
-	cause                  error
-}
-
 func (e *ApplyError) Error() string {
 	switch {
 	case e.File != "" && e.Code != "":

@@ -7,14 +7,6 @@ import (
 	"github.com/lhbelfanti/ditto/v2/env"
 )
 
-type (
-	// Ping verifies that a database connection is reachable.
-	Ping func(ctx context.Context) error
-
-	// Check proves database connectivity within a bounded deadline.
-	Check func(ctx context.Context) error
-)
-
 // MakeCheck creates a Check function that bounds ping to timeout and, on failure, returns it
 // hidden behind ErrDatabaseUnavailable. It never logs itself — Check runs both behind HTTP
 // handlers (which already log via response.Send) and in non-HTTP startup paths, so logging is

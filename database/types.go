@@ -28,6 +28,40 @@ type (
 
 	// CollectRows is a wrapper created to be able to mock pgx.CollectRows function
 	CollectRows[T any] func(rows pgx.Rows) ([]T, error)
+
+	// Ping verifies that a database connection is reachable.
+	Ping func(ctx context.Context) error
+
+	// Check proves database connectivity within a bounded deadline.
+	Check func(ctx context.Context) error
+
+	// Select[T] executes a query returning multiple rows.
+	Select[T any] func(ctx context.Context, query string, args ...any) ([]T, error)
+
+	// SelectOne[T] executes a query returning exactly one row.
+	SelectOne[T any] func(ctx context.Context, query string, args ...any) (T, error)
+
+	// Insert[T] executes an INSERT with a RETURNING clause, scanning the scalar result into T.
+	// Use T=int for RETURNING id.
+	Insert[T any] func(ctx context.Context, query string, args ...any) (T, error)
+
+	// Delete executes a DELETE statement.
+	Delete func(ctx context.Context, query string, args ...any) error
+
+	// Update executes an UPDATE statement.
+	// Also use Update for INSERT … ON CONFLICT DO NOTHING (no RETURNING clause).
+	Update func(ctx context.Context, query string, args ...any) error
+
+	// SafeError renders only its package-owned sentinel message, while still letting errors.Is
+	// identify both the sentinel and the original cause it hides — so driver errors that may carry
+	// a credential-bearing DSN never reach a log line or an HTTP response body. Reserved for
+	// ErrDatabaseUnavailable/ErrCantInitDatabase, whose cause can be a raw pgx dial/ping error — not
+	// a blanket rule for every sentinel: ErrNoRows/ErrQuery/ErrCollect stay bare because a query
+	// execution/row-collection failure never carries connection-string detail.
+	SafeError struct {
+		sentinel error
+		cause    error
+	}
 )
 
 var (

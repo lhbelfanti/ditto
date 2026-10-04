@@ -1,22 +1,10 @@
 package http
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/lhbelfanti/ditto/v2/http/response"
 )
-
-// MigrationRunner is a function that executes pending database migrations.
-type MigrationRunner func(ctx context.Context) error
-
-// DatabasePing checks whether the database dependency is reachable.
-type DatabasePing func(ctx context.Context) error
-
-// SystemRoutes mounts ditto's standard system endpoints on a mux, one opt-in route at a time.
-type SystemRoutes struct {
-	mux *http.ServeMux
-}
 
 // RegisterSystemRoutes mounts GET /ping/v1 (unconditional liveness — never touches the database)
 // and returns a SystemRoutes to opt into the routes a given service actually needs:

@@ -16,9 +16,6 @@ import (
 // whichever wins the lock finds the file already applied.
 const migrationLockKey int64 = 7261046501783541
 
-// Runner applies all pending migrations and returns an error on failure.
-type Runner func(ctx context.Context) error
-
 // MakeRunner returns a Runner that applies all *.sql files from migrationsDir in lexicographic
 // order, skipping already-applied files. Each file runs in its own transaction together with its
 // tracking row, under a transaction-scoped advisory lock: concurrent replicas never apply the same

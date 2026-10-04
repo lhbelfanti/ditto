@@ -44,6 +44,11 @@ type (
 		// down. Zero-value on a producer-only broker, where it is never touched.
 		inFlight sync.WaitGroup
 	}
+
+	dialResult struct {
+		conn *amqp091.Connection
+		err  error
+	}
 )
 
 func (b *RabbitMQBroker) stopChannel() <-chan struct{} {

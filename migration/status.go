@@ -14,29 +14,6 @@ const (
 	queryAppliedNames = `SELECT name FROM migrations`
 )
 
-type (
-	// ListFiles returns the basenames of every top-level migration SQL file, sorted
-	// lexicographically to match MakeRunner's apply order.
-	ListFiles func() ([]string, error)
-
-	// TableExists reports whether the migrations tracking table is visible on the current
-	// search path, without creating it.
-	TableExists func(ctx context.Context) (bool, error)
-
-	// AppliedNames returns the basenames recorded as applied in the migrations tracking table.
-	AppliedNames func(ctx context.Context) ([]string, error)
-
-	// Record describes one migration file's applied/pending state.
-	Record struct {
-		Name    string
-		Applied bool
-	}
-
-	// Status reports the applied/pending state of every migration file without mutating the
-	// database.
-	Status func(ctx context.Context) ([]Record, error)
-)
-
 // MakeListFiles creates a ListFiles function that globs *.sql files under dir and returns their
 // sorted basenames, matching MakeRunner's discovery order.
 func MakeListFiles(dir string) ListFiles {

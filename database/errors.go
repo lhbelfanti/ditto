@@ -11,17 +11,6 @@ var (
 	ErrCantInitDatabase    = errors.New("database: can't initialize database")
 )
 
-// SafeError renders only its package-owned sentinel message, while still letting errors.Is
-// identify both the sentinel and the original cause it hides — so driver errors that may carry
-// a credential-bearing DSN never reach a log line or an HTTP response body. Reserved for
-// ErrDatabaseUnavailable/ErrCantInitDatabase, whose cause can be a raw pgx dial/ping error — not
-// a blanket rule for every sentinel: ErrNoRows/ErrQuery/ErrCollect stay bare because a query
-// execution/row-collection failure never carries connection-string detail.
-type SafeError struct {
-	sentinel error
-	cause    error
-}
-
 func (e *SafeError) Error() string {
 	return e.sentinel.Error()
 }

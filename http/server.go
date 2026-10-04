@@ -7,14 +7,6 @@ import (
 	"time"
 )
 
-type (
-	// Serve runs an HTTP server until it is shut down or fails unexpectedly.
-	Serve func() error
-
-	// Shutdown gracefully stops an HTTP server before the deadline carried by ctx elapses.
-	Shutdown func(ctx context.Context) error
-)
-
 // Listen serves handler on addr until ctx is cancelled, then shuts the server down gracefully
 // within shutdownTimeout.
 func Listen(ctx context.Context, addr string, handler http.Handler, shutdownTimeout time.Duration) error {

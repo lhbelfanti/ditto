@@ -26,44 +26,6 @@ const (
 	defaultShutdownTimeout = 5 * time.Second
 )
 
-type (
-	// Options describes one service's bootstrap.
-	Options struct {
-		// Name appears in the startup log line, e.g. "nebula-earth".
-		Name string
-
-		// PortEnv names the environment variable holding the internal listen port, e.g. APP_INTERNAL_PORT.
-		PortEnv string
-
-		// MigrationsDir enables the database. When set, Run requires the POSTGRES_DB_* variables,
-		// verifies connectivity, applies pending migrations, and mounts GET /database/ping/v1. Leave it
-		// empty for a service without a database.
-		MigrationsDir string
-
-		// Timeouts bounds each phase of the bootstrap. Zero fields fall back to their defaults.
-		Timeouts Timeouts
-
-		// Routes registers the service's own endpoints. pg is nil when the database is disabled.
-		Routes Routes
-
-		// Wrap optionally decorates the whole handler, e.g. with request ID or CORS middleware.
-		Wrap Wrap
-	}
-
-	// Timeouts bounds the startup database check, the database ping route, and graceful shutdown.
-	Timeouts struct {
-		Startup  time.Duration
-		Ping     time.Duration
-		Shutdown time.Duration
-	}
-
-	// Routes registers a service's endpoints on mux.
-	Routes func(mux *http.ServeMux, pg *database.Postgres)
-
-	// Wrap decorates the whole handler before it is served.
-	Wrap func(next http.Handler) http.Handler
-)
-
 // Run configures logging, validates the environment, opens the database and applies migrations
 // when the service declares one, then serves HTTP until SIGINT or SIGTERM and shuts down
 // gracefully. It returns an error for any failure before the server starts, and nil after a clean

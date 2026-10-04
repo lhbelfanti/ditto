@@ -7,16 +7,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// field represent a key-value tuple that will be added to the context
-type (
-	field struct {
-		Key   string
-		Value interface{}
-	}
-
-	logCtxKey struct{}
-)
-
 // Param creates a new field to be saved into context
 func Param(key string, value interface{}) field {
 	return field{key, value}
