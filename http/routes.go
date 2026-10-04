@@ -27,6 +27,14 @@ func RegisterSystemRoutes(mux *http.ServeMux) *SystemRoutes {
 	return &SystemRoutes{mux: mux}
 }
 
+// MountSystemRoutes mounts GET /ping/v1, and GET /database/ping/v1 when ping is not nil.
+func MountSystemRoutes(mux *http.ServeMux, ping DatabasePing) {
+	routes := RegisterSystemRoutes(mux)
+	if ping != nil {
+		routes.WithDatabasePing(ping)
+	}
+}
+
 // WithMigrationRunner mounts POST /migrations/run/v1.
 //
 // Deprecated: exposes DDL over HTTP without authentication. app.Run applies migrations at boot.

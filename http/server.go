@@ -15,6 +15,13 @@ type (
 	Shutdown func(ctx context.Context) error
 )
 
+// Listen serves handler on addr until ctx is cancelled, then shuts the server down gracefully
+// within shutdownTimeout.
+func Listen(ctx context.Context, addr string, handler http.Handler, shutdownTimeout time.Duration) error {
+	server := &http.Server{Addr: addr, Handler: handler}
+	return GracefulShutdown(ctx, server.ListenAndServe, server.Shutdown, shutdownTimeout)
+}
+
 // GracefulShutdown runs serve until ctx is cancelled, then calls shutdown bounded by timeout so
 // in-flight requests get a chance to finish before the caller's process exits. It returns nil on
 // a clean shutdown — http.ErrServerClosed from serve is never treated as a failure — and
