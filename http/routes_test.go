@@ -1,6 +1,7 @@
 package http_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -159,4 +160,30 @@ func TestRegisterSystemRoutes_chainingBothOptionalRoutes(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, migrationsW.Code)
 	assert.Equal(t, http.StatusOK, pingW.Code)
+}
+
+func TestMountSystemRoutes_successWhenPingIsNil(t *testing.T) {
+	mux := http.NewServeMux()
+	dittohttp.MountSystemRoutes(mux, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	want := http.StatusNotFound
+	got := rec.Code
+	assert.Equal(t, want, got)
+}
+
+func TestMountSystemRoutes_successWhenPingIsSet(t *testing.T) {
+	mux := http.NewServeMux()
+	dittohttp.MountSystemRoutes(mux, dittohttp.DatabasePing(func(context.Context) error { return nil }))
+
+	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	want := http.StatusOK
+	got := rec.Code
+	assert.Equal(t, want, got)
 }
