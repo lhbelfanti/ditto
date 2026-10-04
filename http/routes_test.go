@@ -1,7 +1,6 @@
 package http_test
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -69,7 +68,7 @@ func TestMountSystemRoutes_successWhenPingIsNil(t *testing.T) {
 
 func TestMountSystemRoutes_successWhenPingIsSet(t *testing.T) {
 	mux := http.NewServeMux()
-	dittohttp.MountSystemRoutes(mux, dittohttp.DatabasePing(func(context.Context) error { return nil }))
+	dittohttp.MountSystemRoutes(mux, dittohttp.MockDatabasePing(nil))
 
 	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
 	rec := httptest.NewRecorder()

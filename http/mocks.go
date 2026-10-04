@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 
@@ -25,6 +26,12 @@ type (
 		mu      sync.Mutex
 		results []MockHTTPResult
 		next    int
+	}
+
+	// MockServerRequest records the last request a MockServer received.
+	MockServerRequest struct {
+		ContentType string
+		Body        string
 	}
 
 	// MockHTTPClient mocks HTTP client.
@@ -107,4 +114,21 @@ func MockCapturingShutdown(err error, captured *context.Context) Shutdown {
 		*captured = ctx
 		return err
 	}
+}
+
+func MockServer(status int, header http.Header, body string) (*httptest.Server, *MockServerRequest) {
+	received := &MockServerRequest{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received.ContentType = r.Header.Get("Content-Type")
+		requestBody, _ := io.ReadAll(r.Body)
+		received.Body = string(requestBody)
+		for key, values := range header {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	return server, received
 }

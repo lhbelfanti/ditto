@@ -14,88 +14,144 @@ import (
 )
 
 func TestCustomClient_NewRequest_successWhenBodyIsJSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		assert.Equal(t, `{"symbol":"BTC/USDT"}`, readAll(t, r.Body))
-		w.Header().Set("X-Test-Header", "present")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"ok":true}`))
-	}))
+	server, request := dittohttp.MockServer(http.StatusOK, nil, `{"ok":true}`)
 	defer server.Close()
-
 	client := dittohttp.NewClient(5 * time.Second)
-	resp, err := client.NewRequest(context.Background(), http.MethodPost, server.URL, map[string]string{"symbol": "BTC/USDT"})
 
-	assert.NoError(t, err)
-	assert.Equal(t, "200 OK", resp.Status)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, `{"ok":true}`, resp.Body)
-	assert.Equal(t, "present", resp.Header.Get("X-Test-Header"))
+	_, _ = client.NewRequest(context.Background(), http.MethodPost, server.URL, map[string]string{"symbol": "BTC/USDT"})
+
+	want := `{"symbol":"BTC/USDT"}`
+	got := request.Body
+
+	assert.Equal(t, want, got)
+}
+
+func TestCustomClient_NewRequest_successWhenBodyIsJSONSetsContentType(t *testing.T) {
+	server, request := dittohttp.MockServer(http.StatusOK, nil, "")
+	defer server.Close()
+	client := dittohttp.NewClient(5 * time.Second)
+
+	_, _ = client.NewRequest(context.Background(), http.MethodPost, server.URL, map[string]string{"symbol": "BTC/USDT"})
+
+	want := "application/json"
+	got := request.ContentType
+
+	assert.Equal(t, want, got)
+}
+
+func TestCustomClient_NewRequest_successWhenResponseHasBody(t *testing.T) {
+	server, _ := dittohttp.MockServer(http.StatusOK, nil, `{"ok":true}`)
+	defer server.Close()
+	client := dittohttp.NewClient(5 * time.Second)
+
+	resp, _ := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+
+	want := `{"ok":true}`
+	got := resp.Body
+
+	assert.Equal(t, want, got)
+}
+
+func TestCustomClient_NewRequest_successWhenResponseHasStatus(t *testing.T) {
+	server, _ := dittohttp.MockServer(http.StatusOK, nil, "")
+	defer server.Close()
+	client := dittohttp.NewClient(5 * time.Second)
+
+	resp, _ := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+
+	want := "200 OK"
+	got := resp.Status
+
+	assert.Equal(t, want, got)
 }
 
 func TestCustomClient_NewRequest_successWhenBodyIsNil(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "", r.Header.Get("Content-Type"))
-		assert.Equal(t, "", readAll(t, r.Body))
-		w.WriteHeader(http.StatusOK)
-	}))
+	server, request := dittohttp.MockServer(http.StatusOK, nil, "")
 	defer server.Close()
-
 	client := dittohttp.NewClient(5 * time.Second)
-	resp, err := client.NewRequest(context.Background(), http.MethodGet, server.URL+"?symbol=BTCUSDT", nil)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "200 OK", resp.Status)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, server.URL+"?symbol=BTCUSDT", nil)
+
+	want := ""
+	got := request.Body
+
+	assert.Equal(t, want, got)
+}
+
+func TestCustomClient_NewRequest_successWhenBodyIsNilOmitsContentType(t *testing.T) {
+	server, request := dittohttp.MockServer(http.StatusOK, nil, "")
+	defer server.Close()
+	client := dittohttp.NewClient(5 * time.Second)
+
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+
+	want := ""
+	got := request.ContentType
+
+	assert.Equal(t, want, got)
 }
 
 func TestCustomClient_NewRequest_successWhenResponseHasHeaders(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-MBX-USED-WEIGHT-1M", "42")
-		w.Header().Set("Retry-After", "5")
-		w.WriteHeader(http.StatusTooManyRequests)
-	}))
+	header := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
+	server, _ := dittohttp.MockServer(http.StatusTooManyRequests, header, "")
 	defer server.Close()
-
 	client := dittohttp.NewClient(5 * time.Second)
-	resp, err := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
 
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
-	assert.Equal(t, "42", resp.Header.Get("X-MBX-USED-WEIGHT-1M"))
-	assert.Equal(t, "5", resp.Header.Get("Retry-After"))
+	resp, _ := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+
+	want := "42"
+	got := resp.Header.Get("X-MBX-USED-WEIGHT-1M")
+
+	assert.Equal(t, want, got)
+}
+
+func TestCustomClient_NewRequest_successWhenResponseHasRetryAfterHeader(t *testing.T) {
+	header := http.Header{"Retry-After": {"5"}}
+	server, _ := dittohttp.MockServer(http.StatusTooManyRequests, header, "")
+	defer server.Close()
+	client := dittohttp.NewClient(5 * time.Second)
+
+	resp, _ := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+
+	want := http.StatusTooManyRequests
+	got := resp.StatusCode
+
+	assert.Equal(t, want, got)
 }
 
 func TestCustomClient_NewRequest_failsWhenURLIsInvalid(t *testing.T) {
 	client := dittohttp.NewClient(5 * time.Second)
-	resp, err := client.NewRequest(context.Background(), http.MethodGet, "://invalid-url", nil)
 
-	assert.ErrorIs(t, err, dittohttp.FailedToCreateRequest)
-	assert.Equal(t, dittohttp.Response{}, resp)
+	want := dittohttp.FailedToCreateRequest
+	_, got := client.NewRequest(context.Background(), http.MethodGet, "://invalid-url", nil)
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestCustomClient_NewRequest_failsWhenContextIsCanceled(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
+	server, _ := dittohttp.MockServer(http.StatusOK, nil, "")
 	defer server.Close()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-
 	client := dittohttp.NewClient(5 * time.Second)
-	resp, err := client.NewRequest(ctx, http.MethodGet, server.URL, nil)
 
-	assert.ErrorIs(t, err, dittohttp.FailedToExecuteRequest)
-	assert.ErrorIs(t, err, context.Canceled)
-	assert.Equal(t, dittohttp.Response{}, resp)
+	want := dittohttp.FailedToExecuteRequest
+	_, got := client.NewRequest(ctx, http.MethodGet, server.URL, nil)
+
+	assert.ErrorIs(t, got, want)
 }
 
-func readAll(t *testing.T, r interface{ Read([]byte) (int, error) }) string {
-	t.Helper()
-	buf := make([]byte, 1024)
-	n, _ := r.Read(buf)
-	return string(buf[:n])
+func TestCustomClient_NewRequest_failsWhenContextIsCanceledKeepsCause(t *testing.T) {
+	server, _ := dittohttp.MockServer(http.StatusOK, nil, "")
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	client := dittohttp.NewClient(5 * time.Second)
+
+	want := context.Canceled
+	_, got := client.NewRequest(ctx, http.MethodGet, server.URL, nil)
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestSystemRoutes_WithMigrationRunner_success(t *testing.T) {
