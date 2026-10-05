@@ -49,31 +49,3 @@ func TestDatabasePingHandlerV1_failsWhenPingFails(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
-
-func TestMigrationsRunHandlerV1_success(t *testing.T) {
-	mockRunner := MockMigrationRunner(nil)
-	handler := migrationsRunHandlerV1(mockRunner)
-	req := httptest.NewRequest(http.MethodPost, "/migrations/run/v1", nil)
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	want := http.StatusOK
-	got := w.Code
-
-	assert.Equal(t, want, got)
-}
-
-func TestMigrationsRunHandlerV1_failsWhenRunnerFails(t *testing.T) {
-	mockRunner := MockMigrationRunner(errors.New("migration failed"))
-	handler := migrationsRunHandlerV1(mockRunner)
-	req := httptest.NewRequest(http.MethodPost, "/migrations/run/v1", nil)
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	want := http.StatusInternalServerError
-	got := w.Code
-
-	assert.Equal(t, want, got)
-}

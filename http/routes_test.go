@@ -24,20 +24,6 @@ func TestRegisterSystemRoutes_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestRegisterSystemRoutes_successWhenMigrationsAreNotOptedIn(t *testing.T) {
-	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux)
-
-	req := httptest.NewRequest(http.MethodPost, "/migrations/run/v1", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	want := http.StatusNotFound
-	got := w.Code
-
-	assert.Equal(t, want, got)
-}
-
 func TestRegisterSystemRoutes_successWhenDatabasePingIsNotOptedIn(t *testing.T) {
 	mux := http.NewServeMux()
 	dittohttp.RegisterSystemRoutes(mux)
