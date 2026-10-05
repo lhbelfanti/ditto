@@ -2,10 +2,7 @@ package http
 
 import "errors"
 
-const (
-	ErrMsgDatabaseUnavailable string = "database unreachable"
-	ErrMsgMigrationsFailed    string = "Failed to run migrations"
-)
+const ErrMsgDatabaseUnavailable string = "database unreachable"
 
 var (
 	FailedToMarshalBody    = errors.New("failed to marshal body")
@@ -14,5 +11,4 @@ var (
 	FailedToReadResponse   = errors.New("failed to read response")
 
 	ErrDatabaseUnavailable = errors.New(ErrMsgDatabaseUnavailable)
-	ErrMigrationsFailed    = errors.New(ErrMsgMigrationsFailed)
 )

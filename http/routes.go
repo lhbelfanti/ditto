@@ -9,7 +9,7 @@ import (
 // RegisterSystemRoutes mounts GET /ping/v1 (unconditional liveness — never touches the database)
 // and returns a SystemRoutes to opt into the routes a given service actually needs:
 //
-//	dittohttp.RegisterSystemRoutes(mux).WithMigrationRunner(runner).WithDatabasePing(dbPing)
+//	dittohttp.RegisterSystemRoutes(mux).WithDatabasePing(dbPing)
 func RegisterSystemRoutes(mux *http.ServeMux) *SystemRoutes {
 	mux.HandleFunc("GET /ping/v1", pingHandlerV1())
 	return &SystemRoutes{mux: mux}
@@ -40,19 +40,5 @@ func databasePingHandlerV1(ping DatabasePing) http.HandlerFunc {
 			return
 		}
 		response.Send(ctx, w, http.StatusOK, "pong", nil, nil)
-	}
-}
-
-func migrationsRunHandlerV1(run MigrationRunner) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-
-		err := run(ctx)
-		if err != nil {
-			// response.Send already logs the message and err below (code >= 400) — do not log again here.
-			response.Send(ctx, w, http.StatusInternalServerError, ErrMsgMigrationsFailed, nil, ErrMigrationsFailed)
-			return
-		}
-		response.Send(ctx, w, http.StatusOK, "Migrations applied successfully", nil, nil)
 	}
 }

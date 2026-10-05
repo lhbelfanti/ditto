@@ -79,11 +79,6 @@ func MockDatabasePing(err error) DatabasePing {
 	return func(context.Context) error { return err }
 }
 
-// MockMigrationRunner builds a MigrationRunner that always returns err.
-func MockMigrationRunner(err error) MigrationRunner {
-	return func(context.Context) error { return err }
-}
-
 // MockServe builds a Serve that returns err immediately.
 func MockServe(err error) Serve {
 	return func() error { return err }

@@ -36,9 +36,6 @@ type (
 	// Shutdown gracefully stops an HTTP server before the deadline carried by ctx elapses.
 	Shutdown func(ctx context.Context) error
 
-	// MigrationRunner is a function that executes pending database migrations.
-	MigrationRunner func(ctx context.Context) error
-
 	// DatabasePing checks whether the database dependency is reachable.
 	DatabasePing func(ctx context.Context) error
 
@@ -47,14 +44,6 @@ type (
 		mux *http.ServeMux
 	}
 )
-
-// WithMigrationRunner mounts POST /migrations/run/v1.
-//
-// Deprecated: exposes DDL over HTTP without authentication. app.Run applies migrations at boot.
-func (s *SystemRoutes) WithMigrationRunner(runner MigrationRunner) *SystemRoutes {
-	s.mux.HandleFunc("POST /migrations/run/v1", migrationsRunHandlerV1(runner))
-	return s
-}
 
 // WithDatabasePing mounts GET /database/ping/v1.
 func (s *SystemRoutes) WithDatabasePing(dbPing DatabasePing) *SystemRoutes {
