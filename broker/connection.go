@@ -7,11 +7,6 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
-type dialResult struct {
-	conn *amqp091.Connection
-	err  error
-}
-
 func closeLateDial(done <-chan dialResult) {
 	r := <-done
 	if r.conn != nil {

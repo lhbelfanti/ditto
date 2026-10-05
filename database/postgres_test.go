@@ -8,20 +8,39 @@ import (
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
-// InitPostgres backs a package-level singleton (sync.Once) — this is the only test exercising it,
-// since any other test calling it first would decide the singleton's outcome for the rest of this
-// package's test binary. A malformed port fails pgxpool.New's own config parsing immediately, with
-// no real network I/O needed to exercise the failure path.
 func TestInitPostgres_failsWhenCalledAgainAfterInitializationFailure(t *testing.T) {
+	// InitPostgres backs a singleton (sync.Once): the first call in this test binary decides every
+	// later one, so each test here sets the same failing environment. A malformed port fails
+	// pgxpool.New's config parsing immediately, with no network I/O.
+	t.Setenv("POSTGRES_DB_USER", "u")
+	t.Setenv("POSTGRES_DB_PASS", "p")
+	t.Setenv("POSTGRES_DB_NAME", "d")
+	t.Setenv("POSTGRES_DB_PORT", "not-a-port")
+	_, _ = database.InitPostgres()
+
+	want := database.ErrCantInitDatabase
+	_, got := database.InitPostgres()
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestInitPostgres_failsWhenInitializationFails(t *testing.T) {
 	t.Setenv("POSTGRES_DB_USER", "u")
 	t.Setenv("POSTGRES_DB_PASS", "p")
 	t.Setenv("POSTGRES_DB_NAME", "d")
 	t.Setenv("POSTGRES_DB_PORT", "not-a-port")
 
-	firstInstance, firstErr := database.InitPostgres()
-	secondInstance, secondErr := database.InitPostgres()
+	want := database.ErrCantInitDatabase
+	_, got := database.InitPostgres()
 
-	assert.ErrorIs(t, firstErr, database.ErrCantInitDatabase)
-	assert.ErrorIs(t, secondErr, database.ErrCantInitDatabase)
-	assert.Equal(t, firstInstance, secondInstance)
+	assert.ErrorIs(t, got, want)
+}
+
+func TestInitPostgres_failsWhenCalledAgainAfterInitializationFailureReturnsSameInstance(t *testing.T) {
+	first, _ := database.InitPostgres()
+
+	want := first
+	got, _ := database.InitPostgres()
+
+	assert.Equal(t, want, got)
 }

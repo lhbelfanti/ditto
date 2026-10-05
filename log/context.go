@@ -2,33 +2,24 @@ package log
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	"github.com/rs/zerolog"
 )
 
-// field represent a key-value tuple that will be added to the context
-type (
-	field struct {
-		Key   string
-		Value interface{}
-	}
-
-	logCtxKey struct{}
-)
-
 // Param creates a new field to be saved into context
-func Param(key string, value interface{}) field {
+func Param(key string, value any) field {
 	return field{key, value}
 }
 
-// With custom function to add log parameters to the context
+// With returns a context carrying fields on top of the ones ctx already carries. It copies the
+// existing fields instead of writing into them, so ctx keeps its own and contexts derived from the
+// same parent, even from different goroutines, never see each other's fields.
 func With(ctx context.Context, fields ...field) context.Context {
-	// Get the existing map of parameters or create a new one
-	params, ok := ctx.Value(logCtxKey{}).(map[string]interface{})
-	if !ok {
-		params = make(map[string]interface{}, len(fields))
-	}
+	existing, _ := ctx.Value(logCtxKey{}).(map[string]any)
+	params := make(map[string]any, len(existing)+len(fields))
+	maps.Copy(params, existing)
 
 	for _, t := range fields {
 		params[t.Key] = t.Value
@@ -42,7 +33,7 @@ func withContextParams(ctx context.Context, event *zerolog.Event) *zerolog.Event
 		return event
 	}
 
-	params, ok := ctx.Value(logCtxKey{}).(map[string]interface{})
+	params, ok := ctx.Value(logCtxKey{}).(map[string]any)
 	if !ok {
 		return event
 	}

@@ -11,6 +11,6 @@ var (
 	ErrFailedToPublishMessage = errors.New("failed to publish message to rabbitmq")
 	ErrFailedToSetQoS         = errors.New("failed to set rabbitmq channel qos")
 	ErrInvalidConcurrency     = errors.New("concurrentMessages must be greater than zero")
-	ErrNotAConsumer           = errors.New("broker: InitMessageConsumerWithFunction called on a broker built by NewProducer")
+	ErrNotAConsumer           = errors.New("broker: InitMessageConsumer called on a broker built by NewProducer")
 	ErrConsumerChannelClosed  = errors.New("broker: delivery channel closed before CloseConnection was called")
 )

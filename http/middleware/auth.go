@@ -8,13 +8,8 @@ import (
 	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
-type contextKey string
-
 // UserIDKey is the context key used to store and retrieve the authenticated user ID.
 const UserIDKey contextKey = "userID"
-
-// SelectUserIDByToken is a function that retrieves the user ID associated with a session token.
-type SelectUserIDByToken func(ctx context.Context, token string) (int, error)
 
 // Auth returns an HTTP middleware that validates Bearer tokens and injects the user ID into the request context.
 func Auth(selectUserIDByToken SelectUserIDByToken) func(http.Handler) http.Handler {

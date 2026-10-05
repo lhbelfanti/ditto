@@ -1,12 +1,10 @@
 package middleware_test
 
 import (
-	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/http/middleware"
@@ -15,49 +13,52 @@ import (
 
 func TestRequestID_successWhenHeaderIsAbsent(t *testing.T) {
 	handler := middleware.RequestID(middleware.MockNoopHandler())
-
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
+
 	handler.ServeHTTP(w, req)
 
-	id := w.Header().Get("X-Request-ID")
-	assert.NotEmpty(t, id)
+	got := w.Header().Get("X-Request-ID")
+
+	assert.NotEmpty(t, got)
 }
 
 func TestRequestID_successWhenRequestsAreDistinct(t *testing.T) {
 	handler := middleware.RequestID(middleware.MockNoopHandler())
+	firstW := httptest.NewRecorder()
+	handler.ServeHTTP(firstW, httptest.NewRequest(http.MethodGet, "/", nil))
+	secondW := httptest.NewRecorder()
+	handler.ServeHTTP(secondW, httptest.NewRequest(http.MethodGet, "/", nil))
 
-	req1 := httptest.NewRequest(http.MethodGet, "/", nil)
-	w1 := httptest.NewRecorder()
-	handler.ServeHTTP(w1, req1)
+	notWant := firstW.Header().Get("X-Request-ID")
+	got := secondW.Header().Get("X-Request-ID")
 
-	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
-	w2 := httptest.NewRecorder()
-	handler.ServeHTTP(w2, req2)
-
-	assert.NotEqual(t, w1.Header().Get("X-Request-ID"), w2.Header().Get("X-Request-ID"))
+	assert.NotEqual(t, notWant, got)
 }
 
 func TestRequestID_successWhenInboundHeaderPresent(t *testing.T) {
 	handler := middleware.RequestID(middleware.MockNoopHandler())
-
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("X-Request-ID", "upstream-id-123")
 	w := httptest.NewRecorder()
+
 	handler.ServeHTTP(w, req)
 
-	assert.Equal(t, "upstream-id-123", w.Header().Get("X-Request-ID"))
+	want := "upstream-id-123"
+	got := w.Header().Get("X-Request-ID")
+
+	assert.Equal(t, want, got)
 }
 
 func TestRequestID_successWhenContextIsLogged(t *testing.T) {
-	var buf bytes.Buffer
-	log.NewCustomLogger(&buf, zerolog.TraceLevel)
-
+	buf := log.MockLogOutput(t)
 	handler := middleware.RequestID(middleware.MockRequestIDLoggingHandler())
-
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
+
 	handler.ServeHTTP(w, req)
 
-	assert.Contains(t, buf.String(), "request_id")
+	got := buf.String()
+
+	assert.Contains(t, got, "request_id")
 }

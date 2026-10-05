@@ -8,42 +8,54 @@ import (
 	"github.com/lhbelfanti/ditto/v2/env"
 )
 
-func TestRequireValue_returnsTrimmedValue(t *testing.T) {
+func TestRequireValue_successWhenValueHasSurroundingSpaces(t *testing.T) {
 	lookup := env.MockLookup(map[string]string{"KEY": "  value  "})
 
-	got, err := env.RequireValue(lookup, "KEY")
+	want := "value"
+	got, _ := env.RequireValue(lookup, "KEY")
 
-	assert.NoError(t, err)
-	assert.Equal(t, "value", got)
+	assert.Equal(t, want, got)
 }
 
 func TestRequireValue_failsWhenMissing(t *testing.T) {
 	lookup := env.MockLookup(map[string]string{})
 
+	want := env.ErrMissingKey
+	_, got := env.RequireValue(lookup, "KEY")
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestRequireValue_failsWhenMissingNamesTheKey(t *testing.T) {
+	lookup := env.MockLookup(map[string]string{})
+
 	_, err := env.RequireValue(lookup, "KEY")
 
-	assert.ErrorIs(t, err, env.ErrMissingKey)
-	assert.Equal(t, "KEY: "+env.ErrMissingKey.Error(), err.Error())
+	want := "KEY: " + env.ErrMissingKey.Error()
+	got := err.Error()
+
+	assert.Equal(t, want, got)
 }
 
 func TestRequireValue_failsWhenBlank(t *testing.T) {
 	lookup := env.MockLookup(map[string]string{"KEY": "   "})
 
-	_, err := env.RequireValue(lookup, "KEY")
+	want := env.ErrMissingKey
+	_, got := env.RequireValue(lookup, "KEY")
 
-	assert.ErrorIs(t, err, env.ErrMissingKey)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestRequirePort_success(t *testing.T) {
 	lookup := env.MockLookup(map[string]string{"PORT": "4000"})
 
-	got, err := env.RequirePort(lookup, "PORT")
+	want := 4000
+	got, _ := env.RequirePort(lookup, "PORT")
 
-	assert.NoError(t, err)
-	assert.Equal(t, 4000, got)
+	assert.Equal(t, want, got)
 }
 
-func TestRequirePort_boundaryValues(t *testing.T) {
+func TestRequirePort_successWhenPortIsAtTheBoundaries(t *testing.T) {
 	tests := []struct {
 		name  string
 		value string
@@ -57,9 +69,8 @@ func TestRequirePort_boundaryValues(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			lookup := env.MockLookup(map[string]string{"PORT": tt.value})
 
-			got, err := env.RequirePort(lookup, "PORT")
+			got, _ := env.RequirePort(lookup, "PORT")
 
-			assert.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -80,9 +91,10 @@ func TestRequirePort_failsWhenInvalid(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			lookup := env.MockLookup(map[string]string{"PORT": tt.value})
 
-			_, err := env.RequirePort(lookup, "PORT")
+			want := env.ErrInvalidPort
+			_, got := env.RequirePort(lookup, "PORT")
 
-			assert.ErrorIs(t, err, env.ErrInvalidPort)
+			assert.ErrorIs(t, got, want)
 		})
 	}
 }
@@ -90,12 +102,13 @@ func TestRequirePort_failsWhenInvalid(t *testing.T) {
 func TestRequirePort_failsWhenMissing(t *testing.T) {
 	lookup := env.MockLookup(map[string]string{})
 
-	_, err := env.RequirePort(lookup, "PORT")
+	want := env.ErrMissingKey
+	_, got := env.RequirePort(lookup, "PORT")
 
-	assert.ErrorIs(t, err, env.ErrMissingKey)
+	assert.ErrorIs(t, got, want)
 }
 
-func TestRequireValue_errorNeverContainsSuppliedValue(t *testing.T) {
+func TestRequirePort_failsWhenValueIsInvalidKeepsValueOutOfError(t *testing.T) {
 	lookup := env.MockLookup(map[string]string{"PORT": "not-a-port"})
 
 	_, err := env.RequirePort(lookup, "PORT")

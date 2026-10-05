@@ -16,7 +16,7 @@ func TestInit_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestInit_fails(t *testing.T) {
+func TestInit_failsWhenErrorIsPassed(t *testing.T) {
 	assert.Panics(t, func() {
 		_ = setup.Init("test", errors.New("initialization failed"))
 	})
@@ -28,7 +28,7 @@ func TestMust_success(t *testing.T) {
 	})
 }
 
-func TestMust_fails(t *testing.T) {
+func TestMust_failsWhenErrorIsPassed(t *testing.T) {
 	assert.Panics(t, func() {
 		setup.Must(errors.New("initialization failed"))
 	})

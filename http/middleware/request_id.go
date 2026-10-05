@@ -8,7 +8,7 @@ import (
 	"github.com/lhbelfanti/ditto/v2/log"
 )
 
-const requestIDKey = "request_id"
+const requestIDKey string = "request_id"
 
 // RequestID is an HTTP middleware that honors an inbound X-Request-ID header, or generates one
 // if absent, injects it into the request context via log.With, and sets the X-Request-ID response

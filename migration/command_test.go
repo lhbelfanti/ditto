@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,78 +12,106 @@ import (
 	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
-func TestDispatch_SuccessWhenNoArguments(t *testing.T) {
+func TestDispatch_successWhenNoArguments(t *testing.T) {
 	called := false
-	mockApply := func(context.Context) error {
-		called = true
-		return nil
-	}
-	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
-	out := &bytes.Buffer{}
+	mockApply := migration.MockApplyCapturing(nil, &called)
+	mockRunStatus := migration.MockStatusRunner(errors.New("must not be called"), new(bool))
+	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
-	got := migration.Dispatch(context.Background(), []string{}, mockApply, mockStatus, out)
+	_ = dispatch(context.Background(), []string{})
 
-	assert.NoError(t, got)
 	assert.True(t, called)
 }
 
-func TestDispatch_SuccessWhenExplicitApply(t *testing.T) {
+func TestDispatch_successWhenApplyIsExplicit(t *testing.T) {
 	want := errors.New("apply failed")
 	mockApply := migration.MockApply(want)
-	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
+	mockRunStatus := migration.MockStatusRunner(errors.New("must not be called"), new(bool))
+	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
-	got := migration.Dispatch(context.Background(), []string{migration.CommandApply}, mockApply, mockStatus, &bytes.Buffer{})
+	got := dispatch(context.Background(), []string{migration.CommandApply})
 
 	assert.ErrorIs(t, got, want)
 }
 
-func TestDispatch_SuccessWhenStatusReportsRecords(t *testing.T) {
-	statusCalled := false
-	mockApply := func(context.Context) error {
-		return errors.New("must not be called")
+func TestDispatch_successWhenStatusIsRequested(t *testing.T) {
+	called := false
+	mockApply := migration.MockApply(errors.New("must not be called"))
+	mockRunStatus := migration.MockStatusRunner(nil, &called)
+	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
+
+	_ = dispatch(context.Background(), []string{migration.CommandStatus})
+
+	assert.True(t, called)
+}
+
+func TestDispatch_failsWhenStatusRunnerFails(t *testing.T) {
+	want := errors.New("status query failed")
+	mockApply := migration.MockApply(nil)
+	mockRunStatus := migration.MockStatusRunner(want, new(bool))
+	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
+
+	got := dispatch(context.Background(), []string{migration.CommandStatus})
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestDispatch_failsWhenCommandIsUnknown(t *testing.T) {
+	mockApply := migration.MockApply(nil)
+	mockRunStatus := migration.MockStatusRunner(nil, new(bool))
+	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
+
+	want := migration.ErrUnknownCommand
+	got := dispatch(context.Background(), []string{"rollback"})
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestDispatch_failsWhenTooManyArguments(t *testing.T) {
+	mockApply := migration.MockApply(nil)
+	mockRunStatus := migration.MockStatusRunner(nil, new(bool))
+	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
+
+	want := migration.ErrUnknownCommand
+	got := dispatch(context.Background(), []string{migration.CommandApply, "extra"})
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestStatusRunner_success(t *testing.T) {
+	records := []migration.Record{
+		{Name: "000_foundation.sql", Applied: true},
+		{Name: "001_second.sql", Applied: false},
 	}
-	mockStatus := func(context.Context) ([]migration.Record, error) {
-		statusCalled = true
-		return []migration.Record{
-			{Name: "000_foundation.sql", Applied: true},
-			{Name: "001_second.sql", Applied: false},
-		}, nil
-	}
+	mockStatus := migration.MockStatus(records, nil)
 	out := &bytes.Buffer{}
+	runStatus := migration.MakeStatusRunner(mockStatus, out)
+
+	_ = runStatus(context.Background())
 
 	want := "applied 000_foundation.sql\npending 001_second.sql\n"
-	err := migration.Dispatch(context.Background(), []string{migration.CommandStatus}, mockApply, mockStatus, out)
 	got := out.String()
 
-	assert.NoError(t, err)
-	assert.True(t, statusCalled)
 	assert.Equal(t, want, got)
 }
 
-func TestDispatch_ErrorWhenStatusQueryFails(t *testing.T) {
-	mockApply := migration.MockApply(nil)
-	want := errors.New("status query failed")
+func TestStatusRunner_failsWhenStatusFails(t *testing.T) {
+	want := errors.New("status failed")
 	mockStatus := migration.MockStatus(nil, want)
+	runStatus := migration.MakeStatusRunner(mockStatus, &bytes.Buffer{})
 
-	got := migration.Dispatch(context.Background(), []string{migration.CommandStatus}, mockApply, mockStatus, &bytes.Buffer{})
+	got := runStatus(context.Background())
 
 	assert.ErrorIs(t, got, want)
 }
 
-func TestDispatch_ErrorWhenCommandIsUnknown(t *testing.T) {
-	mockApply := migration.MockApply(nil)
-	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
+func TestStatusRunner_failsWhenWriterFails(t *testing.T) {
+	records := []migration.Record{{Name: "000_foundation.sql", Applied: true}}
+	mockStatus := migration.MockStatus(records, nil)
+	runStatus := migration.MakeStatusRunner(mockStatus, migration.MockClosedWriter())
 
-	got := migration.Dispatch(context.Background(), []string{"rollback"}, mockApply, mockStatus, &bytes.Buffer{})
+	want := io.ErrClosedPipe
+	got := runStatus(context.Background())
 
-	assert.ErrorIs(t, got, migration.ErrUnknownCommand)
-}
-
-func TestDispatch_ErrorWhenTooManyArguments(t *testing.T) {
-	mockApply := migration.MockApply(nil)
-	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
-
-	got := migration.Dispatch(context.Background(), []string{migration.CommandApply, "extra"}, mockApply, mockStatus, &bytes.Buffer{})
-
-	assert.ErrorIs(t, got, migration.ErrUnknownCommand)
+	assert.ErrorIs(t, got, want)
 }

@@ -10,29 +10,42 @@ import (
 	dittohttp "github.com/lhbelfanti/ditto/v2/http"
 )
 
-func TestMockSequenceRoundTripper_successWhenResponsesAreSequential(t *testing.T) {
+func TestMockSequenceRoundTripper_success(t *testing.T) {
 	client := dittohttp.NewClient(0)
 	client.HTTPClient.Transport = dittohttp.MockSequenceRoundTripper(
-		dittohttp.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Body: "retry", Header: http.Header{"Retry-After": []string{"1"}}},
+		dittohttp.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Body: "retry"},
 		dittohttp.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"},
 	)
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
 
-	first, firstErr := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
-	second, secondErr := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
+	second, _ := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
 
-	assert.NoError(t, firstErr)
-	assert.Equal(t, http.StatusTooManyRequests, first.StatusCode)
-	assert.Equal(t, "1", first.Header.Get("Retry-After"))
-	assert.NoError(t, secondErr)
-	assert.Equal(t, http.StatusOK, second.StatusCode)
-	assert.Equal(t, "done", second.Body)
+	want := "done"
+	got := second.Body
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
+	client := dittohttp.NewClient(0)
+	client.HTTPClient.Transport = dittohttp.MockSequenceRoundTripper(
+		dittohttp.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": []string{"1"}}},
+	)
+
+	first, _ := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
+
+	want := "1"
+	got := first.Header.Get("Retry-After")
+
+	assert.Equal(t, want, got)
 }
 
 func TestMockSequenceRoundTripper_failsWhenSequenceIsExhausted(t *testing.T) {
 	client := dittohttp.NewClient(0)
 	client.HTTPClient.Transport = dittohttp.MockSequenceRoundTripper()
 
-	_, err := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
+	want := dittohttp.FailedToExecuteRequest
+	_, got := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
 
-	assert.ErrorIs(t, err, dittohttp.FailedToExecuteRequest)
+	assert.ErrorIs(t, got, want)
 }

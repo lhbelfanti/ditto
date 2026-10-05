@@ -3,6 +3,7 @@ package log_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -11,14 +12,11 @@ import (
 	"github.com/lhbelfanti/ditto/v2/log"
 )
 
-func TestNewLogger_successWithNilWriter(t *testing.T) {
+func TestNewCustomLogger_successWhenWriterIsNil(t *testing.T) {
 	var buf bytes.Buffer
 	log.NewCustomLogger(&buf, zerolog.TraceLevel)
-
-	// Replaces the previous logger, so the buffer should not have logs
 	log.NewCustomLogger(nil, zerolog.TraceLevel)
 
-	// Write a test message
 	log.Info(context.Background(), "test message")
 
 	want := ""
@@ -28,79 +26,63 @@ func TestNewLogger_successWithNilWriter(t *testing.T) {
 }
 
 func TestLogLevels_success(t *testing.T) {
-	var buf bytes.Buffer
-	log.NewCustomLogger(&buf, zerolog.TraceLevel)
+	type levelLogger func(ctx context.Context, msg string)
 
 	tests := []struct {
-		name        string
-		level       zerolog.Level
-		msg         string
-		expectLevel string
-		expectMsg   string
+		name   string
+		logger levelLogger
+		level  string
 	}{
-		{"Trace", zerolog.TraceLevel, "trace message", `"level":"trace"`, `"message":"trace message"`},
-		{"Debug", zerolog.DebugLevel, "debug message", `"level":"debug"`, `"message":"debug message"`},
-		{"Info", zerolog.InfoLevel, "info message", `"level":"info"`, `"message":"info message"`},
-		{"Warn", zerolog.WarnLevel, "warn message", `"level":"warn"`, `"message":"warn message"`},
-		{"Error", zerolog.ErrorLevel, "error message", `"level":"error"`, `"message":"error message"`},
-		{"Fatal", zerolog.FatalLevel, "fatal message", `"level":"fatal"`, `"message":"fatal message"`},
-		{"Panic", zerolog.PanicLevel, "panic message", `"level":"panic"`, `"message":"panic message"`},
+		{name: "Trace", logger: log.Trace, level: "trace"},
+		{name: "Debug", logger: log.Debug, level: "debug"},
+		{name: "Info", logger: log.Info, level: "info"},
+		{name: "Warn", logger: log.Warn, level: "warn"},
+		{name: "Error", logger: log.Error, level: "error"},
+		{name: "Fatal", logger: log.Fatal, level: "fatal"},
+		{name: "Panic", logger: log.Panic, level: "panic"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf.Reset()
+			buf := log.MockLogOutput(t)
 
-			// Call the appropriate function based on the level
-			switch tt.level {
-			case zerolog.TraceLevel:
-				log.Trace(context.Background(), tt.msg)
-			case zerolog.DebugLevel:
-				log.Debug(context.Background(), tt.msg)
-			case zerolog.InfoLevel:
-				log.Info(context.Background(), tt.msg)
-			case zerolog.WarnLevel:
-				log.Warn(context.Background(), tt.msg)
-			case zerolog.ErrorLevel:
-				log.Error(context.Background(), tt.msg)
-			case zerolog.FatalLevel:
-				log.Fatal(context.Background(), tt.msg)
-			case zerolog.PanicLevel:
-				log.Panic(context.Background(), tt.msg)
-			default:
-				t.Error("Wrong log level")
-			}
+			tt.logger(context.Background(), "a message")
 
-			assert.Contains(t, buf.String(), tt.expectLevel)
-			assert.Contains(t, buf.String(), tt.expectMsg)
+			entry := map[string]any{}
+			_ = json.Unmarshal(buf.Bytes(), &entry)
+
+			want := map[string]any{"level": tt.level, "message": "a message"}
+			got := map[string]any{"level": entry["level"], "message": entry["message"]}
+
+			assert.Equal(t, want, got)
 		})
 	}
 }
 
 func TestErr_success(t *testing.T) {
-	var buf bytes.Buffer
-	log.NewCustomLogger(&buf, zerolog.TraceLevel)
+	buf := log.MockLogOutput(t)
 
-	tests := []struct {
-		name           string
-		err            error
-		msg            string
-		expectLevel    string
-		expectMsg      string
-		expectErrorMsg string
-	}{
-		{"ErrorWithErr", assert.AnError, "error message", `"level":"error"`, `"message":"error message"`, `"error":"assert.AnError"`},
-		{"ErrorWithoutErr", nil, "info message", `"level":"info"`, `"message":"info message"`, ``},
-	}
+	log.Err(context.Background(), assert.AnError, "error message")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			buf.Reset()
+	entry := map[string]any{}
+	_ = json.Unmarshal(buf.Bytes(), &entry)
 
-			log.Err(context.Background(), tt.err, tt.msg)
+	want := map[string]any{"level": "error", "message": "error message", "error": "assert.AnError general error for testing"}
+	got := map[string]any{"level": entry["level"], "message": entry["message"], "error": entry["error"]}
 
-			assert.Contains(t, buf.String(), tt.expectLevel)
-			assert.Contains(t, buf.String(), tt.expectMsg)
-		})
-	}
+	assert.Equal(t, want, got)
+}
+
+func TestErr_successWhenErrorIsNil(t *testing.T) {
+	buf := log.MockLogOutput(t)
+
+	log.Err(context.Background(), nil, "info message")
+
+	entry := map[string]any{}
+	_ = json.Unmarshal(buf.Bytes(), &entry)
+
+	want := map[string]any{"level": "info", "message": "info message"}
+	got := map[string]any{"level": entry["level"], "message": entry["message"]}
+
+	assert.Equal(t, want, got)
 }

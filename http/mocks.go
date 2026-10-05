@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 
@@ -20,10 +21,17 @@ type (
 		Err        error
 	}
 
-	mockSequenceRoundTripper struct {
+	// MockSequenceTransport replays a fixed sequence of MockHTTPResult values, one per request.
+	MockSequenceTransport struct {
 		mu      sync.Mutex
 		results []MockHTTPResult
 		next    int
+	}
+
+	// MockServerRequest records the last request a MockServer received.
+	MockServerRequest struct {
+		ContentType string
+		Body        string
 	}
 
 	// MockHTTPClient mocks HTTP client.
@@ -32,11 +40,13 @@ type (
 	}
 )
 
+// MockSequenceRoundTripper returns a transport that answers each request with the next result, and fails once they run out.
 func MockSequenceRoundTripper(results ...MockHTTPResult) http.RoundTripper {
-	return &mockSequenceRoundTripper{results: results}
+	return &MockSequenceTransport{results: results}
 }
 
-func (m *mockSequenceRoundTripper) RoundTrip(_ *http.Request) (*http.Response, error) {
+// RoundTrip answers with the next result of the sequence, or fails when the sequence is exhausted.
+func (m *MockSequenceTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -58,18 +68,14 @@ func (m *mockSequenceRoundTripper) RoundTrip(_ *http.Request) (*http.Response, e
 	}, nil
 }
 
-func (m *MockHTTPClient) NewRequest(ctx context.Context, method, url string, body interface{}) (Response, error) {
+// NewRequest returns the response and error configured with On.
+func (m *MockHTTPClient) NewRequest(ctx context.Context, method, url string, body any) (Response, error) {
 	args := m.Called(ctx, method, url, body)
 	return args.Get(0).(Response), args.Error(1)
 }
 
 // MockDatabasePing builds a DatabasePing that always returns err.
 func MockDatabasePing(err error) DatabasePing {
-	return func(context.Context) error { return err }
-}
-
-// MockMigrationRunner builds a MigrationRunner that always returns err.
-func MockMigrationRunner(err error) MigrationRunner {
 	return func(context.Context) error { return err }
 }
 
@@ -106,4 +112,22 @@ func MockCapturingShutdown(err error, captured *context.Context) Shutdown {
 		*captured = ctx
 		return err
 	}
+}
+
+// MockServer starts a test server that records the request it receives and answers with status, header and body. The caller closes it.
+func MockServer(status int, header http.Header, body string) (*httptest.Server, *MockServerRequest) {
+	received := &MockServerRequest{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received.ContentType = r.Header.Get("Content-Type")
+		requestBody, _ := io.ReadAll(r.Body)
+		received.Body = string(requestBody)
+		for key, values := range header {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	return server, received
 }

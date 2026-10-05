@@ -5,26 +5,26 @@ producer/consumer pairs.
 
 ## Concurrency and backpressure
 
-`InitMessageConsumerWithFunction(concurrentMessages, processorFunc)` bounds processing two ways:
+`InitMessageConsumer(concurrentMessages, processor)` bounds processing two ways:
 it sets the channel's QoS prefetch to `concurrentMessages` (so RabbitMQ itself slows deliveries),
-and it bounds the number of concurrently running `processorFunc` goroutines to the same value via
+and it bounds the number of concurrently running `processor` goroutines to the same value via
 an internal semaphore. Both exist together because QoS alone only limits how many *unacknowledged*
 deliveries RabbitMQ will hand out — it does not, by itself, cap how many goroutines your own
 process spawns to handle them.
 
 `NewConsumer` opens the connection and declares the queue; it no longer subscribes itself.
-`InitMessageConsumerWithFunction` configures QoS *before* subscribing, so the prefetch limit
+`InitMessageConsumer` configures QoS *before* subscribing, so the prefetch limit
 applies from the first delivery — and blocks for the consumer's lifetime, so call it in its own
 goroutine.
 
-`concurrentMessages` must be greater than zero. `InitMessageConsumerWithFunction` returns a
+`concurrentMessages` must be greater than zero. `InitMessageConsumer` returns a
 non-nil error immediately — without ever logging itself, the same as `database.Check` — if
 `concurrentMessages <= 0`, QoS setup fails, or subscribing fails, instead of silently doing
 nothing. Check it if you need startup to fail fast on a broken broker:
 
 ```go
 go func() {
-    if err := consumerBroker.InitMessageConsumerWithFunction(5, process); err != nil {
+    if err := consumerBroker.InitMessageConsumer(5, process); err != nil {
         log.Fatalf("consumer stopped: %s", err)
     }
 }()
@@ -32,14 +32,14 @@ go func() {
 
 ## Shutdown
 
-`CloseConnection()` waits up to 10 seconds for any in-flight `processorFunc` goroutines spawned by
-`InitMessageConsumerWithFunction` to finish, then closes the connection regardless — so a message
+`CloseConnection()` waits up to 10 seconds for any in-flight `processor` goroutines spawned by
+`InitMessageConsumer` to finish, then closes the connection regardless — so a message
 that's mid-processing when shutdown starts gets a real chance to `Ack`/`Nack` instead of being
 silently abandoned. A producer-only broker (built by `NewProducer`) closes immediately, since it
 never spawns any processing goroutines.
 Shutdown also stops the consumer loop from dispatching new work before waiting for in-flight work.
 
-`InitMessageConsumerWithFunction` only ever returns `nil` once `CloseConnection` ran — a disconnect
+`InitMessageConsumer` only ever returns `nil` once `CloseConnection` ran — a disconnect
 is never read as a clean shutdown. If the delivery channel itself closes first (the broker
 connection dropped, the channel was closed server-side, …) without `CloseConnection` having run,
 it returns `ErrConsumerChannelClosed` instead, so a caller checking the return value can tell "I
@@ -47,16 +47,16 @@ asked it to stop" apart from "it stopped on its own."
 
 ## Message-loss semantics
 
-Queues are declared `durable=true` with **no dead-letter exchange**. A `processorFunc` failure
+Queues are declared `durable=true` with **no dead-letter exchange**. A `processor` failure
 calls `Nack(false, false)` — no requeue. In practice this means **a processing failure drops the
 message permanently**, not "will be retried." If your use case needs retry-then-DLQ semantics,
-build it into `processorFunc` itself (e.g. requeue to a separate retry queue on failure) — this
+build it into `processor` itself (e.g. requeue to a separate retry queue on failure) — this
 package does not provide it.
 
 ## Foot-gun: producer vs. consumer
 
 `NewProducer` never sets the broker's `messages` channel. Calling
-`InitMessageConsumerWithFunction` on a broker built by `NewProducer` used to range over that nil
+`InitMessageConsumer` on a broker built by `NewProducer` used to range over that nil
 channel and block forever, silently. It now detects this and returns `ErrNotAConsumer` instead of
 hanging — but the right fix is still to build the broker with the constructor matching how you
 intend to use it: `NewConsumer` to consume, `NewProducer` to publish.

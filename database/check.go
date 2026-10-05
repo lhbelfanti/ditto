@@ -7,14 +7,6 @@ import (
 	"github.com/lhbelfanti/ditto/v2/env"
 )
 
-type (
-	// Ping verifies that a database connection is reachable.
-	Ping func(ctx context.Context) error
-
-	// Check proves database connectivity within a bounded deadline.
-	Check func(ctx context.Context) error
-)
-
 // MakeCheck creates a Check function that bounds ping to timeout and, on failure, returns it
 // hidden behind ErrDatabaseUnavailable. It never logs itself — Check runs both behind HTTP
 // handlers (which already log via response.Send) and in non-HTTP startup paths, so logging is
@@ -31,12 +23,6 @@ func MakeCheck(ping Ping, timeout time.Duration) Check {
 
 		return nil
 	}
-}
-
-// MakeCheck creates a Check function bounding pg's own connection pool ping to timeout, so a
-// caller never needs to reach past Postgres into its underlying pool to build one.
-func (pg *Postgres) MakeCheck(timeout time.Duration) Check {
-	return MakeCheck(pg.Database().Ping, timeout)
 }
 
 // RequireEnv validates the exact environment variables resolveDatabaseURL/InitPostgres consume —

@@ -2,7 +2,9 @@ package broker
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/rabbitmq/amqp091-go"
 )
@@ -11,12 +13,12 @@ type (
 	// MessageBroker defines the contract for interacting with the message broker.
 	MessageBroker interface {
 		EnqueueMessage(ctx context.Context, body string) error
-		InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction) error
+		InitMessageConsumer(concurrentMessages int, processor Processor) error
 		CloseConnection()
 	}
 
-	// ProcessorFunction is a function that processes a message body.
-	ProcessorFunction func(ctx context.Context, body []byte) error
+	// Processor is a function that processes a message body.
+	Processor func(ctx context.Context, body []byte) error
 
 	channel interface {
 		Qos(prefetchCount, prefetchSize int, global bool) error
@@ -39,14 +41,161 @@ type (
 		dispatchMu   sync.Mutex
 		closing      bool
 
-		// inFlight tracks message-processing goroutines spawned by InitMessageConsumerWithFunction,
+		// inFlight tracks message-processing goroutines spawned by InitMessageConsumer,
 		// so CloseConnection can give them a bounded chance to finish before tearing the connection
 		// down. Zero-value on a producer-only broker, where it is never touched.
 		inFlight sync.WaitGroup
+
+		// processor and semaphore are set when InitMessageConsumer starts: the semaphore is sized
+		// by the concurrency limit it receives, so neither can be injected earlier.
+		processor Processor
+		semaphore chan struct{}
+	}
+
+	dialResult struct {
+		conn *amqp091.Connection
+		err  error
 	}
 )
 
 func (b *RabbitMQBroker) stopChannel() <-chan struct{} {
 	b.stopOnce.Do(func() { b.stop = make(chan struct{}) })
 	return b.stop
+}
+
+// InitMessageConsumer subscribes and starts processing messages, bounding both
+// RabbitMQ's own delivery rate (via channel QoS) and the number of concurrently running
+// processor goroutines to concurrentMessages. It blocks for the consumer's lifetime — call it
+// in its own goroutine — returning nil only once stopped deliberately via CloseConnection, or a
+// non-nil error otherwise: immediately if setup (QoS, subscribing) fails, or
+// ErrConsumerChannelClosed if the delivery channel closes on its own (e.g. a dropped connection)
+// before CloseConnection ever ran — a disconnect never reads as a clean shutdown. It never logs
+// itself; a caller that needs this failure visible decides how, the same as database.Check.
+// Calling this on a broker built by NewProducer (no messages channel) returns ErrNotAConsumer
+// instead of blocking forever on a nil channel.
+func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor Processor) error {
+	if !b.consumer && b.messages == nil {
+		return ErrNotAConsumer
+	}
+	if concurrentMessages <= 0 {
+		return ErrInvalidConcurrency
+	}
+
+	err := b.channel.Qos(concurrentMessages, 0, false)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToSetQoS, err)
+	}
+	if b.messages == nil {
+		b.messages, err = b.channel.Consume(
+			b.queue.Name, // queue
+			"",           // consumer
+			false,        // auto-ack
+			false,        // exclusive
+			false,        // no-local
+			false,        // no-wait
+			nil,          // args
+		)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrFailedToConsumeQueue, err)
+		}
+	}
+
+	b.processor = processor
+	b.semaphore = make(chan struct{}, concurrentMessages)
+	stop := b.stopChannel()
+
+	for {
+		var msg amqp091.Delivery
+		select {
+		case <-stop:
+			return nil
+		case received, ok := <-b.messages:
+			if !ok {
+				select {
+				case <-stop:
+					return nil
+				default:
+					return ErrConsumerChannelClosed
+				}
+			}
+			msg = received
+		}
+
+		select {
+		case b.semaphore <- struct{}{}:
+		case <-stop:
+			return nil
+		}
+
+		b.dispatchMu.Lock()
+		if b.closing {
+			b.dispatchMu.Unlock()
+			<-b.semaphore
+			return nil
+		}
+		b.inFlight.Add(1)
+		b.dispatchMu.Unlock()
+
+		go b.processDelivery(msg)
+	}
+}
+
+// processDelivery runs the processor on d, acknowledges it on success and rejects it without
+// requeueing on failure, then releases its semaphore slot and its in-flight mark.
+func (b *RabbitMQBroker) processDelivery(d amqp091.Delivery) {
+	defer b.inFlight.Done()
+	defer func() { <-b.semaphore }()
+
+	err := b.processor(context.Background(), d.Body)
+	if err != nil {
+		_ = d.Nack(false, false)
+		return
+	}
+	_ = d.Ack(false)
+}
+
+// EnqueueMessage publishes a message to the broker.
+func (b *RabbitMQBroker) EnqueueMessage(ctx context.Context, body string) error {
+	err := b.channel.PublishWithContext(ctx,
+		"",           // exchange
+		b.queue.Name, // routing key
+		false,        // mandatory
+		false,        // immediate
+		amqp091.Publishing{
+			ContentType: "application/json",
+			Body:        []byte(body),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToPublishMessage, err)
+	}
+	return nil
+}
+
+// CloseConnection waits up to drainTimeout for any in-flight message-processing goroutines to
+// finish, then closes the broker connection regardless. A producer-only broker (no goroutines
+// ever spawned) closes immediately, since inFlight is already at zero.
+func (b *RabbitMQBroker) CloseConnection() {
+	b.stopChannel()
+	b.shutdownOnce.Do(func() {
+		b.dispatchMu.Lock()
+		b.closing = true
+		close(b.stop)
+		b.dispatchMu.Unlock()
+	})
+
+	done := make(chan struct{})
+	go func() {
+		b.inFlight.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(drainTimeout):
+	}
+
+	if b.conn != nil {
+		b.conn.Close()
+	}
 }

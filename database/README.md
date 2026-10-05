@@ -13,6 +13,19 @@ The `database` package provides a thin abstraction over `pgx/v5` for PostgreSQL.
 | `Update` | `UPDATE` (also no-return `INSERT`) | `db.Exec` |
 | `CollectRows[T]` | Row scanner passed to `Select[T]` | `pgx.CollectRows` |
 
+## Connection settings
+
+`InitPostgres` reads these variables. `RequireEnv` validates them before any connection attempt.
+
+| Variable | Required | Notes |
+|---|---|---|
+| `POSTGRES_DB_HOST` | No | Defaults to `postgres_db`, the compose service name. Set it to point at a shared instance. |
+| `POSTGRES_DB_PORT` | Yes | Valid TCP port. |
+| `POSTGRES_DB_NAME`, `POSTGRES_DB_USER`, `POSTGRES_DB_PASS` | Yes | Non-empty. |
+
+The database itself must already exist: `database` never creates databases or roles. Migrations
+create the tables inside it.
+
 ---
 
 ## End-to-end example

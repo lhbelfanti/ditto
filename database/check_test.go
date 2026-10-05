@@ -19,12 +19,11 @@ func TestMakeCheck_success(t *testing.T) {
 
 	got := check(context.Background())
 
-	assert.Nil(t, got)
+	assert.NoError(t, got)
 }
 
 func TestMakeCheck_failsWhenPingFails(t *testing.T) {
-	credentialBearingDSN := errors.New("dial postgres://nebula_earth_user:super-secret@db:5432/nebula_earth failed")
-	ping := database.MockPing(credentialBearingDSN)
+	ping := database.MockPing(errors.New("ping failed"))
 
 	check := database.MakeCheck(ping, time.Second)
 
@@ -32,8 +31,17 @@ func TestMakeCheck_failsWhenPingFails(t *testing.T) {
 	got := check(context.Background())
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, credentialBearingDSN)
-	assert.NotContains(t, got.Error(), "super-secret")
+}
+
+func TestMakeCheck_failsWhenPingFailsKeepsCause(t *testing.T) {
+	want := errors.New("ping failed")
+	ping := database.MockPing(want)
+
+	check := database.MakeCheck(ping, time.Second)
+
+	got := check(context.Background())
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeCheck_failsWhenPingExceedsTimeout(t *testing.T) {
@@ -41,15 +49,25 @@ func TestMakeCheck_failsWhenPingExceedsTimeout(t *testing.T) {
 
 	check := database.MakeCheck(ping, 10*time.Millisecond)
 
-	start := time.Now()
+	want := database.ErrDatabaseUnavailable
 	got := check(context.Background())
-	elapsed := time.Since(start)
 
-	assert.ErrorIs(t, got, database.ErrDatabaseUnavailable)
-	assert.Less(t, elapsed, time.Second)
+	assert.ErrorIs(t, got, want)
 }
 
-func TestMakeCheck_renderedErrorExcludesCause(t *testing.T) {
+func TestMakeCheck_failsWhenPingExceedsTimeoutReturnsPromptly(t *testing.T) {
+	ping := database.MockBlockingPing(nil)
+
+	check := database.MakeCheck(ping, 10*time.Millisecond)
+
+	start := time.Now()
+	_ = check(context.Background())
+	got := time.Since(start)
+
+	assert.Less(t, got, time.Second)
+}
+
+func TestMakeCheck_failsWhenPingErrorCarriesCredentials(t *testing.T) {
 	credentialBearingDSN := errors.New("dial postgres://nebula_earth_user:super-secret@db:5432/nebula_earth failed")
 	ping := database.MockPing(credentialBearingDSN)
 
@@ -71,7 +89,7 @@ func TestRequireEnv_success(t *testing.T) {
 
 	got := database.RequireEnv(lookup)
 
-	assert.Nil(t, got)
+	assert.NoError(t, got)
 }
 
 func TestRequireEnv_failsWhenRequiredKeyIsMissing(t *testing.T) {

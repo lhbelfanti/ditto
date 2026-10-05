@@ -5,25 +5,6 @@ import (
 	"strings"
 )
 
-// Lookup retrieves the raw value of an environment variable and whether it was set — matching
-// os.LookupEnv's signature so callers can pass it directly, or a mock in tests.
-type Lookup func(key string) (string, bool)
-
-// KeyError names the offending environment variable key and the validation condition it failed,
-// without exposing its value.
-type KeyError struct {
-	Key string
-	Err error
-}
-
-func (e *KeyError) Error() string {
-	return e.Key + ": " + e.Err.Error()
-}
-
-func (e *KeyError) Unwrap() error {
-	return e.Err
-}
-
 // RequireValue returns the trimmed, non-empty value of key, or a *KeyError wrapping ErrMissingKey.
 func RequireValue(lookup Lookup, key string) (string, error) {
 	value, ok := lookup(key)

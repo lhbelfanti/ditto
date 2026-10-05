@@ -14,14 +14,14 @@ request. The transport returns an error if more requests are made than results p
 ```go
 mux := http.NewServeMux()
 dittohttp.RegisterSystemRoutes(mux).
-    WithMigrationRunner(dittohttp.MigrationRunner(runMigrations)).
     WithDatabasePing(dittohttp.DatabasePing(pg.MakeCheck(2*time.Second)))
 ```
 
 `RegisterSystemRoutes` always mounts `GET /ping/v1` (unconditional liveness — never touches the
-database). `WithMigrationRunner`/`WithDatabasePing` are opt-in: a service only chains in the ones
-it actually needs. See `migration/README.md` for wiring a `MigrationRunner`, and `database`'s
-`(*Postgres).MakeCheck` for a `DatabasePing`.
+database). `WithDatabasePing` is opt-in and mounts `GET /database/ping/v1` (readiness). Services
+built on `app.Run` get both without wiring them by hand.
+
+Migrations are not exposed over HTTP: `app.Run` applies them at boot.
 
 ## `GracefulShutdown`
 
@@ -60,7 +60,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 | Error | Where |
 |---|---|
 | `FailedToMarshalBody`/`FailedToCreateRequest`/`FailedToExecuteRequest`/`FailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant |
-| `ErrDatabaseUnavailable`/`ErrMigrationsFailed` | `RegisterSystemRoutes`'s handlers — paired with `ErrMsgDatabaseUnavailable`/`ErrMsgMigrationsFailed`, since those strings are reused both in `errors.New` and separately as `response.Send`'s `message` argument |
+| `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
 | `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgInvalidToken` is reused across two failure branches, so it's a named constant; the single-use "authorization header required" message stays inline |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more
