@@ -123,12 +123,10 @@ func TestMakeRunner_successWhenReplicasRunConcurrently(t *testing.T) {
 	const replicas = 6
 	var wg sync.WaitGroup
 	errs := make(chan error, replicas)
-	for i := 0; i < replicas; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range replicas {
+		wg.Go(func() {
 			errs <- runner(context.Background())
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)
@@ -149,12 +147,10 @@ func TestMakeRunner_successWhenReplicasRunConcurrentlyWithoutErrors(t *testing.T
 	const replicas = 6
 	var wg sync.WaitGroup
 	errs := make(chan error, replicas)
-	for i := 0; i < replicas; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range replicas {
+		wg.Go(func() {
 			errs <- runner(context.Background())
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)

@@ -20,7 +20,7 @@ func TestSend_success(t *testing.T) {
 		name    string
 		code    int
 		message string
-		data    interface{}
+		data    any
 		err     error
 		want    response.DTO
 	}{
