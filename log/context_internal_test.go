@@ -1,12 +1,10 @@
 package log
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -79,8 +77,7 @@ func TestWithContextParams_success(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			NewCustomLogger(&buf, zerolog.TraceLevel)
+			buf := MockLogOutput(t)
 			Info(tt.ctx, "")
 
 			got := buf.String()
@@ -92,30 +89,20 @@ func TestWithContextParams_success(t *testing.T) {
 	}
 }
 func TestWith_success(t *testing.T) {
-	ctx := context.Background()
-	want := []struct {
-		Key   string
-		Value interface{}
-	}{
-		{"key1", "value1"},
-		{"key2", 123},
-		{"key1", "newValue"},
-	}
+	ctx := With(context.Background(), Param("key1", "value1"), Param("key2", 123))
 
-	field1 := Param(want[0].Key, want[0].Value)
-	field2 := Param(want[1].Key, want[1].Value)
+	want := map[string]interface{}{"key1": "value1", "key2": 123}
+	got := ctx.Value(logCtxKey{}).(map[string]interface{})
 
-	ctx = With(ctx, field1, field2)
+	assert.Equal(t, want, got)
+}
 
-	got, ok := ctx.Value(logCtxKey{}).(map[string]interface{})
-	assert.True(t, ok)
-	assert.Equal(t, want[0].Value, got[want[0].Key])
-	assert.Equal(t, want[1].Value, got[want[1].Key])
+func TestWith_successWhenContextAlreadyHasParams(t *testing.T) {
+	ctx := With(context.Background(), Param("key1", "value1"), Param("key2", 123))
+	ctx = With(ctx, Param("key1", "newValue"))
 
-	field3 := Param(want[2].Key, want[2].Value)
-	ctx = With(ctx, field3)
+	want := map[string]interface{}{"key1": "newValue", "key2": 123}
+	got := ctx.Value(logCtxKey{}).(map[string]interface{})
 
-	got, ok = ctx.Value(logCtxKey{}).(map[string]interface{})
-	assert.True(t, ok)
-	assert.Equal(t, want[2].Value, got[want[2].Key])
+	assert.Equal(t, want, got)
 }

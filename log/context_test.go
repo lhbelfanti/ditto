@@ -9,13 +9,15 @@ import (
 )
 
 func TestParam_success(t *testing.T) {
-	want := struct {
-		Key   string
-		Value string
-	}{"key", "value"}
+	want := "key"
+	got := log.Param("key", "value").Key
 
-	got := log.Param(want.Key, want.Value)
+	assert.Equal(t, want, got)
+}
 
-	assert.Equal(t, want.Key, got.Key)
-	assert.Equal(t, want.Value, got.Value)
+func TestParam_successWhenValueIsKept(t *testing.T) {
+	want := "value"
+	got := log.Param("key", "value").Value
+
+	assert.Equal(t, want, got)
 }
