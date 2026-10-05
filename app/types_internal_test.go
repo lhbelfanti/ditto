@@ -7,16 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTimeouts_withDefaults_success(t *testing.T) {
+func TestTimeouts_orDefaults_success(t *testing.T) {
 	want := Timeouts{Startup: defaultStartupTimeout, Ping: defaultPingTimeout, Shutdown: defaultShutdownTimeout}
-	got := Timeouts{}.withDefaults()
+	got := Timeouts{}.orDefaults()
 
 	assert.Equal(t, want, got)
 }
 
-func TestTimeouts_withDefaults_successWhenValuesAreSet(t *testing.T) {
+func TestTimeouts_orDefaults_successWhenValuesAreSet(t *testing.T) {
 	want := Timeouts{Startup: time.Second, Ping: 3 * time.Second, Shutdown: 4 * time.Second}
-	got := want.withDefaults()
+	got := want.orDefaults()
 
 	assert.Equal(t, want, got)
 }
