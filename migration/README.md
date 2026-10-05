@@ -11,7 +11,8 @@ leaking driver detail.
 |---|---|
 | `Runner` | Applies every pending file under a lock. Built by `MakeRunner`. |
 | `Status` | Reports every file as applied/pending, without mutating the database. Built by `MakeStatus`. |
-| `Apply` | Wraps a `Runner` with credential-safe, file-attributed failure reporting. Built by `MakeApply`. |
+| `Apply` | Wraps a `Runner` with credential-safe, file-attributed failure reporting. Built by `MakeApply`, which receives a `PendingFileFinder` (`MakePendingFileFinder`). |
+| `Dispatch` | Runs the `apply` or `status` command named by its first argument. Built by `MakeDispatch`, which receives an `Apply` and a `StatusRunner` (`MakeStatusRunner`). |
 | `Record` | One file's name and applied/pending state, as reported by `Status`. |
 
 ## Startup migrations
@@ -52,19 +53,24 @@ status := migration.MakeStatus(
     migration.MakeTableExists(selectOneBool),
     migration.MakeAppliedNames(selectNames),
 )
-apply := migration.MakeApply(runner, status)
+findPendingFile := migration.MakePendingFileFinder(status)
+apply := migration.MakeApply(runner, findPendingFile)
+runStatus := migration.MakeStatusRunner(status, os.Stdout)
+dispatch := migration.MakeDispatch(apply, runStatus)
 
-err = migration.Dispatch(ctx, os.Args[1:], apply, status, os.Stdout)
+err = dispatch(ctx, os.Args[1:])
 if err != nil {
     log.Fatalf("%s", err)
 }
 ```
 
-The CLI wires each operation explicitly: the database selects receive the connection, the
-migration makers receive those selects, and `MakeStatus` receives the three operations it uses.
+The CLI wires each operation explicitly in `main`: the database selects receive the connection, the
+migration makers receive those selects, `MakeStatus` receives the three operations it uses, and
+`MakeDispatch` receives the `apply` and `runStatus` it can run. No Maker builds another one inside its
+logic.
 The example needs an import of `github.com/jackc/pgx/v5` for `pgx.RowTo`.
 
-### `Dispatch`'s two commands
+### `MakeDispatch`'s two commands
 
 - `apply` (also the default with no arguments) — applies every pending file exactly once.
   Re-running after everything is applied exits zero and applies nothing new.
@@ -84,7 +90,7 @@ The example needs an import of `github.com/jackc/pgx/v5` for `pgx.RowTo`.
 | `ErrFailedToInsertApplied` / `ErrFailedToCheckApplied` | The tracking-table insert/select for one file failed. |
 | `ErrFailedToCheckTableExists` / `ErrFailedToSelectAppliedNames` | `Status`'s own read-only checks failed. |
 | `ErrFailedToApply` | `Apply`'s own sentinel — always present on an `*ApplyError`, alongside the original runner cause via `errors.Is`/`errors.As`. |
-| `ErrUnknownCommand` | `Dispatch` got anything other than no args, `apply`, or `status`. |
+| `ErrUnknownCommand` | The `Dispatch` got anything other than no args, `apply`, or `status`. |
 
 `*ApplyError` additionally carries, when available: the name of the first still-pending file
 (`File`), an allowlisted PostgreSQL SQLSTATE (`Code`), and whether file attribution itself failed
