@@ -10,7 +10,7 @@ import (
 	dittohttp "github.com/lhbelfanti/ditto/v2/http"
 )
 
-func TestRegisterSystemRoutes_ping(t *testing.T) {
+func TestRegisterSystemRoutes_success(t *testing.T) {
 	mux := http.NewServeMux()
 	dittohttp.RegisterSystemRoutes(mux)
 
@@ -24,7 +24,7 @@ func TestRegisterSystemRoutes_ping(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestRegisterSystemRoutes_migrationsSkippedWhenNotOptedIn(t *testing.T) {
+func TestRegisterSystemRoutes_successWhenMigrationsAreNotOptedIn(t *testing.T) {
 	mux := http.NewServeMux()
 	dittohttp.RegisterSystemRoutes(mux)
 
@@ -38,7 +38,7 @@ func TestRegisterSystemRoutes_migrationsSkippedWhenNotOptedIn(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestRegisterSystemRoutes_databasePingSkippedWhenNotOptedIn(t *testing.T) {
+func TestRegisterSystemRoutes_successWhenDatabasePingIsNotOptedIn(t *testing.T) {
 	mux := http.NewServeMux()
 	dittohttp.RegisterSystemRoutes(mux)
 

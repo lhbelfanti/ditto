@@ -245,19 +245,29 @@ func TestSystemRoutes_WithDatabasePing_failsWhenPingFailsWithSensitiveError(t *t
 }
 
 func TestSystemRoutes_WithDatabasePing_successWhenChainedAfterMigrationRunner(t *testing.T) {
-	mockRunner := dittohttp.MockMigrationRunner(nil)
-	mockPing := dittohttp.MockDatabasePing(nil)
 	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux).WithMigrationRunner(mockRunner).WithDatabasePing(mockPing)
+	dittohttp.RegisterSystemRoutes(mux).WithMigrationRunner(dittohttp.MockMigrationRunner(nil)).WithDatabasePing(dittohttp.MockDatabasePing(nil))
+	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
+	w := httptest.NewRecorder()
 
-	migrationsReq := httptest.NewRequest(http.MethodPost, "/migrations/run/v1", nil)
-	migrationsW := httptest.NewRecorder()
-	mux.ServeHTTP(migrationsW, migrationsReq)
+	mux.ServeHTTP(w, req)
 
-	pingReq := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
-	pingW := httptest.NewRecorder()
-	mux.ServeHTTP(pingW, pingReq)
+	want := http.StatusOK
+	got := w.Code
 
-	assert.Equal(t, http.StatusOK, migrationsW.Code)
-	assert.Equal(t, http.StatusOK, pingW.Code)
+	assert.Equal(t, want, got)
+}
+
+func TestSystemRoutes_WithMigrationRunner_successWhenChainedBeforeDatabasePing(t *testing.T) {
+	mux := http.NewServeMux()
+	dittohttp.RegisterSystemRoutes(mux).WithMigrationRunner(dittohttp.MockMigrationRunner(nil)).WithDatabasePing(dittohttp.MockDatabasePing(nil))
+	req := httptest.NewRequest(http.MethodPost, "/migrations/run/v1", nil)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	want := http.StatusOK
+	got := w.Code
+
+	assert.Equal(t, want, got)
 }

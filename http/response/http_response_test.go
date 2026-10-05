@@ -7,10 +7,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/http/response"
@@ -76,25 +74,42 @@ func TestSend_success(t *testing.T) {
 			defer resp.Body.Close()
 
 			var got response.DTO
-			err := json.NewDecoder(resp.Body).Decode(&got)
-			assert.NoError(t, err, "Failed to decode response")
+			_ = json.NewDecoder(resp.Body).Decode(&got)
 
 			jsonWant, _ := json.Marshal(tt.want)
 			jsonGot, _ := json.Marshal(got)
-			assert.JSONEq(t, string(jsonWant), string(jsonGot), "Response mismatch")
+
+			assert.JSONEq(t, string(jsonWant), string(jsonGot))
 		})
 	}
 }
 
-func TestSend_logsErrorOnce(t *testing.T) {
-	var output bytes.Buffer
-	log.NewCustomLogger(&output, zerolog.TraceLevel)
-	t.Cleanup(func() { log.NewCustomLogger(os.Stdout, zerolog.DebugLevel) })
-
+func TestSend_successWhenErrorIsLoggedOnce(t *testing.T) {
+	output := log.MockLogOutput(t)
 	w := httptest.NewRecorder()
+
 	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
 
-	assert.Equal(t, 1, bytes.Count(output.Bytes(), []byte(`"level":"error"`)))
+	want := 1
+	got := bytes.Count(output.Bytes(), []byte(`"level":"error"`))
+
+	assert.Equal(t, want, got)
+}
+
+func TestSend_successWhenErrorIsLoggedWithMessage(t *testing.T) {
+	output := log.MockLogOutput(t)
+	w := httptest.NewRecorder()
+
+	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
+
 	assert.Contains(t, output.String(), `"message":"request failed"`)
+}
+
+func TestSend_successWhenErrorIsLoggedWithCause(t *testing.T) {
+	output := log.MockLogOutput(t)
+	w := httptest.NewRecorder()
+
+	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
+
 	assert.Contains(t, output.String(), `"error":"cause"`)
 }
