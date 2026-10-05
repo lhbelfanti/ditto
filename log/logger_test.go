@@ -48,9 +48,10 @@ func TestLogLevels_success(t *testing.T) {
 
 			tt.logger(context.Background(), "a message")
 
-			want := map[string]any{"level": tt.level, "message": "a message"}
 			entry := map[string]any{}
 			_ = json.Unmarshal(buf.Bytes(), &entry)
+
+			want := map[string]any{"level": tt.level, "message": "a message"}
 			got := map[string]any{"level": entry["level"], "message": entry["message"]}
 
 			assert.Equal(t, want, got)
@@ -63,9 +64,10 @@ func TestErr_success(t *testing.T) {
 
 	log.Err(context.Background(), assert.AnError, "error message")
 
-	want := map[string]any{"level": "error", "message": "error message", "error": "assert.AnError general error for testing"}
 	entry := map[string]any{}
 	_ = json.Unmarshal(buf.Bytes(), &entry)
+
+	want := map[string]any{"level": "error", "message": "error message", "error": "assert.AnError general error for testing"}
 	got := map[string]any{"level": entry["level"], "message": entry["message"], "error": entry["error"]}
 
 	assert.Equal(t, want, got)
@@ -76,9 +78,10 @@ func TestErr_successWhenErrorIsNil(t *testing.T) {
 
 	log.Err(context.Background(), nil, "info message")
 
-	want := map[string]any{"level": "info", "message": "info message"}
 	entry := map[string]any{}
 	_ = json.Unmarshal(buf.Bytes(), &entry)
+
+	want := map[string]any{"level": "info", "message": "info message"}
 	got := map[string]any{"level": entry["level"], "message": entry["message"]}
 
 	assert.Equal(t, want, got)
