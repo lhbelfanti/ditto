@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/lhbelfanti/ditto/v2/env"
@@ -44,11 +45,5 @@ func isAllowedOrigin(origin string, allowed []string) bool {
 		return false
 	}
 
-	for _, a := range allowed {
-		if a == origin {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(allowed, origin)
 }
