@@ -45,7 +45,8 @@ type (
 	Wrap func(next http.Handler) http.Handler
 )
 
-func (t Timeouts) withDefaults() Timeouts {
+// orDefaults returns t with every zero field replaced by its default.
+func (t Timeouts) orDefaults() Timeouts {
 	if t.Startup == 0 {
 		t.Startup = defaultStartupTimeout
 	}

@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	defaultStartupTimeout  = 5 * time.Second
-	defaultPingTimeout     = 2 * time.Second
-	defaultShutdownTimeout = 5 * time.Second
+	defaultStartupTimeout  time.Duration = 5 * time.Second
+	defaultPingTimeout     time.Duration = 2 * time.Second
+	defaultShutdownTimeout time.Duration = 5 * time.Second
 )
 
 // Run configures logging, validates the environment, opens the database and applies migrations
@@ -33,7 +33,7 @@ const (
 func Run(opts Options) error {
 	ctx := context.Background()
 	log.NewCustomLogger(os.Stdout, zerolog.InfoLevel)
-	timeouts := opts.Timeouts.withDefaults()
+	timeouts := opts.Timeouts.orDefaults()
 
 	port, err := env.RequirePort(os.LookupEnv, opts.PortEnv)
 	if err != nil {
