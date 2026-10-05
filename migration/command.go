@@ -15,31 +15,34 @@ const (
 	CommandStatus string = "status"
 )
 
-// Dispatch runs the migrations command named by args[0] (defaulting to CommandApply when args is
-// empty), using the injected apply and status functions. Unknown commands or extra arguments
-// return ErrUnknownCommand instead of running anything.
-func Dispatch(ctx context.Context, args []string, apply Apply, status Status, out io.Writer) error {
-	if len(args) > 1 {
-		return ErrUnknownCommand
-	}
+// MakeDispatch creates a Dispatch that runs the command named by args[0], defaulting to
+// CommandApply when args is empty, through the injected apply and runStatus. Unknown commands or
+// extra arguments return ErrUnknownCommand instead of running anything.
+func MakeDispatch(apply Apply, runStatus StatusRunner) Dispatch {
+	return func(ctx context.Context, args []string) error {
+		if len(args) > 1 {
+			return ErrUnknownCommand
+		}
 
-	command := CommandApply
-	if len(args) == 1 {
-		command = args[0]
-	}
+		command := CommandApply
+		if len(args) == 1 {
+			command = args[0]
+		}
 
-	switch command {
-	case CommandApply:
-		return apply(ctx)
-	case CommandStatus:
-		runStatus := makeStatusRunner(status, out)
-		return runStatus(ctx)
-	default:
-		return ErrUnknownCommand
+		switch command {
+		case CommandApply:
+			return apply(ctx)
+		case CommandStatus:
+			return runStatus(ctx)
+		default:
+			return ErrUnknownCommand
+		}
 	}
 }
 
-func makeStatusRunner(status Status, out io.Writer) statusRunner {
+// MakeStatusRunner creates a StatusRunner that writes one "applied <file>" or "pending <file>" line
+// per migration file to out.
+func MakeStatusRunner(status Status, out io.Writer) StatusRunner {
 	return func(ctx context.Context) error {
 		records, err := status(ctx)
 		if err != nil {

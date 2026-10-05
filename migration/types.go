@@ -44,9 +44,14 @@ type (
 	// database.
 	Status func(ctx context.Context) ([]Record, error)
 
-	statusRunner func(ctx context.Context) error
+	// StatusRunner prints the applied/pending state of every migration file.
+	StatusRunner func(ctx context.Context) error
 
-	pendingFileFinder func(ctx context.Context) (string, error)
+	// PendingFileFinder returns the name of the first migration file still pending.
+	PendingFileFinder func(ctx context.Context) (string, error)
+
+	// Dispatch runs the migrations command named by the first argument.
+	Dispatch func(ctx context.Context, args []string) error
 )
 
 // Error renders only a package-owned message, with the attributed file and SQLSTATE code when present.

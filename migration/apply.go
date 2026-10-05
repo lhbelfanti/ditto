@@ -10,9 +10,7 @@ import (
 // MakeApply wraps runner with deterministic, credential-safe failure attribution: on failure it
 // extracts the allowlisted PostgreSQL SQLSTATE (never the raw driver error) and, when the failure
 // happened during file execution, the name of the file that failed.
-func MakeApply(runner Runner, status Status) Apply {
-	findPendingFile := makePendingFileFinder(status)
-
+func MakeApply(runner Runner, findPendingFile PendingFileFinder) Apply {
 	return func(ctx context.Context) error {
 		err := runner(ctx)
 		if err == nil {
@@ -34,10 +32,10 @@ func MakeApply(runner Runner, status Status) Apply {
 	}
 }
 
-// makePendingFileFinder creates a pendingFileFinder that takes a read-only post-failure status
+// MakePendingFileFinder creates a PendingFileFinder that takes a read-only post-failure status
 // snapshot and returns the first file still pending, relying on MakeRunner's guaranteed
 // lexicographic, sequential apply order to identify the file whose execution failed.
-func makePendingFileFinder(status Status) pendingFileFinder {
+func MakePendingFileFinder(status Status) PendingFileFinder {
 	return func(ctx context.Context) (string, error) {
 		records, err := status(ctx)
 		if err != nil {
