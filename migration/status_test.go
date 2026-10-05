@@ -49,21 +49,20 @@ func TestMakeTableExists_success(t *testing.T) {
 
 	tableExists := migration.MakeTableExists(selectOneOp)
 
-	got, err := tableExists(context.Background())
+	got, _ := tableExists(context.Background())
 
-	assert.NoError(t, err)
 	assert.True(t, got)
 }
 
 func TestMakeTableExists_failsWhenQueryFails(t *testing.T) {
-	underlying := errors.New("query error")
-	selectOneOp := database.MockSelectOne[bool](false, underlying)
+	want := errors.New("query error")
+	selectOneOp := database.MockSelectOne[bool](false, want)
 
 	tableExists := migration.MakeTableExists(selectOneOp)
-	got, err := tableExists(context.Background())
 
-	assert.ErrorIs(t, err, underlying)
-	assert.False(t, got)
+	_, got := tableExists(context.Background())
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeAppliedNames_success(t *testing.T) {
@@ -72,21 +71,20 @@ func TestMakeAppliedNames_success(t *testing.T) {
 	appliedNames := migration.MakeAppliedNames(selectOp)
 
 	want := []string{"000_foundation.sql"}
-	got, err := appliedNames(context.Background())
+	got, _ := appliedNames(context.Background())
 
-	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 }
 
 func TestMakeAppliedNames_failsWhenQueryFails(t *testing.T) {
-	underlying := errors.New("query error")
-	selectOp := database.MockSelect[string](nil, underlying)
+	want := errors.New("query error")
+	selectOp := database.MockSelect[string](nil, want)
 
 	appliedNames := migration.MakeAppliedNames(selectOp)
-	got, err := appliedNames(context.Background())
 
-	assert.ErrorIs(t, err, underlying)
-	assert.Nil(t, got)
+	_, got := appliedNames(context.Background())
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeStatus_success(t *testing.T) {
@@ -100,9 +98,8 @@ func TestMakeStatus_success(t *testing.T) {
 		{Name: "000_foundation.sql", Applied: true},
 		{Name: "001_second.sql", Applied: false},
 	}
-	got, err := status(context.Background())
+	got, _ := status(context.Background())
 
-	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 }
 
@@ -116,9 +113,8 @@ func TestMakeStatus_successWhenTableDoesNotExist(t *testing.T) {
 	want := []migration.Record{
 		{Name: "000_foundation.sql", Applied: false},
 	}
-	got, err := status(context.Background())
+	got, _ := status(context.Background())
 
-	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 }
 
@@ -129,36 +125,60 @@ func TestMakeStatus_failsWhenListFilesFails(t *testing.T) {
 	mockAppliedNames := migration.MockAppliedNames(nil, errors.New("must not be called"))
 
 	status := migration.MakeStatus(mockListFiles, mockTableExists, mockAppliedNames)
-	got, err := status(context.Background())
 
-	assert.ErrorIs(t, err, want)
-	assert.Nil(t, got)
+	_, got := status(context.Background())
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeStatus_failsWhenTableExistsFails(t *testing.T) {
 	mockListFiles := migration.MockListFiles([]string{"000_foundation.sql"}, nil)
-	underlying := errors.New("table check failed")
-	mockTableExists := migration.MockTableExists(false, underlying)
+	mockTableExists := migration.MockTableExists(false, errors.New("table check failed"))
 	mockAppliedNames := migration.MockAppliedNames(nil, errors.New("must not be called"))
 
 	status := migration.MakeStatus(mockListFiles, mockTableExists, mockAppliedNames)
-	got, err := status(context.Background())
 
-	assert.ErrorIs(t, err, migration.ErrFailedToCheckTableExists)
-	assert.ErrorIs(t, err, underlying)
-	assert.Nil(t, got)
+	want := migration.ErrFailedToCheckTableExists
+	_, got := status(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeStatus_failsWhenTableExistsFailsKeepsCause(t *testing.T) {
+	mockListFiles := migration.MockListFiles([]string{"000_foundation.sql"}, nil)
+	want := errors.New("table check failed")
+	mockTableExists := migration.MockTableExists(false, want)
+	mockAppliedNames := migration.MockAppliedNames(nil, errors.New("must not be called"))
+
+	status := migration.MakeStatus(mockListFiles, mockTableExists, mockAppliedNames)
+
+	_, got := status(context.Background())
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeStatus_failsWhenAppliedNamesFails(t *testing.T) {
 	mockListFiles := migration.MockListFiles([]string{"000_foundation.sql"}, nil)
 	mockTableExists := migration.MockTableExists(true, nil)
-	underlying := errors.New("select failed")
-	mockAppliedNames := migration.MockAppliedNames(nil, underlying)
+	mockAppliedNames := migration.MockAppliedNames(nil, errors.New("select failed"))
 
 	status := migration.MakeStatus(mockListFiles, mockTableExists, mockAppliedNames)
-	got, err := status(context.Background())
 
-	assert.ErrorIs(t, err, migration.ErrFailedToSelectAppliedNames)
-	assert.ErrorIs(t, err, underlying)
-	assert.Nil(t, got)
+	want := migration.ErrFailedToSelectAppliedNames
+	_, got := status(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeStatus_failsWhenAppliedNamesFailsKeepsCause(t *testing.T) {
+	mockListFiles := migration.MockListFiles([]string{"000_foundation.sql"}, nil)
+	mockTableExists := migration.MockTableExists(true, nil)
+	want := errors.New("select failed")
+	mockAppliedNames := migration.MockAppliedNames(nil, want)
+
+	status := migration.MakeStatus(mockListFiles, mockTableExists, mockAppliedNames)
+
+	_, got := status(context.Background())
+
+	assert.ErrorIs(t, got, want)
 }

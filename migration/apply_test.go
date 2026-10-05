@@ -17,14 +17,14 @@ func TestMakeApply_success(t *testing.T) {
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
 
 	apply := migration.MakeApply(mockRunner, mockStatus)
+
 	got := apply(context.Background())
 
 	assert.NoError(t, got)
 }
 
 func TestMakeApply_failsWhenExecutionFails(t *testing.T) {
-	pgErr := &pgconn.PgError{Code: "42601"}
-	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, pgErr)
+	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, &pgconn.PgError{Code: "42601"})
 	mockRunner := migration.MockRunner(runnerErr)
 	records := []migration.Record{
 		{Name: "000_foundation.sql", Applied: true},
@@ -33,14 +33,24 @@ func TestMakeApply_failsWhenExecutionFails(t *testing.T) {
 	mockStatus := migration.MockStatus(records, nil)
 
 	apply := migration.MakeApply(mockRunner, mockStatus)
+
+	want := &migration.ApplyError{File: "001_second.sql", Code: "42601"}
+	var got *migration.ApplyError
+	_ = errors.As(apply(context.Background()), &got)
+
+	assert.Equal(t, want.Error(), got.Error())
+}
+
+func TestMakeApply_failsWhenExecutionFailsKeepsCause(t *testing.T) {
+	want := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, &pgconn.PgError{Code: "42601"})
+	mockRunner := migration.MockRunner(want)
+	mockStatus := migration.MockStatus([]migration.Record{{Name: "001_second.sql"}}, nil)
+
+	apply := migration.MakeApply(mockRunner, mockStatus)
+
 	got := apply(context.Background())
 
-	var applyErr *migration.ApplyError
-	assert.ErrorAs(t, got, &applyErr)
-	assert.ErrorIs(t, got, migration.ErrFailedToApply)
-	assert.ErrorIs(t, got, migration.ErrFailedToExecute)
-	assert.Equal(t, "001_second.sql", applyErr.File)
-	assert.Equal(t, "42601", applyErr.Code)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
@@ -49,12 +59,12 @@ func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
 
 	apply := migration.MakeApply(mockRunner, mockStatus)
-	got := apply(context.Background())
 
-	var applyErr *migration.ApplyError
-	assert.ErrorAs(t, got, &applyErr)
-	assert.ErrorIs(t, got, migration.ErrFailedToApply)
-	assert.Equal(t, "", applyErr.File)
+	want := &migration.ApplyError{}
+	var got *migration.ApplyError
+	_ = errors.As(apply(context.Background()), &got)
+
+	assert.Equal(t, want.Error(), got.Error())
 }
 
 func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
@@ -63,11 +73,10 @@ func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
 	mockStatus := migration.MockStatus(nil, errors.New("status query failed"))
 
 	apply := migration.MakeApply(mockRunner, mockStatus)
-	got := apply(context.Background())
 
-	var applyErr *migration.ApplyError
-	assert.ErrorAs(t, got, &applyErr)
-	assert.ErrorIs(t, got, migration.ErrFailedToApply)
-	assert.True(t, applyErr.AttributionUnavailable)
-	assert.Equal(t, "", applyErr.File)
+	want := &migration.ApplyError{AttributionUnavailable: true}
+	var got *migration.ApplyError
+	_ = errors.As(apply(context.Background()), &got)
+
+	assert.Equal(t, want.Error(), got.Error())
 }

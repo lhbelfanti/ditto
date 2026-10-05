@@ -11,7 +11,7 @@ import (
 	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
-func TestDispatch_SuccessWhenNoArguments(t *testing.T) {
+func TestDispatch_successWhenNoArguments(t *testing.T) {
 	called := false
 	mockApply := migration.MockApplyCapturing(nil, &called)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
@@ -21,7 +21,7 @@ func TestDispatch_SuccessWhenNoArguments(t *testing.T) {
 	assert.True(t, called)
 }
 
-func TestDispatch_SuccessWhenExplicitApply(t *testing.T) {
+func TestDispatch_successWhenApplyIsExplicit(t *testing.T) {
 	want := errors.New("apply failed")
 	mockApply := migration.MockApply(want)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
@@ -31,7 +31,7 @@ func TestDispatch_SuccessWhenExplicitApply(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
-func TestDispatch_SuccessWhenStatusReportsRecords(t *testing.T) {
+func TestDispatch_successWhenStatusReportsRecords(t *testing.T) {
 	records := []migration.Record{
 		{Name: "000_foundation.sql", Applied: true},
 		{Name: "001_second.sql", Applied: false},
@@ -48,7 +48,7 @@ func TestDispatch_SuccessWhenStatusReportsRecords(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestDispatch_ErrorWhenStatusQueryFails(t *testing.T) {
+func TestDispatch_failsWhenStatusQueryFails(t *testing.T) {
 	mockApply := migration.MockApply(nil)
 	want := errors.New("status query failed")
 	mockStatus := migration.MockStatus(nil, want)
@@ -58,7 +58,7 @@ func TestDispatch_ErrorWhenStatusQueryFails(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
-func TestDispatch_ErrorWhenCommandIsUnknown(t *testing.T) {
+func TestDispatch_failsWhenCommandIsUnknown(t *testing.T) {
 	mockApply := migration.MockApply(nil)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
 
@@ -67,7 +67,7 @@ func TestDispatch_ErrorWhenCommandIsUnknown(t *testing.T) {
 	assert.ErrorIs(t, got, migration.ErrUnknownCommand)
 }
 
-func TestDispatch_ErrorWhenTooManyArguments(t *testing.T) {
+func TestDispatch_failsWhenTooManyArguments(t *testing.T) {
 	mockApply := migration.MockApply(nil)
 	mockStatus := migration.MockStatus(nil, errors.New("must not be called"))
 
