@@ -33,10 +33,10 @@ func TestMockBroker_CloseConnection_success(t *testing.T) {
 	assert.NotPanics(t, mockBroker.CloseConnection)
 }
 
-func TestMockBroker_InitMessageConsumerWithFunction_success(t *testing.T) {
+func TestMockBroker_InitMessageConsumer_success(t *testing.T) {
 	mockBroker := &broker.MockBroker{}
 
-	got := mockBroker.InitMessageConsumerWithFunction(1, nil)
+	got := mockBroker.InitMessageConsumer(1, nil)
 
 	assert.NoError(t, got)
 }
