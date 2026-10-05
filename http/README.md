@@ -21,8 +21,7 @@ dittohttp.RegisterSystemRoutes(mux).
 database). `WithDatabasePing` is opt-in and mounts `GET /database/ping/v1` (readiness). Services
 built on `app.Run` get both without wiring them by hand.
 
-`WithMigrationRunner` is **deprecated**: it mounted `POST /migrations/run/v1`, which let any caller
-run DDL. Migrations now run at boot through `app.Run`, so new services should not chain it.
+Migrations are not exposed over HTTP: `app.Run` applies them at boot.
 
 ## `GracefulShutdown`
 
@@ -61,7 +60,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 | Error | Where |
 |---|---|
 | `FailedToMarshalBody`/`FailedToCreateRequest`/`FailedToExecuteRequest`/`FailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant |
-| `ErrDatabaseUnavailable`/`ErrMigrationsFailed` | `RegisterSystemRoutes`'s handlers — paired with `ErrMsgDatabaseUnavailable`/`ErrMsgMigrationsFailed`, since those strings are reused both in `errors.New` and separately as `response.Send`'s `message` argument |
+| `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
 | `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgInvalidToken` is reused across two failure branches, so it's a named constant; the single-use "authorization header required" message stays inline |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more
