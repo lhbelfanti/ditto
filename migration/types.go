@@ -20,10 +20,6 @@ type (
 		cause                  error
 	}
 
-	CreateTable   func(ctx context.Context) error
-	IsApplied     func(ctx context.Context, name string) (bool, error)
-	InsertApplied func(ctx context.Context, name string) error
-
 	// Runner applies all pending migrations and returns an error on failure.
 	Runner func(ctx context.Context) error
 
@@ -53,6 +49,7 @@ type (
 	pendingFileFinder func(ctx context.Context) (string, error)
 )
 
+// Error renders only a package-owned message, with the attributed file and SQLSTATE code when present.
 func (e *ApplyError) Error() string {
 	switch {
 	case e.File != "" && e.Code != "":
@@ -70,6 +67,7 @@ func (e *ApplyError) Error() string {
 	}
 }
 
+// Unwrap returns ErrFailedToApply and the original runner failure.
 func (e *ApplyError) Unwrap() []error {
 	return []error{ErrFailedToApply, e.cause}
 }
