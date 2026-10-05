@@ -56,7 +56,7 @@ func MockRunningService(t *testing.T) *MockService {
 	go func() { service.done <- Run(opts) }()
 	t.Cleanup(func() { _ = service.Stop() })
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		resp, err := service.client.Get(service.BaseURL + "/ping/v1")
 		if err == nil {
 			_ = resp.Body.Close()

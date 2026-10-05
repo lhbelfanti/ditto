@@ -14,7 +14,7 @@ import (
 type (
 	// Client is an abstraction of the CustomClient methods
 	Client interface {
-		NewRequest(ctx context.Context, method, url string, body interface{}) (Response, error)
+		NewRequest(ctx context.Context, method, url string, body any) (Response, error)
 	}
 
 	// CustomClient represent a custom http.CustomClient
@@ -52,7 +52,7 @@ func (s *SystemRoutes) WithDatabasePing(dbPing DatabasePing) *SystemRoutes {
 }
 
 // NewRequest sends a request with an optional JSON body and returns the response, with the body read and the headers exposed.
-func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body interface{}) (Response, error) {
+func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body any) (Response, error) {
 	var reqBody io.Reader
 	var hasJSONBody bool
 

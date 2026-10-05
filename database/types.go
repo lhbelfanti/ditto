@@ -16,7 +16,7 @@ import (
 type (
 	// Connection is an interface created as an abstraction of pgxpool.Pool to be able to mock it
 	Connection interface {
-		Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+		Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 		Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 		QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 		Begin(ctx context.Context) (pgx.Tx, error)

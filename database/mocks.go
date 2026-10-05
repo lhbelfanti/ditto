@@ -42,7 +42,7 @@ type (
 // MockPostgresConnection
 
 // Exec returns the configured command tag and error.
-func (m *MockPostgresConnection) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
+func (m *MockPostgresConnection) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
 	args := m.Called(ctx, sql, arguments)
 	return args.Get(0).(pgconn.CommandTag), args.Error(1)
 }
@@ -226,7 +226,7 @@ func (m *MockPgxCollectableRow) RawValues() [][]byte {
 func MockScan(mockPgxRow *MockPgxRow, values []any, t *testing.T) {
 	mockPgxRow.On("Scan", mock.Anything).Return(nil).Run(
 		func(args mock.Arguments) {
-			dest := args.Get(0).([]interface{})
+			dest := args.Get(0).([]any)
 			if len(dest) != len(values) {
 				t.Errorf("Expected %d destination arguments but got %d", len(values), len(dest))
 			}
@@ -240,7 +240,7 @@ func MockScan(mockPgxRow *MockPgxRow, values []any, t *testing.T) {
 // MockPgxCollectableRowMethods mocks all the methods of a MockPgxCollectableRow
 func MockPgxCollectableRowMethods(m *MockPgxCollectableRow, values []any, t *testing.T) {
 	m.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		dest := args.Get(0).([]interface{})
+		dest := args.Get(0).([]any)
 		if len(dest) != len(values) {
 			t.Errorf("Expected %d destination arguments but got %d", len(values), len(dest))
 			return
@@ -266,7 +266,7 @@ func MockPgxRowsScanValue(rows *MockPgxRows, value any, t *testing.T) {
 
 // parseScanValue assigns a value from `val` to the provided `dest` based on its type, validating supported types.
 // It uses `t` for error reporting in tests when the type is unsupported or mismatched.
-func parseScanValue(val any, dest interface{}, t *testing.T) {
+func parseScanValue(val any, dest any, t *testing.T) {
 	switch d := dest.(type) {
 	case *int:
 		*d = val.(int)

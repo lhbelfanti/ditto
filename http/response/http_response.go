@@ -11,7 +11,7 @@ import (
 // Send writes a standardized JSON response to the client.
 // It accepts an HTTP status code, a message, optional data, and optional error details.
 // The response format includes the code, message, and either data or error information.
-func Send(ctx context.Context, w http.ResponseWriter, code int, message string, data interface{}, err error) {
+func Send(ctx context.Context, w http.ResponseWriter, code int, message string, data any, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 

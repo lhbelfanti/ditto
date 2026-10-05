@@ -8,16 +8,16 @@ import (
 )
 
 // Param creates a new field to be saved into context
-func Param(key string, value interface{}) field {
+func Param(key string, value any) field {
 	return field{key, value}
 }
 
 // With custom function to add log parameters to the context
 func With(ctx context.Context, fields ...field) context.Context {
 	// Get the existing map of parameters or create a new one
-	params, ok := ctx.Value(logCtxKey{}).(map[string]interface{})
+	params, ok := ctx.Value(logCtxKey{}).(map[string]any)
 	if !ok {
-		params = make(map[string]interface{}, len(fields))
+		params = make(map[string]any, len(fields))
 	}
 
 	for _, t := range fields {
@@ -32,7 +32,7 @@ func withContextParams(ctx context.Context, event *zerolog.Event) *zerolog.Event
 		return event
 	}
 
-	params, ok := ctx.Value(logCtxKey{}).(map[string]interface{})
+	params, ok := ctx.Value(logCtxKey{}).(map[string]any)
 	if !ok {
 		return event
 	}
