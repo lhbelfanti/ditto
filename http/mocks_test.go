@@ -18,8 +18,9 @@ func TestMockSequenceRoundTripper_success(t *testing.T) {
 	)
 	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
 
-	want := "done"
 	second, _ := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
+
+	want := "done"
 	got := second.Body
 
 	assert.Equal(t, want, got)
@@ -31,8 +32,9 @@ func TestMockSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
 		dittohttp.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": []string{"1"}}},
 	)
 
-	want := "1"
 	first, _ := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
+
+	want := "1"
 	got := first.Header.Get("Retry-After")
 
 	assert.Equal(t, want, got)
