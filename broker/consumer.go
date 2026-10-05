@@ -35,7 +35,7 @@ func NewConsumer(ctx context.Context, url, queueName string) (*RabbitMQBroker, e
 	}, nil
 }
 
-func makeProcessDelivery(processor ProcessorFunction, semaphore chan struct{}, inFlight *sync.WaitGroup) func(amqp091.Delivery) {
+func makeProcessDelivery(processor Processor, semaphore chan struct{}, inFlight *sync.WaitGroup) func(amqp091.Delivery) {
 	return func(d amqp091.Delivery) {
 		defer inFlight.Done()
 		defer func() { <-semaphore }()

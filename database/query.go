@@ -32,9 +32,9 @@ func MakeSelect[T any](db Connection, collectRows CollectRows[T]) Select[T] {
 // Pass nil for fn to use pgx.RowToStructByPos[T] (struct fields mapped by position).
 // Pass a custom pgx.RowToFunc[T] to scan scalar types (bool, int, …) or custom structs.
 func MakeSelectOne[T any](db Connection, fn pgx.RowToFunc[T]) SelectOne[T] {
-	rowToFunc := fn
-	if rowToFunc == nil {
-		rowToFunc = pgx.RowToStructByPos[T]
+	rowTo := fn
+	if rowTo == nil {
+		rowTo = pgx.RowToStructByPos[T]
 	}
 
 	return func(ctx context.Context, query string, args ...any) (T, error) {
@@ -45,7 +45,7 @@ func MakeSelectOne[T any](db Connection, fn pgx.RowToFunc[T]) SelectOne[T] {
 			return zero, ErrQuery
 		}
 
-		result, err := pgx.CollectOneRow(rows, rowToFunc)
+		result, err := pgx.CollectOneRow(rows, rowTo)
 		if err != nil {
 			log.Error(ctx, err.Error())
 			var zero T

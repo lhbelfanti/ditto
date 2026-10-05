@@ -6,7 +6,7 @@ import (
 )
 
 // drainTimeout bounds how long CloseConnection waits for in-flight message-processing goroutines
-// (spawned by InitMessageConsumerWithFunction) to finish before closing the connection regardless.
+// (spawned by InitMessageConsumer) to finish before closing the connection regardless.
 const drainTimeout time.Duration = 10 * time.Second
 
 // NewProducer creates a new RabbitMQBroker configured for producing messages.

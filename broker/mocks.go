@@ -51,8 +51,8 @@ func (m *MockBroker) EnqueueMessage(_ context.Context, _ string) error {
 	return m.EnqueueErr
 }
 
-// InitMessageConsumerWithFunction returns nil without consuming anything.
-func (m *MockBroker) InitMessageConsumerWithFunction(_ int, _ ProcessorFunction) error { return nil }
+// InitMessageConsumer returns nil without consuming anything.
+func (m *MockBroker) InitMessageConsumer(_ int, _ Processor) error { return nil }
 
 // CloseConnection does nothing.
 func (m *MockBroker) CloseConnection() {}
@@ -113,21 +113,21 @@ func (m *MockAckRecorder) Reject(tag uint64, _ bool) error {
 	return nil
 }
 
-// MockProcessor returns a ProcessorFunction that always returns err.
-func MockProcessor(err error) ProcessorFunction {
+// MockProcessor returns a Processor that always returns err.
+func MockProcessor(err error) Processor {
 	return func(context.Context, []byte) error { return err }
 }
 
-// MockRecordingProcessor returns a ProcessorFunction that sends every body it receives to bodies and returns err.
-func MockRecordingProcessor(bodies chan<- []byte, err error) ProcessorFunction {
+// MockRecordingProcessor returns a Processor that sends every body it receives to bodies and returns err.
+func MockRecordingProcessor(bodies chan<- []byte, err error) Processor {
 	return func(_ context.Context, body []byte) error {
 		bodies <- body
 		return err
 	}
 }
 
-// MockBlockingProcessor returns a ProcessorFunction that signals started, waits for release to close, and returns err.
-func MockBlockingProcessor(started chan<- struct{}, release <-chan struct{}, err error) ProcessorFunction {
+// MockBlockingProcessor returns a Processor that signals started, waits for release to close, and returns err.
+func MockBlockingProcessor(started chan<- struct{}, release <-chan struct{}, err error) Processor {
 	return func(context.Context, []byte) error {
 		started <- struct{}{}
 		<-release

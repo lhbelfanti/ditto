@@ -13,12 +13,12 @@ type (
 	// MessageBroker defines the contract for interacting with the message broker.
 	MessageBroker interface {
 		EnqueueMessage(ctx context.Context, body string) error
-		InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction) error
+		InitMessageConsumer(concurrentMessages int, processor Processor) error
 		CloseConnection()
 	}
 
-	// ProcessorFunction is a function that processes a message body.
-	ProcessorFunction func(ctx context.Context, body []byte) error
+	// Processor is a function that processes a message body.
+	Processor func(ctx context.Context, body []byte) error
 
 	channel interface {
 		Qos(prefetchCount, prefetchSize int, global bool) error
@@ -41,7 +41,7 @@ type (
 		dispatchMu   sync.Mutex
 		closing      bool
 
-		// inFlight tracks message-processing goroutines spawned by InitMessageConsumerWithFunction,
+		// inFlight tracks message-processing goroutines spawned by InitMessageConsumer,
 		// so CloseConnection can give them a bounded chance to finish before tearing the connection
 		// down. Zero-value on a producer-only broker, where it is never touched.
 		inFlight sync.WaitGroup
@@ -58,9 +58,9 @@ func (b *RabbitMQBroker) stopChannel() <-chan struct{} {
 	return b.stop
 }
 
-// InitMessageConsumerWithFunction subscribes and starts processing messages, bounding both
+// InitMessageConsumer subscribes and starts processing messages, bounding both
 // RabbitMQ's own delivery rate (via channel QoS) and the number of concurrently running
-// processorFunc goroutines to concurrentMessages. It blocks for the consumer's lifetime — call it
+// processor goroutines to concurrentMessages. It blocks for the consumer's lifetime — call it
 // in its own goroutine — returning nil only once stopped deliberately via CloseConnection, or a
 // non-nil error otherwise: immediately if setup (QoS, subscribing) fails, or
 // ErrConsumerChannelClosed if the delivery channel closes on its own (e.g. a dropped connection)
@@ -68,7 +68,7 @@ func (b *RabbitMQBroker) stopChannel() <-chan struct{} {
 // itself; a caller that needs this failure visible decides how, the same as database.Check.
 // Calling this on a broker built by NewProducer (no messages channel) returns ErrNotAConsumer
 // instead of blocking forever on a nil channel.
-func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int, processorFunc ProcessorFunction) error {
+func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor Processor) error {
 	if !b.consumer && b.messages == nil {
 		return ErrNotAConsumer
 	}
@@ -97,7 +97,7 @@ func (b *RabbitMQBroker) InitMessageConsumerWithFunction(concurrentMessages int,
 
 	semaphore := make(chan struct{}, concurrentMessages)
 	stop := b.stopChannel()
-	process := makeProcessDelivery(processorFunc, semaphore, &b.inFlight)
+	process := makeProcessDelivery(processor, semaphore, &b.inFlight)
 
 	for {
 		var msg amqp091.Delivery
