@@ -55,8 +55,8 @@ func MakePendingFileFinder(status Status) PendingFileFinder {
 // pgErrorCode extracts the allowlisted PostgreSQL SQLSTATE classification from err, if present. It
 // never returns arbitrary dependency error text.
 func pgErrorCode(err error) string {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
+	pgErr, ok := errors.AsType[*pgconn.PgError](err)
+	if ok {
 		return pgErr.Code
 	}
 
