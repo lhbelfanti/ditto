@@ -10,18 +10,28 @@ import (
 func TestDeclareQueue_success(t *testing.T) {
 	ch := &MockChannel{}
 
-	q, err := declareQueue(ch, "work")
+	queue, _ := declareQueue(ch, "work")
 
-	assert.NoError(t, err)
-	assert.Equal(t, "work", q.Name)
+	want := "work"
+	got := queue.Name
+
+	assert.Equal(t, want, got)
 }
 
 func TestDeclareQueue_failsWhenChannelRejectsDeclaration(t *testing.T) {
-	underlying := errors.New("unavailable")
-	ch := &MockChannel{QueueErr: underlying}
+	ch := &MockChannel{QueueErr: errors.New("unavailable")}
 
-	_, err := declareQueue(ch, "work")
+	want := ErrFailedToDeclareQueue
+	_, got := declareQueue(ch, "work")
 
-	assert.ErrorIs(t, err, ErrFailedToDeclareQueue)
-	assert.ErrorIs(t, err, underlying)
+	assert.ErrorIs(t, got, want)
+}
+
+func TestDeclareQueue_failsWhenChannelRejectsDeclarationKeepsCause(t *testing.T) {
+	want := errors.New("unavailable")
+	ch := &MockChannel{QueueErr: want}
+
+	_, got := declareQueue(ch, "work")
+
+	assert.ErrorIs(t, got, want)
 }

@@ -9,9 +9,10 @@ import (
 )
 
 func TestDial_failsWhenURLIsInvalid(t *testing.T) {
-	_, err := dial(context.Background(), "not-a-valid-url")
+	want := ErrFailedToConnect
+	_, got := dial(context.Background(), "not-a-valid-url")
 
-	assert.ErrorIs(t, err, ErrFailedToConnect)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestDial_failsWhenContextIsAlreadyCancelled(t *testing.T) {
@@ -20,9 +21,10 @@ func TestDial_failsWhenContextIsAlreadyCancelled(t *testing.T) {
 
 	// A real-looking but unroutable address, so amqp091.Dial doesn't fail synchronously before
 	// the select ever runs — ctx must be what resolves this call.
-	_, err := dial(ctx, "amqp://guest:guest@10.255.255.1:5672/")
+	want := ErrFailedToConnect
+	_, got := dial(ctx, "amqp://guest:guest@10.255.255.1:5672/")
 
-	assert.ErrorIs(t, err, ErrFailedToConnect)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestCloseLateDial_successWhenDialFailed(t *testing.T) {
