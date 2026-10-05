@@ -29,8 +29,9 @@ func TestRequireValue_failsWhenMissing(t *testing.T) {
 func TestRequireValue_failsWhenMissingNamesTheKey(t *testing.T) {
 	lookup := env.MockLookup(map[string]string{})
 
-	want := "KEY: " + env.ErrMissingKey.Error()
 	_, err := env.RequireValue(lookup, "KEY")
+
+	want := "KEY: " + env.ErrMissingKey.Error()
 	got := err.Error()
 
 	assert.Equal(t, want, got)
