@@ -45,6 +45,11 @@ type (
 		// so CloseConnection can give them a bounded chance to finish before tearing the connection
 		// down. Zero-value on a producer-only broker, where it is never touched.
 		inFlight sync.WaitGroup
+
+		// processor and semaphore are set when InitMessageConsumer starts: the semaphore is sized
+		// by the concurrency limit it receives, so neither can be injected earlier.
+		processor Processor
+		semaphore chan struct{}
 	}
 
 	dialResult struct {
@@ -95,9 +100,9 @@ func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor P
 		}
 	}
 
-	semaphore := make(chan struct{}, concurrentMessages)
+	b.processor = processor
+	b.semaphore = make(chan struct{}, concurrentMessages)
 	stop := b.stopChannel()
-	process := makeProcessDelivery(processor, semaphore, &b.inFlight)
 
 	for {
 		var msg amqp091.Delivery
@@ -117,7 +122,7 @@ func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor P
 		}
 
 		select {
-		case semaphore <- struct{}{}:
+		case b.semaphore <- struct{}{}:
 		case <-stop:
 			return nil
 		}
@@ -125,14 +130,28 @@ func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor P
 		b.dispatchMu.Lock()
 		if b.closing {
 			b.dispatchMu.Unlock()
-			<-semaphore
+			<-b.semaphore
 			return nil
 		}
 		b.inFlight.Add(1)
 		b.dispatchMu.Unlock()
 
-		go process(msg)
+		go b.processDelivery(msg)
 	}
+}
+
+// processDelivery runs the processor on d, acknowledges it on success and rejects it without
+// requeueing on failure, then releases its semaphore slot and its in-flight mark.
+func (b *RabbitMQBroker) processDelivery(d amqp091.Delivery) {
+	defer b.inFlight.Done()
+	defer func() { <-b.semaphore }()
+
+	err := b.processor(context.Background(), d.Body)
+	if err != nil {
+		_ = d.Nack(false, false)
+		return
+	}
+	_ = d.Ack(false)
 }
 
 // EnqueueMessage publishes a message to the broker.
