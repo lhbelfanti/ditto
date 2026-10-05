@@ -13,15 +13,13 @@ import (
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
-type (
-	// MockService is a Run started in the background by MockRunningService, reachable at BaseURL.
-	MockService struct {
-		BaseURL string
-		done    chan error
-		client  *http.Client
-		stopped bool
-	}
-)
+// MockService is a Run started in the background by MockRunningService, reachable at BaseURL.
+type MockService struct {
+	BaseURL string
+	done    chan error
+	client  *http.Client
+	stopped bool
+}
 
 // MockRunningService starts Run on a free port. Run installs its signal handler before it starts
 // listening, so Stop sending SIGINT to this process exercises the real graceful shutdown path.

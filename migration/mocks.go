@@ -15,18 +15,16 @@ import (
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
-type (
-	// MockTxConfig selects which step of a migration transaction MockTx makes fail and what its queries return.
-	MockTxConfig struct {
-		LockErr        error
-		CreateTableErr error
-		FileSQL        string
-		FileErr        error
-		Applied        bool
-		AppliedErr     error
-		InsertErr      error
-	}
-)
+// MockTxConfig selects which step of a migration transaction MockTx makes fail and what its queries return.
+type MockTxConfig struct {
+	LockErr        error
+	CreateTableErr error
+	FileSQL        string
+	FileErr        error
+	Applied        bool
+	AppliedErr     error
+	InsertErr      error
+}
 
 // MockListFiles returns a ListFiles that always returns the given names and error.
 func MockListFiles(names []string, err error) ListFiles {
