@@ -101,10 +101,12 @@ func (pg *Postgres) Close() {
 	pg.db.Close()
 }
 
+// Error renders only the package-owned sentinel message, never the cause.
 func (e *SafeError) Error() string {
 	return e.sentinel.Error()
 }
 
+// Unwrap returns the sentinel and the original cause, so errors.Is matches both.
 func (e *SafeError) Unwrap() []error {
 	return []error{e.sentinel, e.cause}
 }

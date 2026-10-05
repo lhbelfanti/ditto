@@ -40,10 +40,12 @@ type (
 	}
 )
 
+// MockSequenceRoundTripper returns a transport that answers each request with the next result, and fails once they run out.
 func MockSequenceRoundTripper(results ...MockHTTPResult) http.RoundTripper {
 	return &MockSequenceTransport{results: results}
 }
 
+// RoundTrip answers with the next result of the sequence, or fails when the sequence is exhausted.
 func (m *MockSequenceTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -66,6 +68,7 @@ func (m *MockSequenceTransport) RoundTrip(_ *http.Request) (*http.Response, erro
 	}, nil
 }
 
+// NewRequest returns the response and error configured with On.
 func (m *MockHTTPClient) NewRequest(ctx context.Context, method, url string, body interface{}) (Response, error) {
 	args := m.Called(ctx, method, url, body)
 	return args.Get(0).(Response), args.Error(1)
@@ -116,6 +119,7 @@ func MockCapturingShutdown(err error, captured *context.Context) Shutdown {
 	}
 }
 
+// MockServer starts a test server that records the request it receives and answers with status, header and body. The caller closes it.
 func MockServer(status int, header http.Header, body string) (*httptest.Server, *MockServerRequest) {
 	received := &MockServerRequest{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

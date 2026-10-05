@@ -62,6 +62,7 @@ func (s *SystemRoutes) WithDatabasePing(dbPing DatabasePing) *SystemRoutes {
 	return s
 }
 
+// NewRequest sends a request with an optional JSON body and returns the response, with the body read and the headers exposed.
 func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body interface{}) (Response, error) {
 	var reqBody io.Reader
 	var hasJSONBody bool

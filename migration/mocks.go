@@ -16,6 +16,7 @@ import (
 )
 
 type (
+	// MockTxConfig selects which step of a migration transaction MockTx makes fail and what its queries return.
 	MockTxConfig struct {
 		LockErr        error
 		CreateTableErr error
@@ -78,6 +79,7 @@ func MockPgxRowBool(applied bool) *database.MockPgxRow {
 	return row
 }
 
+// MockApplyCapturing returns an Apply that sets *called and returns err.
 func MockApplyCapturing(err error, called *bool) Apply {
 	return func(context.Context) error {
 		*called = true
@@ -85,6 +87,7 @@ func MockApplyCapturing(err error, called *bool) Apply {
 	}
 }
 
+// MockStatusCapturing returns a Status that sets *called and returns records and err.
 func MockStatusCapturing(records []Record, err error, called *bool) Status {
 	return func(context.Context) ([]Record, error) {
 		*called = true
@@ -92,6 +95,7 @@ func MockStatusCapturing(records []Record, err error, called *bool) Status {
 	}
 }
 
+// MockTx returns a transaction that answers the lock, table creation, file execution and tracking queries as cfg describes.
 func MockTx(cfg MockTxConfig) *database.MockPgxTx {
 	appliedRow := MockPgxRowBool(cfg.Applied)
 	if cfg.AppliedErr != nil {
@@ -114,18 +118,21 @@ func MockTx(cfg MockTxConfig) *database.MockPgxTx {
 	return tx
 }
 
+// MockConnection returns a connection whose Begin returns tx and beginErr.
 func MockConnection(tx *database.MockPgxTx, beginErr error) *database.MockPostgresConnection {
 	conn := &database.MockPostgresConnection{}
 	conn.On("Begin", mock.Anything).Return(tx, beginErr)
 	return conn
 }
 
+// MockClosedWriter returns a writer whose every Write fails with io.ErrClosedPipe.
 func MockClosedWriter() io.Writer {
 	reader, writer := io.Pipe()
 	_ = reader.Close()
 	return writer
 }
 
+// MockMigrationDir writes files into a new temporary directory and returns its path.
 func MockMigrationDir(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -138,12 +145,14 @@ func MockMigrationDir(t *testing.T, files map[string]string) string {
 	return dir
 }
 
+// MockMigrationFile writes content to a temporary 001_a.sql and returns its path.
 func MockMigrationFile(t *testing.T, content string) string {
 	t.Helper()
 	dir := MockMigrationDir(t, map[string]string{"001_a.sql": content})
 	return filepath.Join(dir, "001_a.sql")
 }
 
+// MockPostgresPool returns a pool on the database in DITTO_TEST_DATABASE_URL with the migration tables dropped, and skips the test when the variable is unset.
 func MockPostgresPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	dsn := os.Getenv("DITTO_TEST_DATABASE_URL")
@@ -164,6 +173,7 @@ func MockPostgresPool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
+// MockRowCount returns the number of rows in table.
 func MockRowCount(t *testing.T, pool *pgxpool.Pool, table string) int {
 	t.Helper()
 	var count int
@@ -174,6 +184,7 @@ func MockRowCount(t *testing.T, pool *pgxpool.Pool, table string) int {
 	return count
 }
 
+// MockTableInDatabase reports whether table exists.
 func MockTableInDatabase(t *testing.T, pool *pgxpool.Pool, table string) bool {
 	t.Helper()
 	var exists bool

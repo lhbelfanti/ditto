@@ -14,6 +14,7 @@ import (
 )
 
 type (
+	// MockService is a Run started in the background by MockRunningService, reachable at BaseURL.
 	MockService struct {
 		BaseURL string
 		done    chan error
@@ -69,6 +70,7 @@ func MockRunningService(t *testing.T) *MockService {
 	return service
 }
 
+// Get requests path on the service and returns the response with its body drained, or an empty response if the request fails.
 func (m *MockService) Get(path string) *http.Response {
 	resp, err := m.client.Get(m.BaseURL + path)
 	if err != nil {
@@ -79,6 +81,7 @@ func (m *MockService) Get(path string) *http.Response {
 	return resp
 }
 
+// Stop sends SIGINT to this process and returns the error Run returned after its graceful shutdown. Calling it again returns nil.
 func (m *MockService) Stop() error {
 	if m.stopped {
 		return nil

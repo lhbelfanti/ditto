@@ -13,10 +13,12 @@ type (
 	}
 )
 
+// Error renders the offending key and the condition it failed, without its value.
 func (e *KeyError) Error() string {
 	return e.Key + ": " + e.Err.Error()
 }
 
+// Unwrap returns the validation condition the key failed.
 func (e *KeyError) Unwrap() error {
 	return e.Err
 }
