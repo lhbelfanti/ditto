@@ -26,25 +26,27 @@ func TestNewCustomLogger_successWhenWriterIsNil(t *testing.T) {
 }
 
 func TestLogLevels_success(t *testing.T) {
+	type levelLogger func(ctx context.Context, msg string)
+
 	tests := []struct {
-		name  string
-		logFn func(ctx context.Context, msg string)
-		level string
+		name   string
+		logger levelLogger
+		level  string
 	}{
-		{name: "Trace", logFn: log.Trace, level: "trace"},
-		{name: "Debug", logFn: log.Debug, level: "debug"},
-		{name: "Info", logFn: log.Info, level: "info"},
-		{name: "Warn", logFn: log.Warn, level: "warn"},
-		{name: "Error", logFn: log.Error, level: "error"},
-		{name: "Fatal", logFn: log.Fatal, level: "fatal"},
-		{name: "Panic", logFn: log.Panic, level: "panic"},
+		{name: "Trace", logger: log.Trace, level: "trace"},
+		{name: "Debug", logger: log.Debug, level: "debug"},
+		{name: "Info", logger: log.Info, level: "info"},
+		{name: "Warn", logger: log.Warn, level: "warn"},
+		{name: "Error", logger: log.Error, level: "error"},
+		{name: "Fatal", logger: log.Fatal, level: "fatal"},
+		{name: "Panic", logger: log.Panic, level: "panic"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := log.MockLogOutput(t)
 
-			tt.logFn(context.Background(), "a message")
+			tt.logger(context.Background(), "a message")
 
 			want := map[string]any{"level": tt.level, "message": "a message"}
 			entry := map[string]any{}
