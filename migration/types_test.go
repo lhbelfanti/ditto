@@ -67,8 +67,8 @@ func TestApplyError_Error_successWhenOnlyCodeIsSet(t *testing.T) {
 func TestApplyError_Unwrap_success(t *testing.T) {
 	cause := errors.New("execution error")
 	mockRunner := migration.MockRunner(cause)
-	mockStatus := migration.MockStatus(nil, errors.New("status failed"))
-	apply := migration.MakeApply(mockRunner, mockStatus)
+	mockFinder := migration.MockPendingFileFinder("", errors.New("status failed"))
+	apply := migration.MakeApply(mockRunner, mockFinder)
 	var applyErr *migration.ApplyError
 	_ = errors.As(apply(context.Background()), &applyErr)
 

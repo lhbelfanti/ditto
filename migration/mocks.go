@@ -195,3 +195,18 @@ func MockTableInDatabase(t *testing.T, pool *pgxpool.Pool, table string) bool {
 	}
 	return exists
 }
+
+// MockStatusRunner returns a StatusRunner that sets *called and returns err.
+func MockStatusRunner(err error, called *bool) StatusRunner {
+	return func(context.Context) error {
+		*called = true
+		return err
+	}
+}
+
+// MockPendingFileFinder returns a PendingFileFinder that always returns file and err.
+func MockPendingFileFinder(file string, err error) PendingFileFinder {
+	return func(context.Context) (string, error) {
+		return file, err
+	}
+}
