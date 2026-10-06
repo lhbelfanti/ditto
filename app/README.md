@@ -50,10 +50,13 @@ from `MigrationsDir`. A service without a database sets `NoDatabase: true`.
 
 ## `InitDatabase`
 
-`InitDatabase(ctx)` validates the `POSTGRES_DB_*` variables, opens the pool, checks
-connectivity within 5 seconds and applies pending migrations from `./migrations`; pass a folder as a second argument to override it. It returns the `*database.Postgres`
-pool: `pg.Database()` is the `database.Connection` to inject into the makers, and the caller closes
-the pool. Any failure is returned, and the pool is closed before returning.
+`InitDatabase(ctx)` validates the `POSTGRES_DB_*` variables, opens the pool, checks connectivity
+within 5 seconds and applies pending migrations from `./migrations`.
+`InitDatabaseWithMigrationFolder(ctx, dir)` does the same for another folder.
+
+Both return the `*database.Postgres` pool: `pg.Database()` is the `database.Connection` to inject
+into the makers, and the caller closes the pool. Any failure is returned, and the pool is closed
+before returning.
 
 ## `Options`
 
