@@ -66,7 +66,7 @@ before returning.
 | `PortEnv` | Variable holding the internal listen port. Defaults to `APP_INTERNAL_PORT`. |
 | `Mux` | The service's endpoints. `Run` mounts its system routes on it. |
 | `Database` | The pool from `InitDatabase`. When nil, `Run` opens the database itself. Either way `Run` mounts `GET /database/ping/v1`. |
-| `WithMigrationFolder(dir)` | Where `Run` looks for migrations when it opens the database. Defaults to `./migrations`. |
+| `MigrationsDir` | Where `Run` looks for migrations when it opens the database itself. Defaults to `./migrations`; to use another folder, open the database with `InitDatabaseWithMigrationFolder` and set `Database`. Deprecated. |
 | `NoDatabase` | For a service without a database: nothing is opened and no ping route is mounted. |
 | `Timeouts` | Bounds the ping route and shutdown. Zero fields use their defaults. |
 | `WithMiddleware(m)` | Adds a middleware around the whole handler. The first one added is the outermost. |
