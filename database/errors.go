@@ -9,6 +9,9 @@ var (
 
 	ErrDatabaseUnavailable = errors.New("database: unavailable")
 	ErrCantInitDatabase    = errors.New("database: can't initialize database")
+
+	ErrAdminNotConfigured = errors.New("database: administrator credentials are not configured")
+	ErrFailedToProvision  = errors.New("database: failed to provision the service database")
 )
 
 // WrapUnavailable hides cause behind the credential-safe ErrDatabaseUnavailable sentinel.
@@ -19,4 +22,9 @@ func WrapUnavailable(cause error) error {
 // WrapInitFailure hides cause behind the credential-safe ErrCantInitDatabase sentinel.
 func WrapInitFailure(cause error) error {
 	return &SafeError{sentinel: ErrCantInitDatabase, cause: cause}
+}
+
+// WrapProvisionFailure hides cause behind the credential-safe ErrFailedToProvision sentinel.
+func WrapProvisionFailure(cause error) error {
+	return &SafeError{sentinel: ErrFailedToProvision, cause: cause}
 }

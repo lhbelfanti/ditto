@@ -451,3 +451,21 @@ func MockRowFailing(err error) *MockPgxRow {
 	row.On("Scan", mock.Anything).Return(err)
 	return row
 }
+
+// MockProvisionConnection returns a connection whose QueryRow returns row and whose Exec fails with execErr.
+func MockProvisionConnection(row *MockPgxRow, execErr error) *MockPostgresConnection {
+	conn := &MockPostgresConnection{}
+	conn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(row)
+	conn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, execErr)
+	return conn
+}
+
+// MockProvisionConnectionSequence returns a connection whose successive QueryRow calls return rows in order and whose Exec succeeds.
+func MockProvisionConnectionSequence(rows ...*MockPgxRow) *MockPostgresConnection {
+	conn := &MockPostgresConnection{}
+	for _, row := range rows {
+		conn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(row).Once()
+	}
+	conn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil)
+	return conn
+}

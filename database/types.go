@@ -31,6 +31,17 @@ type (
 	// CollectRows is a wrapper created to be able to mock pgx.CollectRows function
 	CollectRows[T any] func(rows pgx.Rows) ([]T, error)
 
+	// Target names the database, the role and the password a service connects with.
+	Target struct {
+		Name string
+		Role string
+		Pass string
+	}
+
+	// Provision creates a service's role and database when they do not exist yet, and syncs the
+	// role's password.
+	Provision func(ctx context.Context) error
+
 	// Ping verifies that a database connection is reachable.
 	Ping func(ctx context.Context) error
 
@@ -72,6 +83,12 @@ var (
 	pgOnce     sync.Once
 )
 
+const (
+	// adminDatabase is the maintenance database the administrator connects to, since the service's
+	// own database may not exist yet.
+	adminDatabase string = "postgres"
+)
+
 // resolveDatabaseURL reads the connection target from the environment. POSTGRES_DB_HOST defaults
 // to the compose service name postgres_db, so services that do not set it keep working unchanged.
 func resolveDatabaseURL() string {
@@ -96,6 +113,32 @@ func buildURL(user, pass, host, port, name string) string {
 	}
 
 	return u.String()
+}
+
+// resolveAdminURL reads the administrator connection target from the environment: the same host
+// and port as the service database, the maintenance database, and POSTGRES_ADMIN_USER/PASS. It
+// returns false when either credential is empty.
+func resolveAdminURL() (string, bool) {
+	adminUser := env.Get("POSTGRES_ADMIN_USER", "")
+	adminPass := env.Get("POSTGRES_ADMIN_PASS", "")
+	if adminUser == "" || adminPass == "" {
+		return "", false
+	}
+
+	dbHost := env.Get("POSTGRES_DB_HOST", "postgres_db")
+	dbPort := env.Get("POSTGRES_DB_PORT", "")
+
+	return buildURL(adminUser, adminPass, dbHost, dbPort, adminDatabase), true
+}
+
+// TargetFromEnv reads the service's database name, role and password from POSTGRES_DB_NAME,
+// POSTGRES_DB_USER and POSTGRES_DB_PASS.
+func TargetFromEnv() Target {
+	return Target{
+		Name: env.Get("POSTGRES_DB_NAME", ""),
+		Role: env.Get("POSTGRES_DB_USER", ""),
+		Pass: env.Get("POSTGRES_DB_PASS", ""),
+	}
 }
 
 // MakeCheck creates a Check function bounding pg's own connection pool ping to timeout, so a
