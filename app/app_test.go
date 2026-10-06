@@ -83,7 +83,15 @@ func TestRun_successWhenDeprecatedRoutesAreMounted(t *testing.T) {
 func TestInitDatabase_failsWhenEnvIsIncomplete(t *testing.T) {
 	t.Setenv("POSTGRES_DB_PORT", "")
 
-	_, got := app.InitDatabase(context.Background(), "./migrations")
+	_, got := app.InitDatabase(context.Background())
+
+	assert.Error(t, got)
+}
+
+func TestInitDatabaseWithMigrationFolder_failsWhenEnvIsIncomplete(t *testing.T) {
+	t.Setenv("POSTGRES_DB_PORT", "")
+
+	_, got := app.InitDatabaseWithMigrationFolder(context.Background(), "./sql")
 
 	assert.Error(t, got)
 }
