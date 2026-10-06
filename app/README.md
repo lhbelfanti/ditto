@@ -22,7 +22,7 @@ func main() {
 	/* --- Setup --- */
 	ctx := context.Background()
 
-	pg := setup.Init(app.InitDatabase(ctx, "./migrations"))
+	pg := setup.Init(app.InitDatabase(ctx))
 	defer pg.Close()
 	db := pg.Database()
 
@@ -50,8 +50,8 @@ from `MigrationsDir`. A service without a database sets `NoDatabase: true`.
 
 ## `InitDatabase`
 
-`InitDatabase(ctx, migrationsDir)` validates the `POSTGRES_DB_*` variables, opens the pool, checks
-connectivity within 5 seconds and applies pending migrations. It returns the `*database.Postgres`
+`InitDatabase(ctx)` validates the `POSTGRES_DB_*` variables, opens the pool, checks
+connectivity within 5 seconds and applies pending migrations from `./migrations`; pass a folder as a second argument to override it. It returns the `*database.Postgres`
 pool: `pg.Database()` is the `database.Connection` to inject into the makers, and the caller closes
 the pool. Any failure is returned, and the pool is closed before returning.
 
@@ -63,7 +63,7 @@ the pool. Any failure is returned, and the pool is closed before returning.
 | `PortEnv` | Variable holding the internal listen port. Defaults to `APP_INTERNAL_PORT`. |
 | `Mux` | The service's endpoints. `Run` mounts its system routes on it. |
 | `Database` | The pool from `InitDatabase`. When nil, `Run` opens the database itself. Either way `Run` mounts `GET /database/ping/v1`. |
-| `MigrationsDir` | Where `Run` looks for migrations when it opens the database. Defaults to `./migrations`. |
+| `WithMigrationFolder(dir)` | Where `Run` looks for migrations when it opens the database. Defaults to `./migrations`. |
 | `NoDatabase` | For a service without a database: nothing is opened and no ping route is mounted. |
 | `Timeouts` | Bounds the ping route and shutdown. Zero fields use their defaults. |
 | `WithMiddleware(m)` | Adds a middleware around the whole handler. The first one added is the outermost. |
