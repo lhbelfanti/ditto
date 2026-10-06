@@ -26,16 +26,16 @@ const (
 	defaultShutdownTimeout time.Duration = 5 * time.Second
 )
 
-// InitDatabase validates the POSTGRES_DB_* variables, opens the pool, verifies connectivity and
-// applies the pending migrations in ./migrations, or in the first of migrationsDir when given. The
-// returned pool's Database method is the connection to inject into the service's makers; the caller
-// closes the pool.
-func InitDatabase(ctx context.Context, migrationsDir ...string) (*database.Postgres, error) {
-	dir := defaultMigrationsDir
-	if len(migrationsDir) > 0 {
-		dir = migrationsDir[0]
-	}
+// InitDatabase opens the database and applies the pending migrations in ./migrations. See
+// InitDatabaseWithMigrationFolder for another folder.
+func InitDatabase(ctx context.Context) (*database.Postgres, error) {
+	return InitDatabaseWithMigrationFolder(ctx, defaultMigrationsDir)
+}
 
+// InitDatabaseWithMigrationFolder validates the POSTGRES_DB_* variables, opens the pool, verifies
+// connectivity and applies the pending migrations in dir. The returned pool's Database method is the
+// connection to inject into the service's makers; the caller closes the pool.
+func InitDatabaseWithMigrationFolder(ctx context.Context, dir string) (*database.Postgres, error) {
 	err := database.RequireEnv(os.LookupEnv)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func Run(opts Options) error {
 
 	pg := opts.Database
 	if pg == nil && !opts.NoDatabase {
-		pg, err = InitDatabase(ctx, opts.MigrationsDir)
+		pg, err = InitDatabaseWithMigrationFolder(ctx, opts.MigrationsDir)
 		if err != nil {
 			return err
 		}
