@@ -26,7 +26,7 @@ type (
 		Database *database.Postgres
 
 		// MigrationsDir is where Run looks for SQL migrations when it opens the database itself.
-		// Defaults to ./migrations.
+		// Defaults to ./migrations. Prefer WithMigrationFolder.
 		MigrationsDir string
 
 		// NoDatabase is for a service without a database: Run neither opens one nor mounts its ping route.
@@ -76,6 +76,12 @@ const (
 // added is the outermost, so it sees the request first.
 func (o Options) WithMiddleware(m Middleware) Options {
 	o.middleware = append(append([]Middleware(nil), o.middleware...), m)
+	return o
+}
+
+// WithMigrationFolder returns a copy of o that applies the migrations in dir instead of ./migrations.
+func (o Options) WithMigrationFolder(dir string) Options {
+	o.MigrationsDir = dir
 	return o
 }
 

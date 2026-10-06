@@ -27,9 +27,15 @@ const (
 )
 
 // InitDatabase validates the POSTGRES_DB_* variables, opens the pool, verifies connectivity and
-// applies the pending migrations in migrationsDir. The returned pool's Database method is the
-// connection to inject into the service's makers; the caller closes the pool.
-func InitDatabase(ctx context.Context, migrationsDir string) (*database.Postgres, error) {
+// applies the pending migrations in ./migrations, or in the first of migrationsDir when given. The
+// returned pool's Database method is the connection to inject into the service's makers; the caller
+// closes the pool.
+func InitDatabase(ctx context.Context, migrationsDir ...string) (*database.Postgres, error) {
+	dir := defaultMigrationsDir
+	if len(migrationsDir) > 0 {
+		dir = migrationsDir[0]
+	}
+
 	err := database.RequireEnv(os.LookupEnv)
 	if err != nil {
 		return nil, err
@@ -46,7 +52,7 @@ func InitDatabase(ctx context.Context, migrationsDir string) (*database.Postgres
 		return nil, err
 	}
 
-	err = migration.MakeRunner(pg.Database(), migrationsDir)(ctx)
+	err = migration.MakeRunner(pg.Database(), dir)(ctx)
 	if err != nil {
 		pg.Close()
 		return nil, err
