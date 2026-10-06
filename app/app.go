@@ -1,5 +1,5 @@
-// Package app bootstraps a service end to end: listen port, database, migrations at boot, system
-// routes and graceful shutdown. A service's main reduces to a single call to Run.
+// Package app bootstraps a service: InitDatabase opens the pool and applies migrations, and Run
+// serves the service's mux with the system routes, middleware and graceful shutdown.
 package app
 
 import (
@@ -26,13 +26,49 @@ const (
 	defaultShutdownTimeout time.Duration = 5 * time.Second
 )
 
-// Run configures logging, validates the environment, opens the database and applies migrations
-// when the service declares one, then serves HTTP until SIGINT or SIGTERM and shuts down
-// gracefully. It returns an error for any failure before the server starts, and nil after a clean
-// shutdown.
+// InitDatabase opens the database and applies the pending migrations in ./migrations. See
+// InitDatabaseWithMigrationFolder for another folder.
+func InitDatabase(ctx context.Context) (*database.Postgres, error) {
+	return InitDatabaseWithMigrationFolder(ctx, defaultMigrationsDir)
+}
+
+// InitDatabaseWithMigrationFolder validates the POSTGRES_DB_* variables, opens the pool, verifies
+// connectivity and applies the pending migrations in dir. The returned pool's Database method is the
+// connection to inject into the service's makers; the caller closes the pool.
+func InitDatabaseWithMigrationFolder(ctx context.Context, dir string) (*database.Postgres, error) {
+	err := database.RequireEnv(os.LookupEnv)
+	if err != nil {
+		return nil, err
+	}
+
+	pg, err := database.InitPostgres()
+	if err != nil {
+		return nil, err
+	}
+
+	err = pg.MakeCheck(defaultStartupTimeout)(ctx)
+	if err != nil {
+		pg.Close()
+		return nil, err
+	}
+
+	err = migration.MakeRunner(pg.Database(), dir)(ctx)
+	if err != nil {
+		pg.Close()
+		return nil, err
+	}
+
+	return pg, nil
+}
+
+// Run opens the database unless opts.Database is set or opts.NoDatabase says the service has none,
+// then serves opts.Mux with the system routes mounted and the middleware applied, until SIGINT or
+// SIGTERM, then shuts down gracefully. It returns an error for any failure before the server starts,
+// and nil after a clean shutdown.
 func Run(opts Options) error {
 	ctx := context.Background()
 	log.NewCustomLogger(os.Stdout, zerolog.InfoLevel)
+	opts = opts.orDefaults()
 	timeouts := opts.Timeouts.orDefaults()
 
 	port, err := env.RequirePort(os.LookupEnv, opts.PortEnv)
@@ -40,42 +76,27 @@ func Run(opts Options) error {
 		return err
 	}
 
-	var pg *database.Postgres
-	var ping dittohttp.DatabasePing
-	if opts.MigrationsDir != "" {
-		err = database.RequireEnv(os.LookupEnv)
-		if err != nil {
-			return err
-		}
-
-		pg, err = database.InitPostgres()
+	pg := opts.Database
+	if pg == nil && !opts.NoDatabase {
+		pg, err = InitDatabaseWithMigrationFolder(ctx, opts.MigrationsDir)
 		if err != nil {
 			return err
 		}
 		defer pg.Close()
+	}
 
-		err = pg.MakeCheck(timeouts.Startup)(ctx)
-		if err != nil {
-			return err
-		}
-
-		err = migration.MakeRunner(pg.Database(), opts.MigrationsDir)(ctx)
-		if err != nil {
-			return err
-		}
-
+	var ping dittohttp.DatabasePing
+	if pg != nil {
 		ping = dittohttp.DatabasePing(pg.MakeCheck(timeouts.Ping))
 	}
 
-	mux := http.NewServeMux()
+	mux := opts.Mux
+	if mux == nil {
+		mux = http.NewServeMux()
+	}
 	dittohttp.MountSystemRoutes(mux, ping)
 	if opts.Routes != nil {
 		opts.Routes(mux, pg)
-	}
-
-	var handler http.Handler = mux
-	if opts.Wrap != nil {
-		handler = opts.Wrap(mux)
 	}
 
 	addr := fmt.Sprintf(":%d", port)
@@ -83,5 +104,5 @@ func Run(opts Options) error {
 	defer stop()
 
 	log.Info(ctx, "starting "+opts.Name+" on "+addr)
-	return dittohttp.Listen(signalCtx, addr, handler, timeouts.Shutdown)
+	return dittohttp.Listen(signalCtx, addr, opts.decorate(mux), timeouts.Shutdown)
 }

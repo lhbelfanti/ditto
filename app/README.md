@@ -9,6 +9,7 @@ and graceful shutdown. A service's `main.go` reduces to one call to `Run`.
 package main
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/lhbelfanti/ditto/v2/app"
@@ -18,37 +19,67 @@ import (
 )
 
 func main() {
-	setup.Must(app.Run(app.Options{
-		Name:          "nebula-earth",
-		PortEnv:       "APP_INTERNAL_PORT",
-		MigrationsDir: "./migrations",
-		Routes: func(mux *http.ServeMux, pg *database.Postgres) {
-			// the service's own endpoints
-		},
-		Wrap: func(next http.Handler) http.Handler {
-			return middleware.RequestID(middleware.CORS()(next))
-		},
-	}))
+	/* --- Setup --- */
+	ctx := context.Background()
+
+	pg := setup.Init(app.InitDatabase(ctx))
+	defer pg.Close()
+	db := pg.Database()
+
+	/* --- Dependencies by endpoint --- */
+	// GET /candles/v1
+	selectCandlesOp := database.MakeSelect[candle.DAO](db, collectCandles)
+	getCandles := candle.MakeGet(selectCandlesOp)
+
+	/* --- Routes --- */
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /candles/v1", getCandles)
+
+	/* --- Server --- */
+	options := app.Options{Name: "Nebula Saturn", Mux: mux, Database: pg}.
+		WithMiddleware(middleware.RequestID).
+		WithMiddleware(middleware.CORS())
+
+	setup.Must(app.Run(options))
 }
 ```
 
+The `main` wires every dependency top-down; `Run` only serves the result. A service whose
+endpoints do not need the pool before `Run` can leave `Database` unset: `Run` opens it itself
+from `MigrationsDir`. A service without a database sets `NoDatabase: true`.
+
+## `InitDatabase`
+
+`InitDatabase(ctx)` validates the `POSTGRES_DB_*` variables, opens the pool, checks connectivity
+within 5 seconds and applies pending migrations from `./migrations`.
+`InitDatabaseWithMigrationFolder(ctx, dir)` does the same for another folder.
+
+Both return the `*database.Postgres` pool: `pg.Database()` is the `database.Connection` to inject
+into the makers, and the caller closes the pool. Any failure is returned, and the pool is closed
+before returning.
+
 ## `Options`
 
-| Field | Meaning |
+| Field / method | Meaning |
 |---|---|
-| `Name` | Appears in the startup log line. |
-| `PortEnv` | Variable holding the internal listen port, e.g. `APP_INTERNAL_PORT`. Required. |
-| `MigrationsDir` | Enables the database. When set, `Run` requires the `POSTGRES_DB_*` variables, checks connectivity, applies pending migrations, and mounts `GET /database/ping/v1`. Leave it empty for a service without a database. |
-| `Routes` | Registers the service's endpoints. `pg` is `nil` when the database is disabled. |
-| `Wrap` | Optionally decorates the whole handler, e.g. with request ID or CORS. |
+| `Name` | Appears in the startup log line, e.g. `Nebula Saturn`. |
+| `PortEnv` | Variable holding the internal listen port. Defaults to `APP_INTERNAL_PORT`. |
+| `Mux` | The service's endpoints. `Run` mounts its system routes on it. |
+| `Database` | The pool from `InitDatabase`. When nil, `Run` opens the database itself. Either way `Run` mounts `GET /database/ping/v1`. |
+| `MigrationsDir` | Where `Run` looks for migrations when it opens the database itself. Defaults to `./migrations`; to use another folder, open the database with `InitDatabaseWithMigrationFolder` and set `Database`. Deprecated. |
+| `NoDatabase` | For a service without a database: nothing is opened and no ping route is mounted. |
+| `Timeouts` | Bounds the ping route and shutdown. Zero fields use their defaults. |
+| `WithMiddleware(m)` | Adds a middleware around the whole handler. The first one added is the outermost. |
+
+`WithMiddleware` returns a copy, so an `Options` value can be shared and extended safely. The
+`Routes` and `Wrap` fields still work but are deprecated in favour of `Mux` and `WithMiddleware`.
 
 ## What `Run` does, in order
 
 1. Points the logger at stdout, at `info` level.
 2. Reads the port from `PortEnv`.
-3. If `MigrationsDir` is set: validates the database variables, opens the pool, checks
-   connectivity within 5 seconds, and applies pending migrations.
-4. Mounts `GET /ping/v1`, and `GET /database/ping/v1` when the database is enabled, then `Routes`.
+3. Opens the database and applies migrations if `Database` is nil and `NoDatabase` is not set.
+4. Mounts `GET /ping/v1` on `Mux`, and `GET /database/ping/v1` when there is a database.
 5. Serves HTTP until `SIGINT` or `SIGTERM`, then shuts down gracefully within 5 seconds.
 
 Every failure before step 5 is returned, not logged-and-exited, so the caller decides how to exit.

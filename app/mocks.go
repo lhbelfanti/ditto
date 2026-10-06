@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"syscall"
 	"testing"
@@ -21,9 +22,54 @@ type MockService struct {
 	stopped bool
 }
 
-// MockRunningService starts Run on a free port. Run installs its signal handler before it starts
-// listening, so Stop sending SIGINT to this process exercises the real graceful shutdown path.
+// MockMux returns a mux that answers GET pattern with status.
+func MockMux(pattern string, status int) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc(pattern, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+	})
+	return mux
+}
+
+// MockRoutes returns Routes that answer GET pattern with status.
+func MockRoutes(pattern string, status int) Routes {
+	return func(mux *http.ServeMux, _ *database.Postgres) {
+		mux.HandleFunc(pattern, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(status)
+		})
+	}
+}
+
+// MockMiddleware returns a Middleware that adds name to the X-Order response header before calling the next handler.
+func MockMiddleware(name string) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("X-Order", name)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// MockServe calls h on a GET to path and returns the recorded response.
+func MockServe(h http.Handler, path string) *httptest.ResponseRecorder {
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+	return rec
+}
+
+// MockRunningService starts Run on a free port with a teapot route and two ordered middleware.
 func MockRunningService(t *testing.T) *MockService {
+	t.Helper()
+	opts := Options{Mux: MockMux("GET /items/v1", http.StatusTeapot)}.
+		WithMiddleware(MockMiddleware("outer")).
+		WithMiddleware(MockMiddleware("inner"))
+	return MockRunningServiceWith(t, opts)
+}
+
+// MockRunningServiceWith starts Run with opts, without a database, on a free port. Run installs its signal handler
+// before it starts listening, so Stop sending SIGINT to this process exercises the real graceful
+// shutdown path.
+func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -32,22 +78,8 @@ func MockRunningService(t *testing.T) *MockService {
 	port := listener.Addr().(*net.TCPAddr).Port
 	_ = listener.Close()
 	t.Setenv("APP_MOCK_PORT", strconv.Itoa(port))
+	opts.Name, opts.PortEnv, opts.NoDatabase = "svc", "APP_MOCK_PORT", true
 
-	opts := Options{
-		Name:    "svc",
-		PortEnv: "APP_MOCK_PORT",
-		Routes: func(mux *http.ServeMux, _ *database.Postgres) {
-			mux.HandleFunc("GET /items/v1", func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(http.StatusTeapot)
-			})
-		},
-		Wrap: func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("X-Wrapped", "true")
-				next.ServeHTTP(w, r)
-			})
-		},
-	}
 	service := &MockService{
 		BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port),
 		done:    make(chan error, 1),
