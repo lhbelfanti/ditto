@@ -2,7 +2,8 @@ package database
 
 import (
 	"context"
-	"fmt"
+	"net"
+	"net/url"
 	"sync"
 	"time"
 
@@ -71,8 +72,6 @@ var (
 	pgOnce     sync.Once
 )
 
-const databaseURL string = "postgresql://%s:%s@%s:%s/%s?sslmode=disable"
-
 // resolveDatabaseURL reads the connection target from the environment. POSTGRES_DB_HOST defaults
 // to the compose service name postgres_db, so services that do not set it keep working unchanged.
 func resolveDatabaseURL() string {
@@ -82,7 +81,21 @@ func resolveDatabaseURL() string {
 	dbName := env.Get("POSTGRES_DB_NAME", "")
 	dbPort := env.Get("POSTGRES_DB_PORT", "")
 
-	return fmt.Sprintf(databaseURL, dbUser, dbPass, dbHost, dbPort, dbName)
+	return buildURL(dbUser, dbPass, dbHost, dbPort, dbName)
+}
+
+// buildURL assembles the connection URL, escaping the credentials so a password holding spaces,
+// "@", "/", ":" or "=" cannot break it.
+func buildURL(user, pass, host, port, name string) string {
+	u := url.URL{
+		Scheme:   "postgresql",
+		User:     url.UserPassword(user, pass),
+		Host:     net.JoinHostPort(host, port),
+		Path:     "/" + name,
+		RawQuery: "sslmode=disable",
+	}
+
+	return u.String()
 }
 
 // MakeCheck creates a Check function bounding pg's own connection pool ping to timeout, so a
