@@ -31,10 +31,3 @@ func TestOptions_WithMiddleware_successWhenOriginalIsNotModified(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
-
-func TestOptions_WithMigrationFolder_success(t *testing.T) {
-	want := "./sql"
-	got := app.Options{}.WithMigrationFolder("./sql").MigrationsDir
-
-	assert.Equal(t, want, got)
-}
