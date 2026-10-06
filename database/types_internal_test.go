@@ -36,3 +36,16 @@ func TestResolveDatabaseURL_success(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveDatabaseURL_successWhenPasswordHasSpecialCharacters(t *testing.T) {
+	t.Setenv("POSTGRES_DB_USER", "user")
+	t.Setenv("POSTGRES_DB_PASS", "p w=1@/:")
+	t.Setenv("POSTGRES_DB_HOST", "host")
+	t.Setenv("POSTGRES_DB_NAME", "app")
+	t.Setenv("POSTGRES_DB_PORT", "5432")
+
+	want := "postgresql://user:p%20w=1%40%2F%3A@host:5432/app?sslmode=disable"
+	got := resolveDatabaseURL()
+
+	assert.Equal(t, want, got)
+}
