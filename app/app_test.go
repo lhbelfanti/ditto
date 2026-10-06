@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
@@ -52,11 +53,11 @@ func TestRun_successWhenServiceRoutesAreMounted(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestRun_successWhenHandlerIsWrapped(t *testing.T) {
+func TestRun_successWhenMiddlewareRunsOutermostFirst(t *testing.T) {
 	service := app.MockRunningService(t)
 
-	want := "true"
-	got := service.Get("/items/v1").Header.Get("X-Wrapped")
+	want := []string{"outer", "inner"}
+	got := service.Get("/items/v1").Header.Values("X-Order")
 
 	assert.Equal(t, want, got)
 }
@@ -68,4 +69,21 @@ func TestRun_successWhenDatabaseIsDisabled(t *testing.T) {
 	got := service.Get("/database/ping/v1").StatusCode
 
 	assert.Equal(t, want, got)
+}
+
+func TestRun_successWhenDeprecatedRoutesAreMounted(t *testing.T) {
+	service := app.MockRunningServiceWith(t, app.Options{Routes: app.MockRoutes("GET /legacy/v1", http.StatusAccepted)})
+
+	want := http.StatusAccepted
+	got := service.Get("/legacy/v1").StatusCode
+
+	assert.Equal(t, want, got)
+}
+
+func TestInitDatabase_failsWhenEnvIsIncomplete(t *testing.T) {
+	t.Setenv("POSTGRES_DB_PORT", "")
+
+	_, got := app.InitDatabase(context.Background(), "./migrations")
+
+	assert.Error(t, got)
 }
