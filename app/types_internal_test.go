@@ -23,14 +23,14 @@ func TestTimeouts_orDefaults_successWhenValuesAreSet(t *testing.T) {
 }
 
 func TestOptions_orDefaults_success(t *testing.T) {
-	want := Options{PortEnv: defaultPortEnv}
+	want := Options{PortEnv: defaultPortEnv, MigrationsDir: defaultMigrationsDir}
 	got := Options{}.orDefaults()
 
 	assert.Equal(t, want, got)
 }
 
-func TestOptions_orDefaults_successWhenPortEnvIsSet(t *testing.T) {
-	want := Options{PortEnv: "PORT"}
+func TestOptions_orDefaults_successWhenValuesAreSet(t *testing.T) {
+	want := Options{PortEnv: "PORT", MigrationsDir: "./sql"}
 	got := want.orDefaults()
 
 	assert.Equal(t, want, got)

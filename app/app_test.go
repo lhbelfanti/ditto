@@ -22,7 +22,7 @@ func TestRun_failsWhenDatabaseEnvIsIncomplete(t *testing.T) {
 	t.Setenv("APP_TEST_PORT", "4000")
 	t.Setenv("POSTGRES_DB_PORT", "")
 
-	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_PORT", MigrationsDir: "./migrations"})
+	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_PORT"})
 
 	assert.Error(t, got)
 }
