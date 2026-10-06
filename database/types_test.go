@@ -61,3 +61,14 @@ func TestSafeError_Unwrap_success(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestTargetFromEnv_success(t *testing.T) {
+	t.Setenv("POSTGRES_DB_NAME", "svc_db")
+	t.Setenv("POSTGRES_DB_USER", "svc")
+	t.Setenv("POSTGRES_DB_PASS", "pw")
+
+	want := database.Target{Name: "svc_db", Role: "svc", Pass: "pw"}
+	got := database.TargetFromEnv()
+
+	assert.Equal(t, want, got)
+}

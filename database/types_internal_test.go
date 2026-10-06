@@ -37,6 +37,27 @@ func TestResolveDatabaseURL_success(t *testing.T) {
 	}
 }
 
+func TestResolveAdminURL_success(t *testing.T) {
+	t.Setenv("POSTGRES_ADMIN_USER", "admin")
+	t.Setenv("POSTGRES_ADMIN_PASS", "secret")
+	t.Setenv("POSTGRES_DB_HOST", "")
+	t.Setenv("POSTGRES_DB_PORT", "5432")
+
+	want := "postgresql://admin:secret@postgres_db:5432/postgres?sslmode=disable"
+	got, _ := resolveAdminURL()
+
+	assert.Equal(t, want, got)
+}
+
+func TestResolveAdminURL_failsWhenCredentialsAreMissing(t *testing.T) {
+	t.Setenv("POSTGRES_ADMIN_USER", "admin")
+	t.Setenv("POSTGRES_ADMIN_PASS", "")
+
+	_, got := resolveAdminURL()
+
+	assert.False(t, got)
+}
+
 func TestResolveDatabaseURL_successWhenPasswordHasSpecialCharacters(t *testing.T) {
 	t.Setenv("POSTGRES_DB_USER", "user")
 	t.Setenv("POSTGRES_DB_PASS", "p w=1@/:")
