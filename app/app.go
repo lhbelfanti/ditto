@@ -55,7 +55,8 @@ func InitDatabase(ctx context.Context, migrationsDir string) (*database.Postgres
 	return pg, nil
 }
 
-// Run serves opts.Mux with the system routes mounted and the middleware applied, until SIGINT or
+// Run opens the database unless opts.Database is set or opts.NoDatabase says the service has none,
+// then serves opts.Mux with the system routes mounted and the middleware applied, until SIGINT or
 // SIGTERM, then shuts down gracefully. It returns an error for any failure before the server starts,
 // and nil after a clean shutdown.
 func Run(opts Options) error {
@@ -70,7 +71,7 @@ func Run(opts Options) error {
 	}
 
 	pg := opts.Database
-	if pg == nil && opts.MigrationsDir != "" {
+	if pg == nil && !opts.NoDatabase {
 		pg, err = InitDatabase(ctx, opts.MigrationsDir)
 		if err != nil {
 			return err

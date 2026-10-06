@@ -20,14 +20,17 @@ type (
 		// empty one when nil.
 		Mux *http.ServeMux
 
-		// Database is the pool the service opened with InitDatabase. When set, Run mounts GET
-		// /database/ping/v1 and leaves closing the pool to the caller.
+		// Database is the pool the service opened with InitDatabase, for when its endpoints need it
+		// before Run. When nil, Run opens the database itself (see MigrationsDir and NoDatabase).
+		// Either way Run mounts GET /database/ping/v1; closing a pool passed here is up to the caller.
 		Database *database.Postgres
 
-		// MigrationsDir makes Run open the database and apply migrations itself.
-		//
-		// Deprecated: open it with InitDatabase and set Database.
+		// MigrationsDir is where Run looks for SQL migrations when it opens the database itself.
+		// Defaults to ./migrations.
 		MigrationsDir string
+
+		// NoDatabase is for a service without a database: Run neither opens one nor mounts its ping route.
+		NoDatabase bool
 
 		// Timeouts bounds each phase of the bootstrap. Zero fields fall back to their defaults.
 		Timeouts Timeouts
@@ -64,7 +67,10 @@ type (
 	Wrap = Middleware
 )
 
-const defaultPortEnv string = "APP_INTERNAL_PORT"
+const (
+	defaultPortEnv       string = "APP_INTERNAL_PORT"
+	defaultMigrationsDir string = "./migrations"
+)
 
 // WithMiddleware returns a copy of o that also decorates the handler with m. The first middleware
 // added is the outermost, so it sees the request first.
@@ -73,10 +79,13 @@ func (o Options) WithMiddleware(m Middleware) Options {
 	return o
 }
 
-// orDefaults returns o with an empty PortEnv replaced by its default.
+// orDefaults returns o with an empty PortEnv and MigrationsDir replaced by their defaults.
 func (o Options) orDefaults() Options {
 	if o.PortEnv == "" {
 		o.PortEnv = defaultPortEnv
+	}
+	if o.MigrationsDir == "" {
+		o.MigrationsDir = defaultMigrationsDir
 	}
 	return o
 }

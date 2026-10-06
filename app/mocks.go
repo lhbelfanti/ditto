@@ -66,7 +66,7 @@ func MockRunningService(t *testing.T) *MockService {
 	return MockRunningServiceWith(t, opts)
 }
 
-// MockRunningServiceWith starts Run with opts on a free port. Run installs its signal handler
+// MockRunningServiceWith starts Run with opts, without a database, on a free port. Run installs its signal handler
 // before it starts listening, so Stop sending SIGINT to this process exercises the real graceful
 // shutdown path.
 func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
@@ -78,7 +78,7 @@ func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
 	port := listener.Addr().(*net.TCPAddr).Port
 	_ = listener.Close()
 	t.Setenv("APP_MOCK_PORT", strconv.Itoa(port))
-	opts.Name, opts.PortEnv = "svc", "APP_MOCK_PORT"
+	opts.Name, opts.PortEnv, opts.NoDatabase = "svc", "APP_MOCK_PORT", true
 
 	service := &MockService{
 		BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port),
