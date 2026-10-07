@@ -48,8 +48,8 @@ err = provision(ctx)
 
 `MakeProvision` creates the role and the database when they are missing, makes the role the
 owner, syncs the role's password, and revokes the database from `PUBLIC` so no other role can
-connect to it. It is idempotent. Every failure is returned as `ErrFailedToProvision`, with the
-cause hidden because it may carry credentials. `app.InitDatabase` does all of this when the admin
+connect to it. It is idempotent. Each step fails with its own sentinel, wrapping the cause, so the
+error says which step failed (see below). `app.InitDatabase` does all of this when the admin
 variables are set.
 
 ---
@@ -180,7 +180,12 @@ All `Make*` helpers return typed sentinel errors on failure:
 | `database.ErrCollect` | `CollectRows` failed after a successful query |
 | `database.ErrNoRows` | `SelectOne` found no matching row (`pgx.ErrNoRows`) |
 | `database.ErrAdminNotConfigured` | `OpenAdmin` found no `POSTGRES_ADMIN_USER`/`POSTGRES_ADMIN_PASS` |
-| `database.ErrFailedToProvision` | `MakeProvision` could not create the role or the database |
+| `database.ErrFailedToCreateRole` | `MakeProvision` could not create the role |
+| `database.ErrFailedToSyncPassword` | `MakeProvision` could not set the role's password |
+| `database.ErrFailedToCreateDatabase` | `MakeProvision` could not create the database |
+| `database.ErrFailedToRevokePublic` | `MakeProvision` could not revoke public access to the database |
+| `database.ErrFailedToBuildStatement` | The server could not build a provisioning statement; wrapped inside the step's error |
+| `database.ErrFailedToExecuteStatement` | The server rejected a provisioning statement; wrapped inside the step's error |
 
 Use `errors.Is` to handle them in domain code:
 
