@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -42,6 +41,10 @@ type (
 	// role's password.
 	Provision func(ctx context.Context) error
 
+	// ExecFormatted runs the statement that query builds with format(), so the server quotes the
+	// identifiers and literals. A query that returns no row has nothing to run.
+	ExecFormatted func(ctx context.Context, query string, args ...any) error
+
 	// Ping verifies that a database connection is reachable.
 	Ping func(ctx context.Context) error
 
@@ -75,12 +78,6 @@ type (
 		sentinel error
 		cause    error
 	}
-)
-
-var (
-	pgInstance *Postgres
-	pgInitErr  error
-	pgOnce     sync.Once
 )
 
 const (
