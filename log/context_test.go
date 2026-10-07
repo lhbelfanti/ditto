@@ -64,7 +64,7 @@ func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
 }
 
 func TestNewFieldsError_successWhenContextCarriesFields(t *testing.T) {
-	ctx := log.With(context.Background(), log.Param("symbol", "BTC/USDT"))
+	ctx := log.With(context.Background(), log.EmbeddedParam("symbol", "BTC/USDT"))
 
 	want := "boom [symbol=BTC/USDT]"
 	got := log.NewFieldsError(ctx, errors.New("boom")).Error()
@@ -74,7 +74,7 @@ func TestNewFieldsError_successWhenContextCarriesFields(t *testing.T) {
 
 func TestNewFieldsError_successWhenCauseIsStillMatched(t *testing.T) {
 	cause := errors.New("boom")
-	ctx := log.With(context.Background(), log.Param("symbol", "BTC/USDT"))
+	ctx := log.With(context.Background(), log.EmbeddedParam("symbol", "BTC/USDT"))
 
 	got := log.NewFieldsError(ctx, fmt.Errorf("wrapped: %w", cause))
 
@@ -89,7 +89,46 @@ func TestNewFieldsError_successWhenContextHasNoFields(t *testing.T) {
 }
 
 func TestNewFieldsError_successWhenErrorIsNil(t *testing.T) {
-	got := log.NewFieldsError(log.With(context.Background(), log.Param("symbol", "BTC/USDT")), nil)
+	got := log.NewFieldsError(log.With(context.Background(), log.EmbeddedParam("symbol", "BTC/USDT")), nil)
 
 	assert.NoError(t, got)
+}
+
+func TestNewFieldsError_successWhenFieldIsNotEmbedded(t *testing.T) {
+	ctx := log.With(context.Background(), log.Param("request_id", "abc"))
+
+	want := errors.New("boom")
+	got := log.NewFieldsError(ctx, want)
+
+	assert.Same(t, want, got)
+}
+
+func TestNewFieldsError_successWhenOnlyEmbeddedFieldsAreIncluded(t *testing.T) {
+	ctx := log.With(context.Background(), log.Param("request_id", "abc"))
+	ctx = log.With(ctx, log.EmbeddedParam("symbol", "BTC/USDT"))
+
+	want := "boom [symbol=BTC/USDT]"
+	got := log.NewFieldsError(ctx, errors.New("boom")).Error()
+
+	assert.Equal(t, want, got)
+}
+
+func TestNewFieldsError_successWhenEmbeddedFieldComesFromTheParentContext(t *testing.T) {
+	parent := log.With(context.Background(), log.EmbeddedParam("symbol", "BTC/USDT"))
+	ctx := log.With(parent, log.Param("request_id", "abc"))
+
+	want := "boom [symbol=BTC/USDT]"
+	got := log.NewFieldsError(ctx, errors.New("boom")).Error()
+
+	assert.Equal(t, want, got)
+}
+
+func TestNewFieldsError_successWhenFieldIsOverriddenAsNotEmbedded(t *testing.T) {
+	ctx := log.With(context.Background(), log.EmbeddedParam("symbol", "BTC/USDT"))
+	ctx = log.With(ctx, log.Param("symbol", "ETH/USDT"))
+
+	want := errors.New("boom")
+	got := log.NewFieldsError(ctx, want)
+
+	assert.Same(t, want, got)
 }
