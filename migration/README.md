@@ -39,7 +39,7 @@ there, such as `CREATE INDEX CONCURRENTLY` or `VACUUM`.
 ## End-to-end example: `cmd/migrations/main.go`
 
 ```go
-pg, err := database.InitPostgres()
+pg, err := database.InitPostgres(ctx)
 if err != nil {
     log.Fatalf("%s", err)
 }

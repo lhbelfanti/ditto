@@ -11,11 +11,12 @@ The `database` package provides a thin abstraction over `pgx/v5` for PostgreSQL.
 | `Insert[T]` | `INSERT … RETURNING` (scalar result) | `db.QueryRow` + `Scan` |
 | `Delete` | `DELETE` | `db.Exec` |
 | `Update` | `UPDATE` (also no-return `INSERT`) | `db.Exec` |
+| `ExecFormatted` | Runs the SQL a query builds with `format()` (DDL with quoted identifiers) | `SelectOne[string]` + `Update` |
 | `CollectRows[T]` | Row scanner passed to `Select[T]` | `pgx.CollectRows` |
 
 ## Connection settings
 
-`InitPostgres` reads these variables. `RequireEnv` validates them before any connection attempt.
+`InitPostgres(ctx)` reads these variables and opens a new pool on every call, so call it once per process. `RequireEnv` validates them before any connection attempt.
 
 | Variable | Required | Notes |
 |---|---|---|
@@ -36,13 +37,17 @@ create its own, set the administrator credentials and call `MakeProvision`:
 | `POSTGRES_ADMIN_USER`, `POSTGRES_ADMIN_PASS` | No | A role allowed to create roles and databases. `OpenAdmin` connects with it to the `postgres` maintenance database, on the same host and port. It returns `ErrAdminNotConfigured` when either is empty. |
 
 ```go
-admin, err := database.OpenAdmin()
+admin, err := database.OpenAdmin(ctx)
 if err != nil {
     return err
 }
 defer admin.Close()
 
-provision := database.MakeProvision(admin.Database(), database.TargetFromEnv())
+selectStatement := database.MakeSelectOne[string](admin.Database(), pgx.RowTo[string])
+update := database.MakeUpdate(admin.Database())
+execFormatted := database.MakeExecFormatted(selectStatement, update)
+
+provision := database.MakeProvision(execFormatted, database.TargetFromEnv())
 err = provision(ctx)
 ```
 
@@ -59,7 +64,7 @@ variables are set.
 ### 1. Initialize the connection
 
 ```go
-pg, err := database.InitPostgres()
+pg, err := database.InitPostgres(ctx)
 if err != nil {
     log.Fatal(ctx, err.Error())
 }
@@ -184,8 +189,8 @@ All `Make*` helpers return typed sentinel errors on failure:
 | `database.ErrFailedToSyncPassword` | `MakeProvision` could not set the role's password |
 | `database.ErrFailedToCreateDatabase` | `MakeProvision` could not create the database |
 | `database.ErrFailedToRevokePublic` | `MakeProvision` could not revoke public access to the database |
-| `database.ErrFailedToBuildStatement` | The server could not build a provisioning statement; wrapped inside the step's error |
-| `database.ErrFailedToExecuteStatement` | The server rejected a provisioning statement; wrapped inside the step's error |
+| `database.ErrFailedToBuildStatement` | `MakeExecFormatted` could not build the statement a query returns; wrapped inside the step's error |
+| `database.ErrFailedToExecuteStatement` | `MakeExecFormatted` could not run the statement it built; wrapped inside the step's error |
 
 Use `errors.Is` to handle them in domain code:
 
