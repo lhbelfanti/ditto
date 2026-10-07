@@ -106,3 +106,17 @@ func TestWith_successWhenContextAlreadyHasParams(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestFormatField_successWhenValueIsATime(t *testing.T) {
+	want := "2026-01-02T03:04:05Z"
+	got := formatField(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+
+	assert.Equal(t, want, got)
+}
+
+func TestFormatField_successWhenValueIsNotATime(t *testing.T) {
+	want := "42"
+	got := formatField(42)
+
+	assert.Equal(t, want, got)
+}

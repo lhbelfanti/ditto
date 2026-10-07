@@ -3,6 +3,8 @@ package log_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -59,4 +61,35 @@ func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
 	got := entry["worker"]
 
 	assert.Nil(t, got)
+}
+
+func TestNewFieldsError_successWhenContextCarriesFields(t *testing.T) {
+	ctx := log.With(context.Background(), log.Param("symbol", "BTC/USDT"))
+
+	want := "boom [symbol=BTC/USDT]"
+	got := log.NewFieldsError(ctx, errors.New("boom")).Error()
+
+	assert.Equal(t, want, got)
+}
+
+func TestNewFieldsError_successWhenCauseIsStillMatched(t *testing.T) {
+	cause := errors.New("boom")
+	ctx := log.With(context.Background(), log.Param("symbol", "BTC/USDT"))
+
+	got := log.NewFieldsError(ctx, fmt.Errorf("wrapped: %w", cause))
+
+	assert.ErrorIs(t, got, cause)
+}
+
+func TestNewFieldsError_successWhenContextHasNoFields(t *testing.T) {
+	want := errors.New("boom")
+	got := log.NewFieldsError(context.Background(), want)
+
+	assert.Same(t, want, got)
+}
+
+func TestNewFieldsError_successWhenErrorIsNil(t *testing.T) {
+	got := log.NewFieldsError(log.With(context.Background(), log.Param("symbol", "BTC/USDT")), nil)
+
+	assert.NoError(t, got)
 }
