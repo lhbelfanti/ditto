@@ -2,6 +2,7 @@ package database_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -150,6 +151,44 @@ func TestMakeSelect_failsWhenQueryFailsAndKeepsTheCause(t *testing.T) {
 	want := pgx.ErrTxClosed
 	_, got := sel(context.Background(), "SELECT name FROM t")
 
+func TestMakeCollectRows_success(t *testing.T) {
+	collect := database.MakeCollectRows(pgx.RowTo[string])
+
+	got, _ := collect(database.MockEmptyRows())
+
+	assert.Empty(t, got)
+}
+
+func TestMakeCollectRows_successWhenFnIsNil(t *testing.T) {
+	collect := database.MakeCollectRows[string](nil)
+
+	got, _ := collect(database.MockEmptyRows())
+
+	assert.Empty(t, got)
+}
+
+func TestMakeExecFormatted_success(t *testing.T) {
+	execFormatted := database.MakeExecFormatted(database.MockSelectOne("CREATE ROLE svc LOGIN", nil), database.MockUpdate(nil))
+
+	got := execFormatted(context.Background(), "SELECT 1")
+
+	assert.NoError(t, got)
+}
+
+func TestMakeExecFormatted_successWhenQueryReturnsNoRow(t *testing.T) {
+	execFormatted := database.MakeExecFormatted(database.MockSelectOne("", database.ErrNoRows), database.MockUpdate(errors.New("must not run")))
+
+	got := execFormatted(context.Background(), "SELECT 1")
+
+	assert.NoError(t, got)
+}
+
+func TestMakeExecFormatted_failsWhenBuildingTheStatementFails(t *testing.T) {
+	execFormatted := database.MakeExecFormatted(database.MockSelectOne("", database.ErrQuery), database.MockUpdate(nil))
+
+	want := database.ErrFailedToBuildStatement
+	got := execFormatted(context.Background(), "SELECT 1")
+
 	assert.ErrorIs(t, got, want)
 }
 
@@ -170,4 +209,13 @@ func TestMakeUpdate_failsWhenExecFailsAndDoesNotLog(t *testing.T) {
 	_ = update(context.Background(), "UPDATE t SET a = 1")
 
 	assert.Empty(t, output.String())
+}
+
+func TestMakeExecFormatted_failsWhenExecutingTheStatementFails(t *testing.T) {
+	execFormatted := database.MakeExecFormatted(database.MockSelectOne("CREATE ROLE svc LOGIN", nil), database.MockUpdate(database.ErrQuery))
+
+	want := database.ErrFailedToExecuteStatement
+	got := execFormatted(context.Background(), "SELECT 1")
+
+	assert.ErrorIs(t, got, want)
 }
