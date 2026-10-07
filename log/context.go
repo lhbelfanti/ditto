@@ -9,17 +9,17 @@ import (
 )
 
 // Param creates a new field to be saved into context. It is logged with every call made with that
-// context, and it is not embedded in errors; see EmbeddedParam.
+// context, and NewFieldsError also embeds it in the text of the errors it builds, so it reaches
+// the place where an error is logged. Use BaseParam for the fields that place adds itself.
 func Param(key string, value any) field {
-	return field{Key: key, Value: value}
+	return field{Key: key, Value: value, embed: true}
 }
 
-// EmbeddedParam creates a field like Param that NewFieldsError also embeds in the text of the
-// errors it builds. Use it for the fields a function adds with With and that explain a failure
-// further up. Fields the logging point already adds itself, such as the request ID, stay Param
-// so they are not repeated in the error.
-func EmbeddedParam(key string, value any) field {
-	return field{Key: key, Value: value, embed: true}
+// BaseParam creates a field like Param that NewFieldsError does not embed in errors. Use it for the
+// fields added where errors are logged, such as the request ID from the middleware or an ID taken
+// from the request: that call logs them already, and embedding them would repeat them.
+func BaseParam(key string, value any) field {
+	return field{Key: key, Value: value}
 }
 
 // With returns a context carrying fields on top of the ones ctx already carries. It copies the
@@ -42,10 +42,10 @@ func With(ctx context.Context, fields ...field) context.Context {
 	return context.WithValue(context.WithValue(ctx, logCtxKey{}, params), embedCtxKey{}, embedded)
 }
 
-// NewFieldsError returns err with the fields that ctx carries as EmbeddedParam embedded in its
+// NewFieldsError returns err with the fields that ctx carries as Param (not BaseParam) embedded in its
 // text, so they reach the place where the error is logged even though a context created below that
 // place is not visible from it. Use it in the function that adds those fields with With, on the
-// errors that function returns. It returns err unchanged when ctx carries no embedded field, and
+// errors that function returns. It returns err unchanged when ctx carries no field to embed, and
 // nil when err is nil.
 func NewFieldsError(ctx context.Context, err error) error {
 	if err == nil {
