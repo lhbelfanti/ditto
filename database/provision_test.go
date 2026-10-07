@@ -29,34 +29,14 @@ func TestMakeProvision_successWhenRoleAndDatabaseExist(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestMakeProvision_failsWhenQueryFails(t *testing.T) {
+func TestMakeProvision_failsWhenCreatingTheRoleFails(t *testing.T) {
 	admin := database.MockProvisionConnection(database.MockRowFailing(errors.New("boom")), nil)
 	provision := database.MakeProvision(admin, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
-	want := database.ErrFailedToProvision
+	want := database.ErrFailedToCreateRole
 	got := provision(context.Background())
 
 	assert.ErrorIs(t, got, want)
-}
-
-func TestMakeProvision_failsWhenExecFails(t *testing.T) {
-	admin := database.MockProvisionConnection(database.MockRowReturning("CREATE ROLE svc LOGIN", t), errors.New("boom"))
-	provision := database.MakeProvision(admin, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
-
-	want := database.ErrFailedToProvision
-	got := provision(context.Background())
-
-	assert.ErrorIs(t, got, want)
-}
-
-func TestMakeProvision_failsWithoutLeakingTheCause(t *testing.T) {
-	admin := database.MockProvisionConnection(database.MockRowReturning("CREATE ROLE svc LOGIN", t), errors.New("password=hunter2"))
-	provision := database.MakeProvision(admin, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
-
-	want := database.ErrFailedToProvision.Error()
-	got := provision(context.Background()).Error()
-
-	assert.Equal(t, want, got)
 }
 
 func TestMakeProvision_failsWhenPasswordSyncFails(t *testing.T) {
@@ -66,13 +46,13 @@ func TestMakeProvision_failsWhenPasswordSyncFails(t *testing.T) {
 	)
 	provision := database.MakeProvision(admin, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
-	want := database.ErrFailedToProvision
+	want := database.ErrFailedToSyncPassword
 	got := provision(context.Background())
 
 	assert.ErrorIs(t, got, want)
 }
 
-func TestMakeProvision_failsWhenDatabaseCreationFails(t *testing.T) {
+func TestMakeProvision_failsWhenCreatingTheDatabaseFails(t *testing.T) {
 	admin := database.MockProvisionConnectionSequence(
 		database.MockRowFailing(pgx.ErrNoRows),
 		database.MockRowFailing(pgx.ErrNoRows),
@@ -80,13 +60,13 @@ func TestMakeProvision_failsWhenDatabaseCreationFails(t *testing.T) {
 	)
 	provision := database.MakeProvision(admin, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
-	want := database.ErrFailedToProvision
+	want := database.ErrFailedToCreateDatabase
 	got := provision(context.Background())
 
 	assert.ErrorIs(t, got, want)
 }
 
-func TestMakeProvision_failsWhenRevokeFails(t *testing.T) {
+func TestMakeProvision_failsWhenRevokingPublicAccessFails(t *testing.T) {
 	admin := database.MockProvisionConnectionSequence(
 		database.MockRowFailing(pgx.ErrNoRows),
 		database.MockRowFailing(pgx.ErrNoRows),
@@ -95,7 +75,17 @@ func TestMakeProvision_failsWhenRevokeFails(t *testing.T) {
 	)
 	provision := database.MakeProvision(admin, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
-	want := database.ErrFailedToProvision
+	want := database.ErrFailedToRevokePublic
+	got := provision(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeProvision_failsWithTheCauseWhenAStepFails(t *testing.T) {
+	want := errors.New("boom")
+	admin := database.MockProvisionConnection(database.MockRowFailing(want), nil)
+	provision := database.MakeProvision(admin, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
+
 	got := provision(context.Background())
 
 	assert.ErrorIs(t, got, want)

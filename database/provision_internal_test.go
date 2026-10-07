@@ -17,19 +17,19 @@ func TestExecFormatted_successWhenQueryReturnsNoRow(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestExecFormatted_failsWhenScanFails(t *testing.T) {
-	want := errors.New("boom")
-	admin := MockProvisionConnection(MockRowFailing(want), nil)
+func TestExecFormatted_failsWhenBuildingTheStatementFails(t *testing.T) {
+	admin := MockProvisionConnection(MockRowFailing(errors.New("boom")), nil)
 
+	want := ErrFailedToBuildStatement
 	got := execFormatted(context.Background(), admin, createRole, "svc")
 
 	assert.ErrorIs(t, got, want)
 }
 
-func TestExecFormatted_failsWhenExecFails(t *testing.T) {
-	want := errors.New("boom")
-	admin := MockProvisionConnection(MockRowReturning("CREATE ROLE svc LOGIN", t), want)
+func TestExecFormatted_failsWhenExecutingTheStatementFails(t *testing.T) {
+	admin := MockProvisionConnection(MockRowReturning("CREATE ROLE svc LOGIN", t), errors.New("boom"))
 
+	want := ErrFailedToExecuteStatement
 	got := execFormatted(context.Background(), admin, createRole, "svc")
 
 	assert.ErrorIs(t, got, want)
