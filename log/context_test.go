@@ -64,6 +64,7 @@ func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
 			_ = log.With(parent, log.Param("worker", i))
 		})
 	}
+
 	wg.Wait()
 
 	buf := log.MockLogOutput(t)

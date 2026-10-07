@@ -8,6 +8,18 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// MakeCollectRows creates a CollectRows[T] backed by pgx.CollectRows. Pass nil for fn to use
+// pgx.RowToStructByPos[T] (struct fields mapped by position).
+func MakeCollectRows[T any](fn pgx.RowToFunc[T]) CollectRows[T] {
+	return func(rows pgx.Rows) ([]T, error) {
+		if fn == nil {
+			return pgx.CollectRows(rows, pgx.RowToStructByPos[T])
+		}
+
+		return pgx.CollectRows(rows, fn)
+	}
+}
+
 // MakeSelect creates a Select[T] backed by db.Query + collectRows.
 func MakeSelect[T any](db Connection, collectRows CollectRows[T]) Select[T] {
 	return func(ctx context.Context, query string, args ...any) ([]T, error) {
@@ -46,6 +58,7 @@ func MakeSelectOne[T any](db Connection, fn pgx.RowToFunc[T]) SelectOne[T] {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return zero, fmt.Errorf("%w: %w", ErrNoRows, err)
 		}
+
 		if err != nil {
 			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
@@ -87,6 +100,30 @@ func MakeUpdate(db Connection) Update {
 		_, err := db.Exec(ctx, query, args...)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrQuery, err)
+		}
+
+		return nil
+	}
+}
+
+// MakeExecFormatted creates an ExecFormatted that asks selectStatement for the SQL a query builds
+// with format() and runs it with update. A query with no row means there is nothing to do. It fails
+// with ErrFailedToBuildStatement when the statement cannot be built and with
+// ErrFailedToExecuteStatement when it cannot be run.
+func MakeExecFormatted(selectStatement SelectOne[string], update Update) ExecFormatted {
+	return func(ctx context.Context, query string, args ...any) error {
+		statement, err := selectStatement(ctx, query, args...)
+		if errors.Is(err, ErrNoRows) {
+			return nil
+		}
+
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrFailedToBuildStatement, err)
+		}
+
+		err = update(ctx, statement)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrFailedToExecuteStatement, err)
 		}
 
 		return nil

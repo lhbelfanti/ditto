@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 
 	"github.com/lhbelfanti/ditto/v2/database"
@@ -31,13 +32,15 @@ const (
 // POSTGRES_ADMIN_USER and POSTGRES_ADMIN_PASS. Without them it does nothing, so a database provisioned
 // by other means keeps working.
 func provision(ctx context.Context) error {
-	admin, err := database.OpenAdmin()
+	admin, err := database.OpenAdmin(ctx)
 	if errors.Is(err, database.ErrAdminNotConfigured) {
 		return nil
 	}
+
 	if err != nil {
 		return err
 	}
+
 	defer admin.Close()
 
 	err = admin.MakeCheck(defaultStartupTimeout)(ctx)
@@ -45,7 +48,11 @@ func provision(ctx context.Context) error {
 		return err
 	}
 
-	return database.MakeProvision(admin.Database(), database.TargetFromEnv())(ctx)
+	selectStatement := database.MakeSelectOne[string](admin.Database(), pgx.RowTo[string])
+	update := database.MakeUpdate(admin.Database())
+	execFormatted := database.MakeExecFormatted(selectStatement, update)
+
+	return database.MakeProvision(execFormatted, database.TargetFromEnv())(ctx)
 }
 
 // InitDatabase opens the database and applies the pending migrations in ./migrations. See
@@ -69,7 +76,7 @@ func InitDatabaseWithMigrationFolder(ctx context.Context, dir string) (*database
 		return nil, err
 	}
 
-	pg, err := database.InitPostgres()
+	pg, err := database.InitPostgres(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +117,7 @@ func Run(opts Options) error {
 		if err != nil {
 			return err
 		}
+
 		defer pg.Close()
 	}
 
@@ -122,6 +130,7 @@ func Run(opts Options) error {
 	if mux == nil {
 		mux = http.NewServeMux()
 	}
+
 	dittohttp.MountSystemRoutes(mux, ping)
 	if opts.Routes != nil {
 		opts.Routes(mux, pg)

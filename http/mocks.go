@@ -126,6 +126,7 @@ func MockServer(status int, header http.Header, body string) (*httptest.Server, 
 				w.Header().Add(key, value)
 			}
 		}
+
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
 	}))

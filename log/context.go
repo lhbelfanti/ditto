@@ -61,6 +61,7 @@ func NewFieldsError(ctx context.Context, err error) error {
 			selected[key] = fields[key]
 		}
 	}
+
 	if len(selected) == 0 {
 		return err
 	}

@@ -12,6 +12,7 @@ func Get(key, fallback string) string {
 	if v != "" {
 		return v
 	}
+
 	return fallback
 }
 
@@ -22,5 +23,6 @@ func GetOrPanic(key string) string {
 	if v == "" {
 		panic(fmt.Sprintf("required environment variable %q is not set", key))
 	}
+
 	return v
 }

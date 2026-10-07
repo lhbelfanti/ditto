@@ -230,6 +230,7 @@ func MockScan(mockPgxRow *MockPgxRow, values []any, t *testing.T) {
 			if len(dest) != len(values) {
 				t.Errorf("Expected %d destination arguments but got %d", len(values), len(dest))
 			}
+
 			for i, val := range values {
 				parseScanValue(val, dest[i], t)
 			}
@@ -388,6 +389,7 @@ func MockBlockingPing(err error) Ping {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+
 		return err
 	}
 }
@@ -452,20 +454,22 @@ func MockRowFailing(err error) *MockPgxRow {
 	return row
 }
 
-// MockProvisionConnection returns a connection whose QueryRow returns row and whose Exec fails with execErr.
-func MockProvisionConnection(row *MockPgxRow, execErr error) *MockPostgresConnection {
-	conn := &MockPostgresConnection{}
-	conn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(row)
-	conn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, execErr)
-	return conn
+// MockExecFormatted returns an ExecFormatted that always returns err.
+func MockExecFormatted(err error) ExecFormatted {
+	return func(context.Context, string, ...any) error {
+		return err
+	}
 }
 
-// MockProvisionConnectionSequence returns a connection whose successive QueryRow calls return rows in order and whose Exec succeeds.
-func MockProvisionConnectionSequence(rows ...*MockPgxRow) *MockPostgresConnection {
-	conn := &MockPostgresConnection{}
-	for _, row := range rows {
-		conn.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(row).Once()
+// MockExecFormattedSequence returns an ExecFormatted whose successive calls return errs in order, and nil once they run out.
+func MockExecFormattedSequence(errs ...error) ExecFormatted {
+	call := 0
+	return func(context.Context, string, ...any) error {
+		defer func() { call++ }()
+		if call >= len(errs) {
+			return nil
+		}
+
+		return errs[call]
 	}
-	conn.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil)
-	return conn
 }

@@ -1,6 +1,7 @@
 package database_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,48 +9,49 @@ import (
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
-func TestInitPostgres_failsWhenCalledAgainAfterInitializationFailure(t *testing.T) {
-	// InitPostgres backs a singleton (sync.Once): the first call in this test binary decides every
-	// later one, so each test here sets the same failing environment. A malformed port fails
-	// pgxpool.New's config parsing immediately, with no network I/O.
+func TestInitPostgres_success(t *testing.T) {
 	t.Setenv("POSTGRES_DB_USER", "u")
 	t.Setenv("POSTGRES_DB_PASS", "p")
 	t.Setenv("POSTGRES_DB_NAME", "d")
-	t.Setenv("POSTGRES_DB_PORT", "not-a-port")
-	_, _ = database.InitPostgres()
+	t.Setenv("POSTGRES_DB_PORT", "5432")
+	pg, _ := database.InitPostgres(context.Background())
+	defer pg.Close()
 
-	want := database.ErrCantInitDatabase
-	_, got := database.InitPostgres()
+	got := pg.Database()
 
-	assert.ErrorIs(t, got, want)
+	assert.NotNil(t, got)
 }
 
-func TestInitPostgres_failsWhenInitializationFails(t *testing.T) {
+func TestInitPostgres_failsWhenPortIsMalformed(t *testing.T) {
 	t.Setenv("POSTGRES_DB_USER", "u")
 	t.Setenv("POSTGRES_DB_PASS", "p")
 	t.Setenv("POSTGRES_DB_NAME", "d")
 	t.Setenv("POSTGRES_DB_PORT", "not-a-port")
 
 	want := database.ErrCantInitDatabase
-	_, got := database.InitPostgres()
+	_, got := database.InitPostgres(context.Background())
 
 	assert.ErrorIs(t, got, want)
 }
 
-func TestInitPostgres_failsWhenCalledAgainAfterInitializationFailureReturnsSameInstance(t *testing.T) {
-	first, _ := database.InitPostgres()
+func TestInitPostgres_successWhenCalledAgainAfterAFailure(t *testing.T) {
+	t.Setenv("POSTGRES_DB_USER", "u")
+	t.Setenv("POSTGRES_DB_PASS", "p")
+	t.Setenv("POSTGRES_DB_NAME", "d")
+	t.Setenv("POSTGRES_DB_PORT", "not-a-port")
+	_, _ = database.InitPostgres(context.Background())
+	t.Setenv("POSTGRES_DB_PORT", "5432")
+	pg, got := database.InitPostgres(context.Background())
+	defer pg.Close()
 
-	want := first
-	got, _ := database.InitPostgres()
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestOpenAdmin_success(t *testing.T) {
 	t.Setenv("POSTGRES_ADMIN_USER", "admin")
 	t.Setenv("POSTGRES_ADMIN_PASS", "secret")
 	t.Setenv("POSTGRES_DB_PORT", "5432")
-	pg, _ := database.OpenAdmin()
+	pg, _ := database.OpenAdmin(context.Background())
 	defer pg.Close()
 
 	got := pg.Database()
@@ -62,7 +64,7 @@ func TestOpenAdmin_failsWhenAdminIsNotConfigured(t *testing.T) {
 	t.Setenv("POSTGRES_ADMIN_PASS", "")
 
 	want := database.ErrAdminNotConfigured
-	_, got := database.OpenAdmin()
+	_, got := database.OpenAdmin(context.Background())
 
 	assert.ErrorIs(t, got, want)
 }
@@ -73,7 +75,7 @@ func TestOpenAdmin_failsWhenPortIsMalformed(t *testing.T) {
 	t.Setenv("POSTGRES_DB_PORT", "not-a-port")
 
 	want := database.ErrCantInitDatabase
-	_, got := database.OpenAdmin()
+	_, got := database.OpenAdmin(context.Background())
 
 	assert.ErrorIs(t, got, want)
 }

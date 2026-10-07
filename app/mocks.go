@@ -75,6 +75,7 @@ func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	port := listener.Addr().(*net.TCPAddr).Port
 	_ = listener.Close()
 	t.Setenv("APP_MOCK_PORT", strconv.Itoa(port))
@@ -94,8 +95,10 @@ func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
 			_ = resp.Body.Close()
 			return service
 		}
+
 		time.Sleep(20 * time.Millisecond)
 	}
+
 	t.Fatalf("service at %s did not start", service.BaseURL)
 	return service
 }
@@ -106,6 +109,7 @@ func (m *MockService) Get(path string) *http.Response {
 	if err != nil {
 		return &http.Response{}
 	}
+
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
 	return resp
@@ -116,6 +120,7 @@ func (m *MockService) Stop() error {
 	if m.stopped {
 		return nil
 	}
+
 	m.stopped = true
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	select {

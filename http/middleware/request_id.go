@@ -20,6 +20,7 @@ func RequestID(next http.Handler) http.Handler {
 		if id == "" {
 			id = generateID()
 		}
+
 		ctx := log.With(r.Context(), log.BaseParam(requestIDKey, id))
 		w.Header().Set("X-Request-ID", id)
 		next.ServeHTTP(w, r.WithContext(ctx))

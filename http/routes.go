@@ -39,6 +39,7 @@ func databasePingHandlerV1(ping DatabasePing) http.HandlerFunc {
 			response.Send(ctx, w, http.StatusServiceUnavailable, ErrMsgDatabaseUnavailable, nil, ErrDatabaseUnavailable)
 			return
 		}
+
 		response.Send(ctx, w, http.StatusOK, "pong", nil, nil)
 	}
 }

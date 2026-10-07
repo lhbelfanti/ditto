@@ -128,6 +128,7 @@ func TestMakeRunner_successWhenReplicasRunConcurrently(t *testing.T) {
 			errs <- runner(context.Background())
 		})
 	}
+
 	wg.Wait()
 	close(errs)
 
@@ -152,6 +153,7 @@ func TestMakeRunner_successWhenReplicasRunConcurrentlyWithoutErrors(t *testing.T
 			errs <- runner(context.Background())
 		})
 	}
+
 	wg.Wait()
 	close(errs)
 
