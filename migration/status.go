@@ -28,6 +28,7 @@ func MakeListFiles(dir string) ListFiles {
 		for i, file := range files {
 			names[i] = filepath.Base(file)
 		}
+
 		sort.Strings(names)
 
 		return names, nil
@@ -69,6 +70,7 @@ func MakeStatus(listFiles ListFiles, tableExists TableExists, appliedNames Appli
 			if err != nil {
 				return nil, fmt.Errorf("%w: %w", ErrFailedToSelectAppliedNames, err)
 			}
+
 			for _, name := range appliedList {
 				applied[name] = true
 			}

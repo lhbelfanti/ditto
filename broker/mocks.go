@@ -43,6 +43,7 @@ func MockRabbitMQBroker(channel *MockChannel, queueName string, consumer bool, m
 	if channel != nil {
 		b.channel = channel
 	}
+
 	return b
 }
 
@@ -75,6 +76,7 @@ func (m *MockChannel) QueueDeclare(name string, _, _, _, _ bool, _ amqp091.Table
 	if m.QueueErr != nil {
 		return amqp091.Queue{}, m.QueueErr
 	}
+
 	return amqp091.Queue{Name: name}, nil
 }
 
@@ -141,6 +143,7 @@ func MockClosedMessages(deliveries ...amqp091.Delivery) <-chan amqp091.Delivery 
 	for _, d := range deliveries {
 		messages <- d
 	}
+
 	close(messages)
 	return messages
 }

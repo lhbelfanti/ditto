@@ -35,6 +35,7 @@ func (e *FieldsError) Error() string {
 	for key := range e.fields {
 		keys = append(keys, key)
 	}
+
 	sort.Strings(keys)
 
 	parts := make([]string, len(keys))

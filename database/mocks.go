@@ -230,6 +230,7 @@ func MockScan(mockPgxRow *MockPgxRow, values []any, t *testing.T) {
 			if len(dest) != len(values) {
 				t.Errorf("Expected %d destination arguments but got %d", len(values), len(dest))
 			}
+
 			for i, val := range values {
 				parseScanValue(val, dest[i], t)
 			}
@@ -388,6 +389,7 @@ func MockBlockingPing(err error) Ping {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+
 		return err
 	}
 }

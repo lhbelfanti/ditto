@@ -90,6 +90,7 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 	if err != nil {
 		return Response{}, fmt.Errorf("%w: %w", FailedToExecuteRequest, err)
 	}
+
 	defer func(body io.ReadCloser) {
 		err = body.Close()
 		if err != nil {

@@ -26,6 +26,7 @@ func MakeRunner(db database.Connection, migrationsDir string) Runner {
 		if err != nil {
 			return err
 		}
+
 		err = tx.Commit(ctx)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrFailedToCommitTrackingTable, err)
@@ -36,6 +37,7 @@ func MakeRunner(db database.Connection, migrationsDir string) Runner {
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrUnableToReadFile, err)
 		}
+
 		sort.Strings(files)
 
 		for _, file := range files {
@@ -56,6 +58,7 @@ func beginLocked(ctx context.Context, db database.Connection) (_ pgx.Tx, err err
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToBeginTransaction, err)
 	}
+
 	defer func() {
 		if err != nil {
 			_ = tx.Rollback(ctx)
@@ -85,6 +88,7 @@ func applyFile(ctx context.Context, db database.Connection, file string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	name := filepath.Base(file)
@@ -94,6 +98,7 @@ func applyFile(ctx context.Context, db database.Connection, file string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedToCheckApplied, err)
 	}
+
 	if applied {
 		err = tx.Commit(ctx)
 		if err != nil {

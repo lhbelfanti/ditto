@@ -46,6 +46,7 @@ func UserIDFromContext(ctx context.Context) int {
 	if !ok {
 		return 0
 	}
+
 	return id
 }
 

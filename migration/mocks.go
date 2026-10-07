@@ -109,6 +109,7 @@ func MockTx(cfg MockTxConfig) *database.MockPgxTx {
 	if cfg.FileSQL != "" {
 		tx.On("Exec", mock.Anything, cfg.FileSQL, mock.Anything).Return(pgconn.CommandTag{}, cfg.FileErr)
 	}
+
 	tx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, nil)
 	tx.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(appliedRow).Once()
 	tx.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(database.MockRowFailing(cfg.InsertErr))
@@ -141,6 +142,7 @@ func MockMigrationDir(t *testing.T, files map[string]string) string {
 			t.Fatal(err)
 		}
 	}
+
 	return dir
 }
 
@@ -158,17 +160,20 @@ func MockPostgresPool(t *testing.T) *pgxpool.Pool {
 	if dsn == "" {
 		t.Skip("DITTO_TEST_DATABASE_URL not set")
 	}
+
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Cleanup(pool.Close)
 
 	_, err = pool.Exec(ctx, "DROP TABLE IF EXISTS migrations, mig_audit, mig_partial CASCADE")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return pool
 }
 
@@ -180,6 +185,7 @@ func MockRowCount(t *testing.T, pool *pgxpool.Pool, table string) int {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return count
 }
 
@@ -192,6 +198,7 @@ func MockTableInDatabase(t *testing.T, pool *pgxpool.Pool, table string) bool {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return exists
 }
 

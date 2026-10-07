@@ -36,9 +36,11 @@ func provision(ctx context.Context) error {
 	if errors.Is(err, database.ErrAdminNotConfigured) {
 		return nil
 	}
+
 	if err != nil {
 		return err
 	}
+
 	defer admin.Close()
 
 	err = admin.MakeCheck(defaultStartupTimeout)(ctx)
@@ -115,6 +117,7 @@ func Run(opts Options) error {
 		if err != nil {
 			return err
 		}
+
 		defer pg.Close()
 	}
 
@@ -127,6 +130,7 @@ func Run(opts Options) error {
 	if mux == nil {
 		mux = http.NewServeMux()
 	}
+
 	dittohttp.MountSystemRoutes(mux, ping)
 	if opts.Routes != nil {
 		opts.Routes(mux, pg)

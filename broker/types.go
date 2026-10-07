@@ -77,6 +77,7 @@ func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor P
 	if !b.consumer && b.messages == nil {
 		return ErrNotAConsumer
 	}
+
 	if concurrentMessages <= 0 {
 		return ErrInvalidConcurrency
 	}
@@ -85,6 +86,7 @@ func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor P
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedToSetQoS, err)
 	}
+
 	if b.messages == nil {
 		b.messages, err = b.channel.Consume(
 			b.queue.Name, // queue
@@ -118,6 +120,7 @@ func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor P
 					return ErrConsumerChannelClosed
 				}
 			}
+
 			msg = received
 		}
 
@@ -133,6 +136,7 @@ func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor P
 			<-b.semaphore
 			return nil
 		}
+
 		b.inFlight.Add(1)
 		b.dispatchMu.Unlock()
 
@@ -151,6 +155,7 @@ func (b *RabbitMQBroker) processDelivery(d amqp091.Delivery) {
 		_ = d.Nack(false, false)
 		return
 	}
+
 	_ = d.Ack(false)
 }
 
@@ -169,6 +174,7 @@ func (b *RabbitMQBroker) EnqueueMessage(ctx context.Context, body string) error 
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedToPublishMessage, err)
 	}
+
 	return nil
 }
 

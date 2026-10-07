@@ -86,9 +86,11 @@ func (o Options) orDefaults() Options {
 	if o.PortEnv == "" {
 		o.PortEnv = defaultPortEnv
 	}
+
 	if o.MigrationsDir == "" {
 		o.MigrationsDir = defaultMigrationsDir
 	}
+
 	return o
 }
 
@@ -97,9 +99,11 @@ func (o Options) decorate(h http.Handler) http.Handler {
 	for i := len(o.middleware) - 1; i >= 0; i-- {
 		h = o.middleware[i](h)
 	}
+
 	if o.Wrap != nil {
 		h = o.Wrap(h)
 	}
+
 	return h
 }
 
@@ -108,11 +112,14 @@ func (t Timeouts) orDefaults() Timeouts {
 	if t.Startup == 0 {
 		t.Startup = defaultStartupTimeout
 	}
+
 	if t.Ping == 0 {
 		t.Ping = defaultPingTimeout
 	}
+
 	if t.Shutdown == 0 {
 		t.Shutdown = defaultShutdownTimeout
 	}
+
 	return t
 }

@@ -29,6 +29,7 @@ func GracefulShutdown(ctx context.Context, serve Serve, shutdown Shutdown, timeo
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
+
 		return nil
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)

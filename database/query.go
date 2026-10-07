@@ -58,6 +58,7 @@ func MakeSelectOne[T any](db Connection, fn pgx.RowToFunc[T]) SelectOne[T] {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return zero, fmt.Errorf("%w: %w", ErrNoRows, err)
 		}
+
 		if err != nil {
 			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
@@ -115,6 +116,7 @@ func MakeExecFormatted(selectStatement SelectOne[string], update Update) ExecFor
 		if errors.Is(err, ErrNoRows) {
 			return nil
 		}
+
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrFailedToBuildStatement, err)
 		}

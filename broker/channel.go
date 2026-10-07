@@ -12,5 +12,6 @@ func openChannel(conn *amqp091.Connection) (*amqp091.Channel, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToOpenChannel, err)
 	}
+
 	return ch, nil
 }
