@@ -12,6 +12,7 @@ type (
 	field struct {
 		Key   string
 		Value any
+		embed bool
 	}
 
 	// FieldsError is an error that carries the log fields of the context it was created with. Its
@@ -23,6 +24,9 @@ type (
 	}
 
 	logCtxKey struct{}
+
+	// embedCtxKey keys the set of context fields that NewFieldsError embeds into an error
+	embedCtxKey struct{}
 )
 
 // Error renders the cause followed by the fields in alphabetical order, e.g. `can't fetch [symbol=BTC/USDT timeframe=1h]`.
