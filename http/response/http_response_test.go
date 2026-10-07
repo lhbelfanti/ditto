@@ -34,11 +34,10 @@ func TestSend_success(t *testing.T) {
 				Code:    http.StatusOK,
 				Message: "Request successful",
 				Data:    map[string]string{"key": "value"},
-				Error:   "",
 			},
 		},
 		{
-			name:    "Error response with an error",
+			name:    "Error response with an error hides the cause",
 			code:    http.StatusUnauthorized,
 			message: "Unauthorized access",
 			data:    nil,
@@ -47,7 +46,6 @@ func TestSend_success(t *testing.T) {
 				Code:    http.StatusUnauthorized,
 				Message: "Unauthorized access",
 				Data:    nil,
-				Error:   errors.New("invalid token").Error(),
 			},
 		},
 		{
@@ -60,7 +58,6 @@ func TestSend_success(t *testing.T) {
 				Code:    http.StatusNoContent,
 				Message: "No content",
 				Data:    nil,
-				Error:   "",
 			},
 		},
 	}
@@ -112,4 +109,12 @@ func TestSend_successWhenErrorIsLoggedWithCause(t *testing.T) {
 	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
 
 	assert.Contains(t, output.String(), `"error":"cause"`)
+}
+
+func TestSend_successWhenCauseIsNotInTheResponseBody(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("secret cause"))
+
+	assert.NotContains(t, w.Body.String(), "secret cause")
 }

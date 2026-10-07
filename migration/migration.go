@@ -28,7 +28,7 @@ func MakeRunner(db database.Connection, migrationsDir string) Runner {
 		}
 		err = tx.Commit(ctx)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrFailedToApply, err)
+			return fmt.Errorf("%w: %w", ErrFailedToCommitTrackingTable, err)
 		}
 
 		pattern := filepath.Join(migrationsDir, "*.sql")
@@ -54,7 +54,7 @@ func MakeRunner(db database.Connection, migrationsDir string) Runner {
 func beginLocked(ctx context.Context, db database.Connection) (_ pgx.Tx, err error) {
 	tx, err := db.Begin(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToApply, err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToBeginTransaction, err)
 	}
 	defer func() {
 		if err != nil {
@@ -64,7 +64,7 @@ func beginLocked(ctx context.Context, db database.Connection) (_ pgx.Tx, err err
 
 	_, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", migrationLockKey)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToApply, err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLockMigrations, err)
 	}
 
 	const createTable = `CREATE TABLE IF NOT EXISTS migrations (
@@ -95,7 +95,12 @@ func applyFile(ctx context.Context, db database.Connection, file string) error {
 		return fmt.Errorf("%w: %w", ErrFailedToCheckApplied, err)
 	}
 	if applied {
-		return tx.Commit(ctx)
+		err = tx.Commit(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrFailedToCommitFile, err)
+		}
+
+		return nil
 	}
 
 	content, err := os.ReadFile(file)
@@ -114,5 +119,10 @@ func applyFile(ctx context.Context, db database.Connection, file string) error {
 		return fmt.Errorf("%w: %w", ErrFailedToInsertApplied, err)
 	}
 
-	return tx.Commit(ctx)
+	err = tx.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToCommitFile, err)
+	}
+
+	return nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/lhbelfanti/ditto/v2/log"
 	"github.com/lhbelfanti/ditto/v2/setup"
 )
 
@@ -32,4 +33,24 @@ func TestMust_failsWhenErrorIsPassed(t *testing.T) {
 	assert.Panics(t, func() {
 		setup.Must(errors.New("initialization failed"))
 	})
+}
+
+func TestInit_successWhenErrorIsLoggedBeforePanicking(t *testing.T) {
+	output := log.MockLogOutput(t)
+
+	assert.Panics(t, func() {
+		_ = setup.Init("test", errors.New("database: boom"))
+	})
+
+	assert.Contains(t, output.String(), "database: boom")
+}
+
+func TestMust_successWhenErrorIsLoggedBeforePanicking(t *testing.T) {
+	output := log.MockLogOutput(t)
+
+	assert.Panics(t, func() {
+		setup.Must(errors.New("database: boom"))
+	})
+
+	assert.Contains(t, output.String(), "database: boom")
 }

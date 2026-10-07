@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/database"
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 func TestMakeSelect_success(t *testing.T) {
@@ -140,4 +141,33 @@ func TestMakeUpdate_failsWhenQueryFails(t *testing.T) {
 	got := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
 
 	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeSelect_failsWhenQueryFailsAndKeepsTheCause(t *testing.T) {
+	mockConn := database.MockQueryConnection(nil, pgx.ErrTxClosed)
+	sel := database.MakeSelect[string](mockConn, database.MockCollectRows[string](nil, nil))
+
+	want := pgx.ErrTxClosed
+	_, got := sel(context.Background(), "SELECT name FROM t")
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeSelectOne_failsWhenNoRowsFoundAndKeepsTheCause(t *testing.T) {
+	mockConn := database.MockQueryConnection(database.MockEmptyRows(), nil)
+	selOne := database.MakeSelectOne[string](mockConn, pgx.RowTo[string])
+
+	want := pgx.ErrNoRows
+	_, got := selOne(context.Background(), "SELECT name FROM t")
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMakeUpdate_failsWhenExecFailsAndDoesNotLog(t *testing.T) {
+	output := log.MockLogOutput(t)
+	update := database.MakeUpdate(database.MockExecConnection(pgx.ErrTxClosed))
+
+	_ = update(context.Background(), "UPDATE t SET a = 1")
+
+	assert.Empty(t, output.String())
 }

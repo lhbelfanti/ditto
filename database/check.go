@@ -18,7 +18,7 @@ func MakeCheck(ping Ping, timeout time.Duration) Check {
 
 		err := ping(ctx)
 		if err != nil {
-			return WrapUnavailable(err)
+			return &SafeError{sentinel: ErrDatabaseUnavailable, cause: err}
 		}
 
 		return nil

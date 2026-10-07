@@ -3,10 +3,9 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
-
-	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 // MakeSelect creates a Select[T] backed by db.Query + collectRows.
@@ -14,14 +13,12 @@ func MakeSelect[T any](db Connection, collectRows CollectRows[T]) Select[T] {
 	return func(ctx context.Context, query string, args ...any) ([]T, error) {
 		rows, err := db.Query(ctx, query, args...)
 		if err != nil {
-			log.Error(ctx, err.Error())
-			return nil, ErrQuery
+			return nil, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 
 		results, err := collectRows(rows)
 		if err != nil {
-			log.Error(ctx, err.Error())
-			return nil, ErrCollect
+			return nil, fmt.Errorf("%w: %w", ErrCollect, err)
 		}
 
 		return results, nil
@@ -38,21 +35,19 @@ func MakeSelectOne[T any](db Connection, fn pgx.RowToFunc[T]) SelectOne[T] {
 	}
 
 	return func(ctx context.Context, query string, args ...any) (T, error) {
+		var zero T
+
 		rows, err := db.Query(ctx, query, args...)
 		if err != nil {
-			log.Error(ctx, err.Error())
-			var zero T
-			return zero, ErrQuery
+			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 
 		result, err := pgx.CollectOneRow(rows, rowToFunc)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return zero, fmt.Errorf("%w: %w", ErrNoRows, err)
+		}
 		if err != nil {
-			log.Error(ctx, err.Error())
-			var zero T
-			if errors.Is(err, pgx.ErrNoRows) {
-				return zero, ErrNoRows
-			}
-			return zero, ErrQuery
+			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 
 		return result, nil
@@ -65,9 +60,9 @@ func MakeInsert[T any](db Connection) Insert[T] {
 		var result T
 		err := db.QueryRow(ctx, query, args...).Scan(&result)
 		if err != nil {
-			log.Error(ctx, err.Error())
 			var zero T
-			return zero, ErrQuery
+
+			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 
 		return result, nil
@@ -79,8 +74,7 @@ func MakeDelete(db Connection) Delete {
 	return func(ctx context.Context, query string, args ...any) error {
 		_, err := db.Exec(ctx, query, args...)
 		if err != nil {
-			log.Error(ctx, err.Error())
-			return ErrQuery
+			return fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 
 		return nil
@@ -92,8 +86,7 @@ func MakeUpdate(db Connection) Update {
 	return func(ctx context.Context, query string, args ...any) error {
 		_, err := db.Exec(ctx, query, args...)
 		if err != nil {
-			log.Error(ctx, err.Error())
-			return ErrQuery
+			return fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 
 		return nil

@@ -24,6 +24,7 @@ type MockTxConfig struct {
 	Applied        bool
 	AppliedErr     error
 	InsertErr      error
+	CommitErr      error
 }
 
 // MockListFiles returns a ListFiles that always returns the given names and error.
@@ -112,7 +113,7 @@ func MockTx(cfg MockTxConfig) *database.MockPgxTx {
 	tx.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(appliedRow).Once()
 	tx.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(database.MockRowFailing(cfg.InsertErr))
 	tx.On("Rollback", mock.Anything).Return(nil)
-	tx.On("Commit", mock.Anything).Return(nil)
+	tx.On("Commit", mock.Anything).Return(cfg.CommitErr)
 	return tx
 }
 

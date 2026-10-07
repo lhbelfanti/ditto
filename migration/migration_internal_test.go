@@ -23,7 +23,7 @@ func TestBeginLocked_success(t *testing.T) {
 func TestBeginLocked_failsWhenBeginFails(t *testing.T) {
 	db := MockConnection(nil, errors.New("begin failed"))
 
-	want := ErrFailedToApply
+	want := ErrFailedToBeginTransaction
 	_, got := beginLocked(context.Background(), db)
 
 	assert.ErrorIs(t, got, want)
@@ -33,7 +33,7 @@ func TestBeginLocked_failsWhenLockFails(t *testing.T) {
 	tx := MockTx(MockTxConfig{LockErr: errors.New("lock failed")})
 	db := MockConnection(tx, nil)
 
-	want := ErrFailedToApply
+	want := ErrFailedToLockMigrations
 	_, got := beginLocked(context.Background(), db)
 
 	assert.ErrorIs(t, got, want)
@@ -81,7 +81,7 @@ func TestApplyFile_successWhenFileIsAlreadyApplied(t *testing.T) {
 func TestApplyFile_failsWhenBeginFails(t *testing.T) {
 	db := MockConnection(nil, errors.New("begin failed"))
 
-	want := ErrFailedToApply
+	want := ErrFailedToBeginTransaction
 	got := applyFile(context.Background(), db, "001_a.sql")
 
 	assert.ErrorIs(t, got, want)
@@ -124,6 +124,27 @@ func TestApplyFile_failsWhenTrackingInsertFails(t *testing.T) {
 	db := MockConnection(tx, nil)
 
 	want := ErrFailedToInsertApplied
+	got := applyFile(context.Background(), db, file)
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestApplyFile_failsWhenCommittingAnAppliedFileFails(t *testing.T) {
+	tx := MockTx(MockTxConfig{Applied: true, CommitErr: errors.New("commit failed")})
+	db := MockConnection(tx, nil)
+
+	want := ErrFailedToCommitFile
+	got := applyFile(context.Background(), db, "001_a.sql")
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestApplyFile_failsWhenCommittingTheFileFails(t *testing.T) {
+	file := MockMigrationFile(t, "SELECT 1;")
+	tx := MockTx(MockTxConfig{CommitErr: errors.New("commit failed")})
+	db := MockConnection(tx, nil)
+
+	want := ErrFailedToCommitFile
 	got := applyFile(context.Background(), db, file)
 
 	assert.ErrorIs(t, got, want)

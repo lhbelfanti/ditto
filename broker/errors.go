@@ -5,6 +5,7 @@ import "errors"
 // Sentinel errors for the broker package.
 var (
 	ErrFailedToConnect        = errors.New("failed to connect to rabbitmq")
+	ErrConnectCanceled        = errors.New("rabbitmq connection attempt canceled before it completed")
 	ErrFailedToOpenChannel    = errors.New("failed to open rabbitmq channel")
 	ErrFailedToDeclareQueue   = errors.New("failed to declare rabbitmq queue")
 	ErrFailedToConsumeQueue   = errors.New("failed to consume rabbitmq queue")
