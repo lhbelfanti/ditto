@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -26,17 +27,44 @@ const (
 	defaultShutdownTimeout time.Duration = 5 * time.Second
 )
 
+// provision creates the service's role and database through the administrator credentials in
+// POSTGRES_ADMIN_USER and POSTGRES_ADMIN_PASS. Without them it does nothing, so a database provisioned
+// by other means keeps working.
+func provision(ctx context.Context) error {
+	admin, err := database.OpenAdmin()
+	if errors.Is(err, database.ErrAdminNotConfigured) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer admin.Close()
+
+	err = admin.MakeCheck(defaultStartupTimeout)(ctx)
+	if err != nil {
+		return err
+	}
+
+	return database.MakeProvision(admin.Database(), database.TargetFromEnv())(ctx)
+}
+
 // InitDatabase opens the database and applies the pending migrations in ./migrations. See
 // InitDatabaseWithMigrationFolder for another folder.
 func InitDatabase(ctx context.Context) (*database.Postgres, error) {
 	return InitDatabaseWithMigrationFolder(ctx, defaultMigrationsDir)
 }
 
-// InitDatabaseWithMigrationFolder validates the POSTGRES_DB_* variables, opens the pool, verifies
-// connectivity and applies the pending migrations in dir. The returned pool's Database method is the
-// connection to inject into the service's makers; the caller closes the pool.
+// InitDatabaseWithMigrationFolder validates the POSTGRES_DB_* variables, creates the service's role
+// and database when administrator credentials are set (see provision), opens the pool, verifies
+// connectivity and applies the pending migrations in dir. The returned pool's Database method is
+// the connection to inject into the service's makers; the caller closes the pool.
 func InitDatabaseWithMigrationFolder(ctx context.Context, dir string) (*database.Postgres, error) {
 	err := database.RequireEnv(os.LookupEnv)
+	if err != nil {
+		return nil, err
+	}
+
+	err = provision(ctx)
 	if err != nil {
 		return nil, err
 	}

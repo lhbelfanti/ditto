@@ -23,8 +23,34 @@ The `database` package provides a thin abstraction over `pgx/v5` for PostgreSQL.
 | `POSTGRES_DB_PORT` | Yes | Valid TCP port. |
 | `POSTGRES_DB_NAME`, `POSTGRES_DB_USER`, `POSTGRES_DB_PASS` | Yes | Non-empty. |
 
-The database itself must already exist: `database` never creates databases or roles. Migrations
-create the tables inside it.
+The credentials are escaped when the connection URL is built, so a password may hold spaces,
+`@`, `/`, `:` or `=`.
+
+### Creating the database
+
+`InitPostgres` never creates anything: the database and its role must exist. To let a service
+create its own, set the administrator credentials and call `MakeProvision`:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `POSTGRES_ADMIN_USER`, `POSTGRES_ADMIN_PASS` | No | A role allowed to create roles and databases. `OpenAdmin` connects with it to the `postgres` maintenance database, on the same host and port. It returns `ErrAdminNotConfigured` when either is empty. |
+
+```go
+admin, err := database.OpenAdmin()
+if err != nil {
+    return err
+}
+defer admin.Close()
+
+provision := database.MakeProvision(admin.Database(), database.TargetFromEnv())
+err = provision(ctx)
+```
+
+`MakeProvision` creates the role and the database when they are missing, makes the role the
+owner, syncs the role's password, and revokes the database from `PUBLIC` so no other role can
+connect to it. It is idempotent. Each step fails with its own sentinel, wrapping the cause, so the
+error says which step failed (see below). `app.InitDatabase` does all of this when the admin
+variables are set.
 
 ---
 
@@ -153,6 +179,13 @@ All `Make*` helpers return typed sentinel errors on failure:
 | `database.ErrQuery` | `db.Query`, `db.QueryRow`, or `db.Exec` returned an error |
 | `database.ErrCollect` | `CollectRows` failed after a successful query |
 | `database.ErrNoRows` | `SelectOne` found no matching row (`pgx.ErrNoRows`) |
+| `database.ErrAdminNotConfigured` | `OpenAdmin` found no `POSTGRES_ADMIN_USER`/`POSTGRES_ADMIN_PASS` |
+| `database.ErrFailedToCreateRole` | `MakeProvision` could not create the role |
+| `database.ErrFailedToSyncPassword` | `MakeProvision` could not set the role's password |
+| `database.ErrFailedToCreateDatabase` | `MakeProvision` could not create the database |
+| `database.ErrFailedToRevokePublic` | `MakeProvision` could not revoke public access to the database |
+| `database.ErrFailedToBuildStatement` | The server could not build a provisioning statement; wrapped inside the step's error |
+| `database.ErrFailedToExecuteStatement` | The server rejected a provisioning statement; wrapped inside the step's error |
 
 Use `errors.Is` to handle them in domain code:
 

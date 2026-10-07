@@ -44,3 +44,36 @@ func TestInitPostgres_failsWhenCalledAgainAfterInitializationFailureReturnsSameI
 
 	assert.Equal(t, want, got)
 }
+
+func TestOpenAdmin_success(t *testing.T) {
+	t.Setenv("POSTGRES_ADMIN_USER", "admin")
+	t.Setenv("POSTGRES_ADMIN_PASS", "secret")
+	t.Setenv("POSTGRES_DB_PORT", "5432")
+	pg, _ := database.OpenAdmin()
+	defer pg.Close()
+
+	got := pg.Database()
+
+	assert.NotNil(t, got)
+}
+
+func TestOpenAdmin_failsWhenAdminIsNotConfigured(t *testing.T) {
+	t.Setenv("POSTGRES_ADMIN_USER", "")
+	t.Setenv("POSTGRES_ADMIN_PASS", "")
+
+	want := database.ErrAdminNotConfigured
+	_, got := database.OpenAdmin()
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestOpenAdmin_failsWhenPortIsMalformed(t *testing.T) {
+	t.Setenv("POSTGRES_ADMIN_USER", "admin")
+	t.Setenv("POSTGRES_ADMIN_PASS", "secret")
+	t.Setenv("POSTGRES_DB_PORT", "not-a-port")
+
+	want := database.ErrCantInitDatabase
+	_, got := database.OpenAdmin()
+
+	assert.ErrorIs(t, got, want)
+}

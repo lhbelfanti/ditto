@@ -25,6 +25,23 @@ func InitPostgres() (*Postgres, error) {
 	return pgInstance, pgInitErr
 }
 
+// OpenAdmin opens a pool for the database administrator, using POSTGRES_ADMIN_USER and
+// POSTGRES_ADMIN_PASS against the maintenance database. It returns ErrAdminNotConfigured when either
+// is empty. Unlike InitPostgres it is not cached: the caller closes the returned pool.
+func OpenAdmin() (*Postgres, error) {
+	url, ok := resolveAdminURL()
+	if !ok {
+		return nil, ErrAdminNotConfigured
+	}
+
+	db, err := pgxpool.New(context.Background(), url)
+	if err != nil {
+		return nil, WrapInitFailure(err)
+	}
+
+	return &Postgres{db}, nil
+}
+
 // MakeCollectRows creates a new CollectRows
 func MakeCollectRows[T any](fn pgx.RowToFunc[T]) CollectRows[T] {
 	return func(rows pgx.Rows) ([]T, error) {

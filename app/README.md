@@ -50,8 +50,11 @@ from `MigrationsDir`. A service without a database sets `NoDatabase: true`.
 
 ## `InitDatabase`
 
-`InitDatabase(ctx)` validates the `POSTGRES_DB_*` variables, opens the pool, checks connectivity
-within 5 seconds and applies pending migrations from `./migrations`.
+`InitDatabase(ctx)` validates the `POSTGRES_DB_*` variables, creates the service's role and
+database when `POSTGRES_ADMIN_USER` and `POSTGRES_ADMIN_PASS` are set (see
+[`database`](../database/README.md)), opens the pool, checks connectivity within 5 seconds and
+applies pending migrations from `./migrations`. Without the admin variables it assumes the database
+already exists.
 `InitDatabaseWithMigrationFolder(ctx, dir)` does the same for another folder.
 
 Both return the `*database.Postgres` pool: `pg.Database()` is the `database.Connection` to inject
