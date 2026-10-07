@@ -28,6 +28,23 @@ func With(ctx context.Context, fields ...field) context.Context {
 	return context.WithValue(ctx, logCtxKey{}, params)
 }
 
+// NewFieldsError returns err with the fields ctx carries embedded in its text, so they reach the
+// place where the error is logged even though a context created below that place is not visible
+// from it. Use it in the function that adds fields with With, on the errors that function returns.
+// It returns err unchanged when ctx carries no fields, and nil when err is nil.
+func NewFieldsError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	fields, _ := ctx.Value(logCtxKey{}).(map[string]any)
+	if len(fields) == 0 {
+		return err
+	}
+
+	return &FieldsError{cause: err, fields: fields}
+}
+
 func withContextParams(ctx context.Context, event *zerolog.Event) *zerolog.Event {
 	if ctx == nil {
 		return event
