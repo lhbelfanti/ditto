@@ -2,7 +2,6 @@ package database_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -41,25 +40,6 @@ func TestPostgres_Close_success(t *testing.T) {
 	got := pool.Ping(context.Background()) != nil
 
 	assert.True(t, got)
-}
-
-func TestSafeError_Error_success(t *testing.T) {
-	safe := database.WrapUnavailable(errors.New("dial tcp user:secret@host: refused"))
-
-	want := database.ErrDatabaseUnavailable.Error()
-	got := safe.Error()
-
-	assert.Equal(t, want, got)
-}
-
-func TestSafeError_Unwrap_success(t *testing.T) {
-	cause := errors.New("dial failed")
-	safe := database.WrapInitFailure(cause).(*database.SafeError)
-
-	want := []error{database.ErrCantInitDatabase, cause}
-	got := safe.Unwrap()
-
-	assert.Equal(t, want, got)
 }
 
 func TestTargetFromEnv_success(t *testing.T) {

@@ -16,7 +16,7 @@ func TestMakeRunner_failsWhenBeginFails(t *testing.T) {
 	db := migration.MockConnection(nil, errors.New("begin failed"))
 	runner := migration.MakeRunner(db, t.TempDir())
 
-	want := migration.ErrFailedToApply
+	want := migration.ErrFailedToBeginTransaction
 	got := runner(context.Background())
 
 	assert.ErrorIs(t, got, want)
@@ -27,7 +27,7 @@ func TestMakeRunner_failsWhenLockFails(t *testing.T) {
 	db := migration.MockConnection(tx, nil)
 	runner := migration.MakeRunner(db, t.TempDir())
 
-	want := migration.ErrFailedToApply
+	want := migration.ErrFailedToLockMigrations
 	got := runner(context.Background())
 
 	assert.ErrorIs(t, got, want)
@@ -193,4 +193,15 @@ func TestMakeRunner_failsWhenFileFailsLeavesNoTrackingRow(t *testing.T) {
 	got := migration.MockRowCount(t, pool, "migrations")
 
 	assert.Equal(t, want, got)
+}
+
+func TestMakeRunner_failsWhenCommittingTheTrackingTableFails(t *testing.T) {
+	tx := migration.MockTx(migration.MockTxConfig{CommitErr: errors.New("commit failed")})
+	db := migration.MockConnection(tx, nil)
+	runner := migration.MakeRunner(db, t.TempDir())
+
+	want := migration.ErrFailedToCommitTrackingTable
+	got := runner(context.Background())
+
+	assert.ErrorIs(t, got, want)
 }

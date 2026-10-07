@@ -21,7 +21,7 @@ func TestDial_failsWhenContextIsAlreadyCancelled(t *testing.T) {
 
 	// A real-looking but unroutable address, so amqp091.Dial doesn't fail synchronously before
 	// the select ever runs — ctx must be what resolves this call.
-	want := ErrFailedToConnect
+	want := ErrConnectCanceled
 	_, got := dial(ctx, "amqp://guest:guest@10.255.255.1:5672/")
 
 	assert.ErrorIs(t, got, want)
