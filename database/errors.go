@@ -19,13 +19,3 @@ var (
 	ErrFailedToBuildStatement   = errors.New("database: failed to build the provisioning statement")
 	ErrFailedToExecuteStatement = errors.New("database: failed to execute the provisioning statement")
 )
-
-// WrapUnavailable hides cause behind the credential-safe ErrDatabaseUnavailable sentinel.
-func WrapUnavailable(cause error) error {
-	return &SafeError{sentinel: ErrDatabaseUnavailable, cause: cause}
-}
-
-// WrapInitFailure hides cause behind the credential-safe ErrCantInitDatabase sentinel.
-func WrapInitFailure(cause error) error {
-	return &SafeError{sentinel: ErrCantInitDatabase, cause: cause}
-}

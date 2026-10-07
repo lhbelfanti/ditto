@@ -29,9 +29,10 @@ func dial(ctx context.Context, url string) (*amqp091.Connection, error) {
 		if r.err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrFailedToConnect, r.err)
 		}
+
 		return r.conn, nil
 	case <-ctx.Done():
 		go closeLateDial(done)
-		return nil, fmt.Errorf("%w: %w", ErrFailedToConnect, ctx.Err())
+		return nil, fmt.Errorf("%w: %w", ErrConnectCanceled, ctx.Err())
 	}
 }

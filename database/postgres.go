@@ -16,7 +16,7 @@ func InitPostgres() (*Postgres, error) {
 	pgOnce.Do(func() {
 		db, err := pgxpool.New(context.Background(), resolveDatabaseURL())
 		if err != nil {
-			pgInitErr = WrapInitFailure(err)
+			pgInitErr = &SafeError{sentinel: ErrCantInitDatabase, cause: err}
 			return
 		}
 		pgInstance = &Postgres{db}
@@ -36,7 +36,7 @@ func OpenAdmin() (*Postgres, error) {
 
 	db, err := pgxpool.New(context.Background(), url)
 	if err != nil {
-		return nil, WrapInitFailure(err)
+		return nil, &SafeError{sentinel: ErrCantInitDatabase, cause: err}
 	}
 
 	return &Postgres{db}, nil
