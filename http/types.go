@@ -66,7 +66,6 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 		default:
 			jsonData, err = json.Marshal(body)
 			if err != nil {
-				log.Error(ctx, err.Error())
 				return Response{}, fmt.Errorf("%w: %w", FailedToMarshalBody, err)
 			}
 		}
@@ -77,7 +76,6 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 
 	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
-		log.Error(ctx, err.Error())
 		return Response{}, fmt.Errorf("%w: %w", FailedToCreateRequest, err)
 	}
 
@@ -90,19 +88,17 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		log.Error(ctx, err.Error())
 		return Response{}, fmt.Errorf("%w: %w", FailedToExecuteRequest, err)
 	}
 	defer func(body io.ReadCloser) {
 		err = body.Close()
 		if err != nil {
-			log.Error(ctx, err.Error())
+			log.Warn(ctx, "failed to close the response body: "+err.Error())
 		}
 	}(resp.Body)
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error(ctx, err.Error())
 		return Response{}, fmt.Errorf("%w: %w", FailedToReadResponse, err)
 	}
 
