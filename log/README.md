@@ -15,13 +15,12 @@ logged where it is handled, at `Warn`.
 ## Fields that live below the logging point
 
 `With` returns a new context, so a field added deep in the call chain is not visible to the handler
-that finally logs the error. Mark the fields that explain a failure with `EmbeddedParam` instead of
-`Param`, and call `NewFieldsError(ctx, err)` on the errors the function returns: it embeds those
-fields in the error's text, so they travel up with it. Fields the logging point adds itself, such as
-the request ID, stay `Param`; they are logged with the error already and are not repeated in its text.
+that finally logs the error. `NewFieldsError(ctx, err)` embeds the fields `ctx` carries as `Param`
+in the error's text, so they travel up with it. Call it on the errors a function returns, in the
+function that adds the fields with `With`:
 
 ```go
-ctx = log.With(ctx, log.EmbeddedParam("symbol", symbol), log.EmbeddedParam("timeframe", timeframe))
+ctx = log.With(ctx, log.Param("symbol", symbol), log.Param("timeframe", timeframe))
 
 watermark, err := selectWatermark(ctx, symbol, timeframe)
 if err != nil {
@@ -31,5 +30,9 @@ if err != nil {
 
 The error text becomes `select watermark: <cause> [symbol=BTC/USDT timeframe=1h]`, with the fields
 in alphabetical order and times in RFC 3339. `errors.Is` and `errors.As` still see the cause through
-the `*FieldsError`. `NewFieldsError` returns `err` unchanged when the context carries no embedded
-field, and nil when `err` is nil.
+the `*FieldsError`.
+
+The fields the logging point adds itself, such as the request ID the middleware sets, are logged with
+the error already, so embedding them would repeat them. Add those with `BaseParam`, which
+`NewFieldsError` leaves out. `NewFieldsError` returns `err` unchanged when the context carries no
+field to embed, and nil when `err` is nil.
