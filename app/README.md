@@ -86,4 +86,4 @@ before returning.
 5. Serves HTTP until `SIGINT` or `SIGTERM`, then shuts down gracefully within 5 seconds.
 
 Every failure before step 5 is returned, not logged-and-exited, so the caller decides how to exit.
-`setup.Must` in the example turns it into a non-zero exit.
+`setup.Must` in the example logs the error, with its whole chain, and then panics.
