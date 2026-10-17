@@ -108,7 +108,9 @@ func TestStatusRunner_failsWhenStatusFails(t *testing.T) {
 func TestStatusRunner_failsWhenWriterFails(t *testing.T) {
 	records := []migration.Record{{Name: "000_foundation.sql", Applied: true}}
 	mockStatus := migration.MockStatus(records, nil)
-	runStatus := migration.MakeStatusRunner(mockStatus, migration.MockClosedWriter())
+	mockOut := migration.MockClosedWriter()
+
+	runStatus := migration.MakeStatusRunner(mockStatus, mockOut)
 
 	want := io.ErrClosedPipe
 	got := runStatus(context.Background())

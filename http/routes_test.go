@@ -7,12 +7,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	dittohttp "github.com/lhbelfanti/ditto/v2/http"
+	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
 func TestRegisterSystemRoutes_success(t *testing.T) {
 	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux)
+	_http.RegisterSystemRoutes(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/ping/v1", nil)
 	w := httptest.NewRecorder()
@@ -26,7 +26,7 @@ func TestRegisterSystemRoutes_success(t *testing.T) {
 
 func TestRegisterSystemRoutes_successWhenDatabasePingIsNotOptedIn(t *testing.T) {
 	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux)
+	_http.RegisterSystemRoutes(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
 	w := httptest.NewRecorder()
@@ -40,7 +40,7 @@ func TestRegisterSystemRoutes_successWhenDatabasePingIsNotOptedIn(t *testing.T) 
 
 func TestMountSystemRoutes_successWhenPingIsNil(t *testing.T) {
 	mux := http.NewServeMux()
-	dittohttp.MountSystemRoutes(mux, nil)
+	_http.MountSystemRoutes(mux, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
 	rec := httptest.NewRecorder()
@@ -54,7 +54,7 @@ func TestMountSystemRoutes_successWhenPingIsNil(t *testing.T) {
 
 func TestMountSystemRoutes_successWhenPingIsSet(t *testing.T) {
 	mux := http.NewServeMux()
-	dittohttp.MountSystemRoutes(mux, dittohttp.MockDatabasePing(nil))
+	_http.MountSystemRoutes(mux, _http.MockDatabasePing(nil))
 
 	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
 	rec := httptest.NewRecorder()

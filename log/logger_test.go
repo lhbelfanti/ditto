@@ -44,12 +44,12 @@ func TestLogLevels_success(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf := log.MockLogOutput(t)
+			mockOutput := log.MockLogOutput(t)
 
 			tt.logger(context.Background(), "a message")
 
 			entry := map[string]any{}
-			_ = json.Unmarshal(buf.Bytes(), &entry)
+			_ = json.Unmarshal(mockOutput.Bytes(), &entry)
 
 			want := map[string]any{"level": tt.level, "message": "a message"}
 			got := map[string]any{"level": entry["level"], "message": entry["message"]}
@@ -60,12 +60,12 @@ func TestLogLevels_success(t *testing.T) {
 }
 
 func TestErr_success(t *testing.T) {
-	buf := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 
 	log.Err(context.Background(), assert.AnError, "error message")
 
 	entry := map[string]any{}
-	_ = json.Unmarshal(buf.Bytes(), &entry)
+	_ = json.Unmarshal(mockOutput.Bytes(), &entry)
 
 	want := map[string]any{"level": "error", "message": "error message", "error": "assert.AnError general error for testing"}
 	got := map[string]any{"level": entry["level"], "message": entry["message"], "error": entry["error"]}
@@ -74,12 +74,12 @@ func TestErr_success(t *testing.T) {
 }
 
 func TestErr_successWhenErrorIsNil(t *testing.T) {
-	buf := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 
 	log.Err(context.Background(), nil, "info message")
 
 	entry := map[string]any{}
-	_ = json.Unmarshal(buf.Bytes(), &entry)
+	_ = json.Unmarshal(mockOutput.Bytes(), &entry)
 
 	want := map[string]any{"level": "info", "message": "info message"}
 	got := map[string]any{"level": entry["level"], "message": entry["message"]}

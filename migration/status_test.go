@@ -45,9 +45,9 @@ func TestMakeListFiles_failsWhenPatternIsMalformed(t *testing.T) {
 }
 
 func TestMakeTableExists_success(t *testing.T) {
-	selectOneOp := database.MockSelectOne[bool](true, nil)
+	mockSelectOneOp := database.MockSelectOne[bool](true, nil)
 
-	tableExists := migration.MakeTableExists(selectOneOp)
+	tableExists := migration.MakeTableExists(mockSelectOneOp)
 
 	got, _ := tableExists(context.Background())
 
@@ -56,9 +56,9 @@ func TestMakeTableExists_success(t *testing.T) {
 
 func TestMakeTableExists_failsWhenQueryFails(t *testing.T) {
 	want := errors.New("query error")
-	selectOneOp := database.MockSelectOne[bool](false, want)
+	mockSelectOneOp := database.MockSelectOne[bool](false, want)
 
-	tableExists := migration.MakeTableExists(selectOneOp)
+	tableExists := migration.MakeTableExists(mockSelectOneOp)
 
 	_, got := tableExists(context.Background())
 
@@ -66,9 +66,9 @@ func TestMakeTableExists_failsWhenQueryFails(t *testing.T) {
 }
 
 func TestMakeAppliedNames_success(t *testing.T) {
-	selectOp := database.MockSelect[string]([]string{"000_foundation.sql"}, nil)
+	mockSelectOp := database.MockSelect[string]([]string{"000_foundation.sql"}, nil)
 
-	appliedNames := migration.MakeAppliedNames(selectOp)
+	appliedNames := migration.MakeAppliedNames(mockSelectOp)
 
 	want := []string{"000_foundation.sql"}
 	got, _ := appliedNames(context.Background())
@@ -78,9 +78,9 @@ func TestMakeAppliedNames_success(t *testing.T) {
 
 func TestMakeAppliedNames_failsWhenQueryFails(t *testing.T) {
 	want := errors.New("query error")
-	selectOp := database.MockSelect[string](nil, want)
+	mockSelectOp := database.MockSelect[string](nil, want)
 
-	appliedNames := migration.MakeAppliedNames(selectOp)
+	appliedNames := migration.MakeAppliedNames(mockSelectOp)
 
 	_, got := appliedNames(context.Background())
 

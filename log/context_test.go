@@ -42,13 +42,13 @@ func TestBaseParam_successWhenValueIsKept(t *testing.T) {
 }
 
 func TestWith_successWhenChildAddsFieldsParentDoesNotSeeThem(t *testing.T) {
-	buf := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 	parent := log.With(context.Background(), log.Param("request_id", "abc"))
 	_ = log.With(parent, log.Param("worker", 1))
 	log.Info(parent, "from the parent")
 
 	entry := map[string]any{}
-	_ = json.Unmarshal(buf.Bytes(), &entry)
+	_ = json.Unmarshal(mockOutput.Bytes(), &entry)
 
 	got := entry["worker"]
 
@@ -67,11 +67,11 @@ func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
 
 	wg.Wait()
 
-	buf := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 	log.Info(parent, "from the parent")
 
 	entry := map[string]any{}
-	_ = json.Unmarshal(buf.Bytes(), &entry)
+	_ = json.Unmarshal(mockOutput.Bytes(), &entry)
 
 	got := entry["worker"]
 

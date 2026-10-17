@@ -13,9 +13,9 @@ import (
 )
 
 func TestMakeCheck_success(t *testing.T) {
-	ping := database.MockPing(nil)
+	mockPing := database.MockPing(nil)
 
-	check := database.MakeCheck(ping, time.Second)
+	check := database.MakeCheck(mockPing, time.Second)
 
 	got := check(context.Background())
 
@@ -23,9 +23,9 @@ func TestMakeCheck_success(t *testing.T) {
 }
 
 func TestMakeCheck_failsWhenPingFails(t *testing.T) {
-	ping := database.MockPing(errors.New("ping failed"))
+	mockPing := database.MockPing(errors.New("ping failed"))
 
-	check := database.MakeCheck(ping, time.Second)
+	check := database.MakeCheck(mockPing, time.Second)
 
 	want := database.ErrDatabaseUnavailable
 	got := check(context.Background())
@@ -35,9 +35,9 @@ func TestMakeCheck_failsWhenPingFails(t *testing.T) {
 
 func TestMakeCheck_failsWhenPingFailsKeepsCause(t *testing.T) {
 	want := errors.New("ping failed")
-	ping := database.MockPing(want)
+	mockPing := database.MockPing(want)
 
-	check := database.MakeCheck(ping, time.Second)
+	check := database.MakeCheck(mockPing, time.Second)
 
 	got := check(context.Background())
 
@@ -45,9 +45,9 @@ func TestMakeCheck_failsWhenPingFailsKeepsCause(t *testing.T) {
 }
 
 func TestMakeCheck_failsWhenPingExceedsTimeout(t *testing.T) {
-	ping := database.MockBlockingPing(nil)
+	mockPing := database.MockBlockingPing(nil)
 
-	check := database.MakeCheck(ping, 10*time.Millisecond)
+	check := database.MakeCheck(mockPing, 10*time.Millisecond)
 
 	want := database.ErrDatabaseUnavailable
 	got := check(context.Background())
@@ -56,9 +56,9 @@ func TestMakeCheck_failsWhenPingExceedsTimeout(t *testing.T) {
 }
 
 func TestMakeCheck_failsWhenPingExceedsTimeoutReturnsPromptly(t *testing.T) {
-	ping := database.MockBlockingPing(nil)
+	mockPing := database.MockBlockingPing(nil)
 
-	check := database.MakeCheck(ping, 10*time.Millisecond)
+	check := database.MakeCheck(mockPing, 10*time.Millisecond)
 
 	start := time.Now()
 	_ = check(context.Background())
@@ -69,9 +69,9 @@ func TestMakeCheck_failsWhenPingExceedsTimeoutReturnsPromptly(t *testing.T) {
 
 func TestMakeCheck_failsWhenPingErrorCarriesCredentials(t *testing.T) {
 	credentialBearingDSN := errors.New("dial postgres://nebula_earth_user:super-secret@db:5432/nebula_earth failed")
-	ping := database.MockPing(credentialBearingDSN)
+	mockPing := database.MockPing(credentialBearingDSN)
 
-	check := database.MakeCheck(ping, time.Second)
+	check := database.MakeCheck(mockPing, time.Second)
 
 	want := database.ErrDatabaseUnavailable.Error()
 	got := check(context.Background()).Error()
@@ -80,14 +80,14 @@ func TestMakeCheck_failsWhenPingErrorCarriesCredentials(t *testing.T) {
 }
 
 func TestRequireEnv_success(t *testing.T) {
-	lookup := env.MockLookup(map[string]string{
+	mockLookup := env.MockLookup(map[string]string{
 		"POSTGRES_DB_PORT": "5432",
 		"POSTGRES_DB_NAME": "nebula_earth",
 		"POSTGRES_DB_USER": "nebula_earth_user",
 		"POSTGRES_DB_PASS": "correct-horse-battery-staple",
 	})
 
-	got := database.RequireEnv(lookup)
+	got := database.RequireEnv(mockLookup)
 
 	assert.NoError(t, got)
 }
@@ -112,9 +112,9 @@ func TestRequireEnv_failsWhenRequiredKeyIsMissing(t *testing.T) {
 				"POSTGRES_DB_PASS": "correct-horse-battery-staple",
 			}
 			delete(values, tt.key)
-			lookup := env.MockLookup(values)
+			mockLookup := env.MockLookup(values)
 
-			got := database.RequireEnv(lookup)
+			got := database.RequireEnv(mockLookup)
 
 			assert.Error(t, got)
 		})
@@ -122,14 +122,14 @@ func TestRequireEnv_failsWhenRequiredKeyIsMissing(t *testing.T) {
 }
 
 func TestRequireEnv_failsWhenPortIsMalformed(t *testing.T) {
-	lookup := env.MockLookup(map[string]string{
+	mockLookup := env.MockLookup(map[string]string{
 		"POSTGRES_DB_PORT": "not-a-port",
 		"POSTGRES_DB_NAME": "nebula_earth",
 		"POSTGRES_DB_USER": "nebula_earth_user",
 		"POSTGRES_DB_PASS": "correct-horse-battery-staple",
 	})
 
-	got := database.RequireEnv(lookup)
+	got := database.RequireEnv(mockLookup)
 
 	assert.Error(t, got)
 }

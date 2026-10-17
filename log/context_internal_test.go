@@ -77,10 +77,10 @@ func TestWithContextParams_success(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf := MockLogOutput(t)
+			mockOutput := MockLogOutput(t)
 			Info(tt.ctx, "")
 
-			got := buf.String()
+			got := mockOutput.String()
 
 			for key := range tt.want {
 				assert.Contains(t, got, key)

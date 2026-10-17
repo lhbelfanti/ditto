@@ -51,14 +51,14 @@ func TestRequestID_successWhenInboundHeaderPresent(t *testing.T) {
 }
 
 func TestRequestID_successWhenContextIsLogged(t *testing.T) {
-	buf := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 	handler := middleware.RequestID(middleware.MockRequestIDLoggingHandler())
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
 
-	got := buf.String()
+	got := mockOutput.String()
 
 	assert.Contains(t, got, "request_id")
 }

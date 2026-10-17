@@ -13,8 +13,8 @@ import (
 )
 
 func TestMakeRunner_failsWhenBeginFails(t *testing.T) {
-	db := migration.MockConnection(nil, errors.New("begin failed"))
-	runner := migration.MakeRunner(db, t.TempDir())
+	mockDB := migration.MockConnection(nil, errors.New("begin failed"))
+	runner := migration.MakeRunner(mockDB, t.TempDir())
 
 	want := migration.ErrFailedToBeginTransaction
 	got := runner(context.Background())
@@ -23,9 +23,9 @@ func TestMakeRunner_failsWhenBeginFails(t *testing.T) {
 }
 
 func TestMakeRunner_failsWhenLockFails(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{LockErr: errors.New("lock failed")})
-	db := migration.MockConnection(tx, nil)
-	runner := migration.MakeRunner(db, t.TempDir())
+	mockTx := migration.MockTx(migration.MockTxConfig{LockErr: errors.New("lock failed")})
+	mockDB := migration.MockConnection(mockTx, nil)
+	runner := migration.MakeRunner(mockDB, t.TempDir())
 
 	want := migration.ErrFailedToLockMigrations
 	got := runner(context.Background())
@@ -34,9 +34,9 @@ func TestMakeRunner_failsWhenLockFails(t *testing.T) {
 }
 
 func TestMakeRunner_failsWhenCreateTableFails(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{CreateTableErr: errors.New("create failed")})
-	db := migration.MockConnection(tx, nil)
-	runner := migration.MakeRunner(db, t.TempDir())
+	mockTx := migration.MockTx(migration.MockTxConfig{CreateTableErr: errors.New("create failed")})
+	mockDB := migration.MockConnection(mockTx, nil)
+	runner := migration.MakeRunner(mockDB, t.TempDir())
 
 	want := migration.ErrFailedToCreateTable
 	got := runner(context.Background())
@@ -45,10 +45,10 @@ func TestMakeRunner_failsWhenCreateTableFails(t *testing.T) {
 }
 
 func TestMakeRunner_failsWhenMigrationFileFails(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{FileSQL: "SELECT broken;", FileErr: errors.New("syntax error")})
-	db := migration.MockConnection(tx, nil)
+	mockTx := migration.MockTx(migration.MockTxConfig{FileSQL: "SELECT broken;", FileErr: errors.New("syntax error")})
+	mockDB := migration.MockConnection(mockTx, nil)
 	dir := migration.MockMigrationDir(t, map[string]string{"001_a.sql": "SELECT broken;"})
-	runner := migration.MakeRunner(db, dir)
+	runner := migration.MakeRunner(mockDB, dir)
 
 	want := migration.ErrFailedToExecute
 	got := runner(context.Background())
@@ -57,10 +57,10 @@ func TestMakeRunner_failsWhenMigrationFileFails(t *testing.T) {
 }
 
 func TestMakeRunner_successWhenFileIsAlreadyApplied(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{Applied: true})
-	db := migration.MockConnection(tx, nil)
+	mockTx := migration.MockTx(migration.MockTxConfig{Applied: true})
+	mockDB := migration.MockConnection(mockTx, nil)
 	dir := migration.MockMigrationDir(t, map[string]string{"001_a.sql": "CREATE TABLE a();"})
-	runner := migration.MakeRunner(db, dir)
+	runner := migration.MakeRunner(mockDB, dir)
 
 	got := runner(context.Background())
 
@@ -68,14 +68,14 @@ func TestMakeRunner_successWhenFileIsAlreadyApplied(t *testing.T) {
 }
 
 func TestMakeRunner_successWhenFileIsAlreadyAppliedSkipsExecution(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{Applied: true})
-	db := migration.MockConnection(tx, nil)
+	mockTx := migration.MockTx(migration.MockTxConfig{Applied: true})
+	mockDB := migration.MockConnection(mockTx, nil)
 	dir := migration.MockMigrationDir(t, map[string]string{"001_a.sql": "CREATE TABLE a();"})
-	runner := migration.MakeRunner(db, dir)
+	runner := migration.MakeRunner(mockDB, dir)
 
 	_ = runner(context.Background())
 
-	tx.AssertNotCalled(t, "Exec", mock.Anything, "CREATE TABLE a();", mock.Anything)
+	mockTx.AssertNotCalled(t, "Exec", mock.Anything, "CREATE TABLE a();", mock.Anything)
 }
 
 func TestMakeRunner_successWhenRunIsRepeated(t *testing.T) {
@@ -198,9 +198,9 @@ func TestMakeRunner_failsWhenFileFailsLeavesNoTrackingRow(t *testing.T) {
 }
 
 func TestMakeRunner_failsWhenCommittingTheTrackingTableFails(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{CommitErr: errors.New("commit failed")})
-	db := migration.MockConnection(tx, nil)
-	runner := migration.MakeRunner(db, t.TempDir())
+	mockTx := migration.MockTx(migration.MockTxConfig{CommitErr: errors.New("commit failed")})
+	mockDB := migration.MockConnection(mockTx, nil)
+	runner := migration.MakeRunner(mockDB, t.TempDir())
 
 	want := migration.ErrFailedToCommitTrackingTable
 	got := runner(context.Background())

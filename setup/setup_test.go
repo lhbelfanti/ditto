@@ -36,21 +36,21 @@ func TestMust_failsWhenErrorIsPassed(t *testing.T) {
 }
 
 func TestInit_successWhenErrorIsLoggedBeforePanicking(t *testing.T) {
-	output := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 
 	assert.Panics(t, func() {
 		_ = setup.Init("test", errors.New("database: boom"))
 	})
 
-	assert.Contains(t, output.String(), "database: boom")
+	assert.Contains(t, mockOutput.String(), "database: boom")
 }
 
 func TestMust_successWhenErrorIsLoggedBeforePanicking(t *testing.T) {
-	output := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 
 	assert.Panics(t, func() {
 		setup.Must(errors.New("database: boom"))
 	})
 
-	assert.Contains(t, output.String(), "database: boom")
+	assert.Contains(t, mockOutput.String(), "database: boom")
 }

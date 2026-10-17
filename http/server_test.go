@@ -9,36 +9,36 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	dittohttp "github.com/lhbelfanti/ditto/v2/http"
+	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
 func TestGracefulShutdown_successWhenServeClosesCleanly(t *testing.T) {
-	serve := dittohttp.MockServe(http.ErrServerClosed)
-	shutdown := dittohttp.MockShutdown(nil)
+	mockServe := _http.MockServe(http.ErrServerClosed)
+	mockShutdown := _http.MockShutdown(nil)
 
-	got := dittohttp.GracefulShutdown(context.Background(), serve, shutdown, time.Second)
+	got := _http.GracefulShutdown(context.Background(), mockServe, mockShutdown, time.Second)
 
 	assert.NoError(t, got)
 }
 
 func TestGracefulShutdown_failsWhenServeFailsUnexpectedly(t *testing.T) {
 	want := errors.New("bind: address already in use")
-	serve := dittohttp.MockServe(want)
-	shutdown := dittohttp.MockShutdown(nil)
+	mockServe := _http.MockServe(want)
+	mockShutdown := _http.MockShutdown(nil)
 
-	got := dittohttp.GracefulShutdown(context.Background(), serve, shutdown, time.Second)
+	got := _http.GracefulShutdown(context.Background(), mockServe, mockShutdown, time.Second)
 
 	assert.ErrorIs(t, got, want)
 }
 
 func TestGracefulShutdown_successWhenContextIsCancelled(t *testing.T) {
-	serve := dittohttp.MockServeBlocking()
+	mockServe := _http.MockServeBlocking()
 	calls := 0
-	shutdown := dittohttp.MockCountingShutdown(nil, &calls)
+	mockShutdown := _http.MockCountingShutdown(nil, &calls)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_ = dittohttp.GracefulShutdown(ctx, serve, shutdown, time.Second)
+	_ = _http.GracefulShutdown(ctx, mockServe, mockShutdown, time.Second)
 
 	want := 1
 	got := calls
@@ -47,39 +47,39 @@ func TestGracefulShutdown_successWhenContextIsCancelled(t *testing.T) {
 }
 
 func TestGracefulShutdown_successWhenContextIsCancelledReturnsNil(t *testing.T) {
-	serve := dittohttp.MockServeBlocking()
+	mockServe := _http.MockServeBlocking()
 	calls := 0
-	shutdown := dittohttp.MockCountingShutdown(nil, &calls)
+	mockShutdown := _http.MockCountingShutdown(nil, &calls)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	got := dittohttp.GracefulShutdown(ctx, serve, shutdown, time.Second)
+	got := _http.GracefulShutdown(ctx, mockServe, mockShutdown, time.Second)
 
 	assert.NoError(t, got)
 }
 
 func TestGracefulShutdown_failsWhenShutdownFails(t *testing.T) {
-	serve := dittohttp.MockServeBlocking()
+	mockServe := _http.MockServeBlocking()
 	want := errors.New("shutdown: deadline exceeded")
-	shutdown := dittohttp.MockShutdown(want)
+	mockShutdown := _http.MockShutdown(want)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	got := dittohttp.GracefulShutdown(ctx, serve, shutdown, time.Second)
+	got := _http.GracefulShutdown(ctx, mockServe, mockShutdown, time.Second)
 
 	assert.ErrorIs(t, got, want)
 }
 
 func TestGracefulShutdown_successWhenShutdownIsBoundedByTimeout(t *testing.T) {
-	serve := dittohttp.MockServeBlocking()
+	mockServe := _http.MockServeBlocking()
 	var captured context.Context
-	shutdown := dittohttp.MockCapturingShutdown(nil, &captured)
+	mockShutdown := _http.MockCapturingShutdown(nil, &captured)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	timeout := 5 * time.Second
 	start := time.Now()
 
-	_ = dittohttp.GracefulShutdown(ctx, serve, shutdown, timeout)
+	_ = _http.GracefulShutdown(ctx, mockServe, mockShutdown, timeout)
 
 	want := start.Add(timeout)
 	got, _ := captured.Deadline()
