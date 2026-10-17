@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -68,39 +69,70 @@ func MockRunningService(t *testing.T) *MockService {
 
 // MockRunningServiceWith starts Run with opts, without a database, on a free port. Run installs its signal handler
 // before it starts listening, so Stop sending SIGINT to this process exercises the real graceful
-// shutdown path.
+// shutdown path. The free port is released before Run binds it, so another socket can take it in between: Run then
+// fails with EADDRINUSE and the service starts again on a new port.
 func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	port := listener.Addr().(*net.TCPAddr).Port
-	_ = listener.Close()
-	t.Setenv("APP_MOCK_PORT", strconv.Itoa(port))
+	const attempts = 3
 	opts.Name, opts.PortEnv, opts.NoDatabase = "svc", "APP_MOCK_PORT", true
 
-	service := &MockService{
-		BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port),
-		done:    make(chan error, 1),
-		client:  &http.Client{Transport: &http.Transport{DisableKeepAlives: true}},
-	}
-	go func() { service.done <- Run(opts) }()
-	t.Cleanup(func() { _ = service.Stop() })
+	for attempt := 1; ; attempt++ {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	for range 100 {
-		resp, err := service.client.Get(service.BaseURL + "/ping/v1")
-		if err == nil {
-			_ = resp.Body.Close()
+		port := listener.Addr().(*net.TCPAddr).Port
+		_ = listener.Close()
+		t.Setenv("APP_MOCK_PORT", strconv.Itoa(port))
+
+		// Run mounts its system routes on the mux it gets, so each attempt gets a new one in front of the caller's.
+		attemptOpts := opts
+		attemptOpts.Mux = http.NewServeMux()
+		if opts.Mux != nil {
+			attemptOpts.Mux.Handle("/", opts.Mux)
+		}
+
+		service := &MockService{
+			BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port),
+			done:    make(chan error, 1),
+			client:  &http.Client{Transport: &http.Transport{DisableKeepAlives: true}},
+		}
+		go func() { service.done <- Run(attemptOpts) }()
+		t.Cleanup(func() { _ = service.Stop() })
+
+		runErr := service.waitUntilStarted(t)
+		if runErr == nil {
 			return service
 		}
 
-		time.Sleep(20 * time.Millisecond)
+		if !errors.Is(runErr, syscall.EADDRINUSE) || attempt == attempts {
+			t.Fatalf("service at %s stopped before it started: %v", service.BaseURL, runErr)
+		}
 	}
+}
 
-	t.Fatalf("service at %s did not start", service.BaseURL)
-	return service
+// waitUntilStarted polls the service until it answers, and returns Run's error if Run returns first.
+func (m *MockService) waitUntilStarted(t *testing.T) error {
+	t.Helper()
+	deadline := time.After(10 * time.Second)
+	for {
+		resp, err := m.client.Get(m.BaseURL + "/ping/v1")
+		if err == nil {
+			_ = resp.Body.Close()
+			return nil
+		}
+
+		select {
+		case runErr := <-m.done:
+			// Run already returned, so its signal handler is gone and a SIGINT from Stop would kill the test binary.
+			m.stopped = true
+			return runErr
+		case <-deadline:
+			t.Fatalf("service at %s did not start", m.BaseURL)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
 }
 
 // Get requests path on the service and returns the response with its body drained, or an empty response if the request fails.
