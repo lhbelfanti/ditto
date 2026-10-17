@@ -42,12 +42,12 @@ func (b Binder) WithBody(body any) Binder {
 // A required param that is absent or equal to its zero value is missing; declare it Optional when the zero value is valid.
 // A body that implements Validator is checked with IsValid, and its error is returned as it is.
 func (b Binder) Bind() (Request, error) {
-	path, err := parse(b.path, b.r.PathValue, ErrMissingPathParam, ErrInvalidPathParam, ErrUndeclaredPathParam)
+	path, err := parse(b.path, b.r.PathValue, ErrMissingPathParam, ErrInvalidPathParam)
 	if err != nil {
 		return Request{}, err
 	}
 
-	query, err := parse(b.query, b.r.URL.Query().Get, ErrMissingQueryParam, ErrInvalidQueryParam, ErrUndeclaredQueryParam)
+	query, err := parse(b.query, b.r.URL.Query().Get, ErrMissingQueryParam, ErrInvalidQueryParam)
 	if err != nil {
 		return Request{}, err
 	}
@@ -73,8 +73,8 @@ func (b Binder) Bind() (Request, error) {
 }
 
 // parse reads every declared param with lookup, in name order so that the first error is always the same one.
-func parse(fields Fields, lookup func(string) string, errMissing, errInvalid, errUndeclared error) (Values, error) {
-	values := Values{fields: fields, values: make(map[string]any, len(fields)), errUndeclared: errUndeclared}
+func parse(fields Fields, lookup func(string) string, errMissing, errInvalid error) (Values, error) {
+	values := Values{values: make(map[string]any, len(fields))}
 
 	for _, name := range slices.Sorted(maps.Keys(fields)) {
 		field := fields[name]

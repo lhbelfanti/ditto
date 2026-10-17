@@ -39,29 +39,13 @@ func CreateHandlerV1(create CreateV1) http.HandlerFunc {
         ctx := r.Context()
 
         var body TransactionRequestDTOV1
-        req, err := request.New(r).
-            WithPath(path).
-            WithQuery(query).
-            WithBody(&body).
-            Bind()
+        req, err := request.New(r).WithPath(path).WithQuery(query).WithBody(&body).Bind()
         if err != nil {
             response.Send(ctx, w, http.StatusBadRequest, err.Error(), nil, err)
             return
         }
 
-        accountID, err := req.Path.Int("accountID")
-        if err != nil {
-            response.Send(ctx, w, http.StatusBadRequest, err.Error(), nil, err)
-            return
-        }
-
-        notify, err := req.Query.Bool("notify")
-        if err != nil {
-            response.Send(ctx, w, http.StatusBadRequest, err.Error(), nil, err)
-            return
-        }
-
-        result, err := create(ctx, accountID, body.Amount, body.Currency, notify)
+        result, err := create(ctx, req.Path.Int("accountID"), body.Amount, body.Currency, req.Query.Bool("notify"))
         // ...
     }
 }
@@ -82,9 +66,9 @@ error. A part with no `With*` call is not read.
   `ErrInvalidBody`. When the pointer implements `request.Validator` (`IsValid() error`, with a value
   or a pointer receiver), `Bind` calls it and returns its error as it is.
 - **Reading the values.** `req.Path` and `req.Query` have one getter per type (`String`, `Int`,
-  `Bool`, `Time`). A getter called with a name that was not declared, or declared with another
-  type, fails with `ErrUndeclaredPathParam` or `ErrUndeclaredQueryParam`
-  (`undeclared query param: notify as String`), and the handler answers it with a 400 too.
+  `Bool`, `Time`) that returns the value alone, so it goes straight into the use case call: `Bind`
+  already checked every declared param. An optional param left out reads as its zero value. A name
+  that was not declared, or declared with another type, also reads as the zero value.
 
 The params are checked in name order, so with several missing ones the error is always the same.
 Every error message names the param (`missing path param: username`), so the handler can answer
@@ -142,7 +126,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 |---|---|
 | `FailedToMarshalBody`/`FailedToCreateRequest`/`FailedToExecuteRequest`/`FailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant |
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
-| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrUndeclaredPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrUndeclaredQueryParam`/`ErrInvalidBody` | `Binder.Bind` and the `Values` getters — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
+| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrInvalidBody` | `Binder.Bind` — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
 | `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgInvalidToken` is reused across two failure branches, so it's a named constant; the single-use "authorization header required" message stays inline |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more

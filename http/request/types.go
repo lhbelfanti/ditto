@@ -28,9 +28,7 @@ type (
 
 	// Values holds the path or query params that Bind parsed, read by name with the getter of their type.
 	Values struct {
-		fields        Fields
-		values        map[string]any
-		errUndeclared error
+		values map[string]any
 	}
 
 	// Binder reads an *http.Request: the params declared with WithPath and WithQuery, and the body passed to WithBody.
@@ -67,9 +65,4 @@ func (f Field) Optional() Field {
 	f.optional = true
 
 	return f
-}
-
-// String returns the name of the kind.
-func (k kind) String() string {
-	return [...]string{"String", "Int", "Bool", "Time"}[k]
 }
