@@ -1,5 +1,7 @@
 package request
 
+import "net/http"
+
 type kind int
 
 const (
@@ -19,9 +21,6 @@ type (
 	// Fields maps the name of each path or query param a handler reads to its Field.
 	Fields map[string]Field
 
-	// NoBody is the body type of a handler that reads no request body.
-	NoBody struct{}
-
 	// Validator is a request body that checks the presence of its own fields.
 	Validator interface {
 		IsValid() error
@@ -34,9 +33,16 @@ type (
 		errUndeclared error
 	}
 
-	// Request holds what Bind read from an *http.Request.
-	Request[B any] struct {
-		Body  B
+	// Binder reads an *http.Request: the params declared with WithPath and WithQuery, and the body passed to WithBody.
+	Binder struct {
+		r     *http.Request
+		path  Fields
+		query Fields
+		body  any
+	}
+
+	// Request holds the params that Bind read.
+	Request struct {
 		Path  Values
 		Query Values
 	}

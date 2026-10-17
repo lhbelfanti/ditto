@@ -1,7 +1,7 @@
 # http
 
 The `http` package covers six concerns for a service's HTTP layer: a standardized JSON response
-envelope (`response`), reading and checking a request (`request.Bind`), a thin synchronous client (`CustomClient`), ditto's own system routes
+envelope (`response`), reading and checking a request (`request.Binder`), a thin synchronous client (`CustomClient`), ditto's own system routes
 (`RegisterSystemRoutes`), bounded graceful shutdown (`GracefulShutdown`), and three middlewares
 (`middleware.Auth`/`CORS`/`RequestID`).
 
@@ -9,7 +9,7 @@ For client tests that need a response sequence (for example, 429 followed by 200
 `NewClient(0).HTTPClient.Transport` to `MockSequenceRoundTripper` with one `MockHTTPResult` per
 request. The transport returns an error if more requests are made than results provided.
 
-## `request.Bind`
+## `request.Binder`
 
 ```go
 // dtos.go
@@ -38,7 +38,12 @@ func CreateHandlerV1(create CreateV1) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         ctx := r.Context()
 
-        req, err := request.Bind[TransactionRequestDTOV1](r, path, query)
+        var body TransactionRequestDTOV1
+        req, err := request.New(r).
+            WithPath(path).
+            WithQuery(query).
+            WithBody(&body).
+            Bind()
         if err != nil {
             response.Send(ctx, w, http.StatusBadRequest, err.Error(), nil, err)
             return
@@ -56,26 +61,26 @@ func CreateHandlerV1(create CreateV1) http.HandlerFunc {
             return
         }
 
-        result, err := create(ctx, accountID, req.Body.Amount, req.Body.Currency, notify)
+        result, err := create(ctx, accountID, body.Amount, body.Currency, notify)
         // ...
     }
 }
 ```
 
-`Bind` reads a request in one call: the path params, the query params and the JSON body, in that
-order, and returns the first error.
+`request.New(r)` returns a `Binder`. Each `With*` declares one part of the request, and `Bind` reads
+them in a fixed order: the path params, the query params and the JSON body. It returns the first
+error. A part with no `With*` call is not read.
 
 - **Params.** The handler Maker declares them as two `request.Fields` maps, from the name of each
   param to its type: `String` (trimmed), `Int`, `Bool` or `Time` (RFC 3339). A param is required:
   absent, or equal to its zero value (`""`, `0`, `false`), it fails with `ErrMissingPathParam` or
   `ErrMissingQueryParam`. Mark it `.Optional()` when the business layer accepts it left out or at
   its zero value, and use `Values.Has` to tell the two apart. A value that does not parse fails
-  with `ErrInvalidPathParam` or `ErrInvalidQueryParam`. Pass `nil` for a map the handler does not
-  need.
-- **Body.** It is decoded into the type parameter. A decode failure is `ErrInvalidBody`. When the
-  type implements `request.Validator` (`IsValid() error`), with a value or a pointer receiver,
-  `Bind` calls it and returns its error as it is. Use `request.NoBody` for a handler that reads no
-  body: `Bind` then does not touch it.
+  with `ErrInvalidPathParam` or `ErrInvalidQueryParam`. Leave out `WithPath` or `WithQuery` when
+  the handler reads none.
+- **Body.** `WithBody` takes a pointer, and the body is decoded into it. A decode failure is
+  `ErrInvalidBody`. When the pointer implements `request.Validator` (`IsValid() error`, with a value
+  or a pointer receiver), `Bind` calls it and returns its error as it is.
 - **Reading the values.** `req.Path` and `req.Query` have one getter per type (`String`, `Int`,
   `Bool`, `Time`). A getter called with a name that was not declared, or declared with another
   type, fails with `ErrUndeclaredPathParam` or `ErrUndeclaredQueryParam`
@@ -137,7 +142,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 |---|---|
 | `FailedToMarshalBody`/`FailedToCreateRequest`/`FailedToExecuteRequest`/`FailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant |
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
-| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrUndeclaredPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrUndeclaredQueryParam`/`ErrInvalidBody` | `request.Bind` and the `Values` getters — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
+| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrUndeclaredPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrUndeclaredQueryParam`/`ErrInvalidBody` | `Binder.Bind` and the `Values` getters — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
 | `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgInvalidToken` is reused across two failure branches, so it's a named constant; the single-use "authorization header required" message stays inline |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more

@@ -12,41 +12,64 @@ import (
 	"time"
 )
 
-// Bind reads the path params, the query params and the body of r, in that order, and returns the first error.
+// New returns a Binder for r that reads nothing until WithPath, WithQuery or WithBody declare it.
+func New(r *http.Request) Binder {
+	return Binder{r: r}
+}
+
+// WithPath declares the path params the handler reads.
+func (b Binder) WithPath(path Fields) Binder {
+	b.path = path
+
+	return b
+}
+
+// WithQuery declares the query params the handler reads.
+func (b Binder) WithQuery(query Fields) Binder {
+	b.query = query
+
+	return b
+}
+
+// WithBody declares the pointer the JSON body is decoded into.
+func (b Binder) WithBody(body any) Binder {
+	b.body = body
+
+	return b
+}
+
+// Bind reads the path params, the query params and the body, in that order, and returns the first error.
 // A required param that is absent or equal to its zero value is missing; declare it Optional when the zero value is valid.
-// A body that implements Validator is checked with IsValid, and its error is returned as it is. With NoBody the body is not read.
-func Bind[B any](r *http.Request, path, query Fields) (Request[B], error) {
-	pathValues, err := parse(path, r.PathValue, ErrMissingPathParam, ErrInvalidPathParam, ErrUndeclaredPathParam)
+// A body that implements Validator is checked with IsValid, and its error is returned as it is.
+func (b Binder) Bind() (Request, error) {
+	path, err := parse(b.path, b.r.PathValue, ErrMissingPathParam, ErrInvalidPathParam, ErrUndeclaredPathParam)
 	if err != nil {
-		return Request[B]{}, err
+		return Request{}, err
 	}
 
-	queryValues, err := parse(query, r.URL.Query().Get, ErrMissingQueryParam, ErrInvalidQueryParam, ErrUndeclaredQueryParam)
+	query, err := parse(b.query, b.r.URL.Query().Get, ErrMissingQueryParam, ErrInvalidQueryParam, ErrUndeclaredQueryParam)
 	if err != nil {
-		return Request[B]{}, err
+		return Request{}, err
 	}
 
-	request := Request[B]{Path: pathValues, Query: queryValues}
-
-	_, noBody := any(request.Body).(NoBody)
-	if noBody {
-		return request, nil
+	if b.body == nil {
+		return Request{Path: path, Query: query}, nil
 	}
 
-	err = json.NewDecoder(r.Body).Decode(&request.Body)
+	err = json.NewDecoder(b.r.Body).Decode(b.body)
 	if err != nil {
-		return Request[B]{}, fmt.Errorf("%w: %w", ErrInvalidBody, err)
+		return Request{}, fmt.Errorf("%w: %w", ErrInvalidBody, err)
 	}
 
-	validator, validates := any(&request.Body).(Validator)
+	validator, validates := b.body.(Validator)
 	if validates {
 		err = validator.IsValid()
 		if err != nil {
-			return Request[B]{}, err
+			return Request{}, err
 		}
 	}
 
-	return request, nil
+	return Request{Path: path, Query: query}, nil
 }
 
 // parse reads every declared param with lookup, in name order so that the first error is always the same one.
