@@ -32,14 +32,7 @@ type (
 	MockPgxTx struct {
 		mock.Mock
 	}
-
-	// MockPgxCollectableRow mock implementation of pgx.CollectableRow
-	MockPgxCollectableRow struct {
-		mock.Mock
-	}
 )
-
-// MockPostgresConnection
 
 // Exec returns the configured command tag and error.
 func (m *MockPostgresConnection) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
@@ -65,15 +58,11 @@ func (m *MockPostgresConnection) Begin(ctx context.Context) (pgx.Tx, error) {
 	return args.Get(0).(pgx.Tx), args.Error(1)
 }
 
-// MockPgxRow
-
 // Scan returns the configured error.
 func (m *MockPgxRow) Scan(dest ...any) error {
 	args := m.Called(dest)
 	return args.Error(0)
 }
-
-// MockPgxRows
 
 // Close records the call.
 func (m *MockPgxRows) Close() {
@@ -127,8 +116,6 @@ func (m *MockPgxRows) Conn() *pgx.Conn {
 	args := m.Called()
 	return args.Get(0).(*pgx.Conn)
 }
-
-// MockPgxTx
 
 // Begin returns the configured transaction and error.
 func (t *MockPgxTx) Begin(ctx context.Context) (pgx.Tx, error) {
@@ -196,32 +183,6 @@ func (t *MockPgxTx) Conn() *pgx.Conn {
 	return args.Get(0).(*pgx.Conn)
 }
 
-// MockPgxCollectableRow
-
-// Scan returns the configured error and runs any configured side effect.
-func (m *MockPgxCollectableRow) Scan(dest ...any) error {
-	args := m.Called(dest)
-	return args.Error(0)
-}
-
-// FieldDescriptions returns the configured field descriptions.
-func (m *MockPgxCollectableRow) FieldDescriptions() []pgconn.FieldDescription {
-	args := m.Called()
-	return args.Get(0).([]pgconn.FieldDescription)
-}
-
-// Values returns the configured values and error.
-func (m *MockPgxCollectableRow) Values() ([]any, error) {
-	args := m.Called()
-	return args.Get(0).([]any), args.Error(1)
-}
-
-// RawValues returns the configured raw values.
-func (m *MockPgxCollectableRow) RawValues() [][]byte {
-	args := m.Called()
-	return args.Get(0).([][]byte)
-}
-
 // MockScan mocks the "Scan" func
 func MockScan(mockPgxRow *MockPgxRow, values []any, t *testing.T) {
 	mockPgxRow.On("Scan", mock.Anything).Return(nil).Run(
@@ -236,25 +197,6 @@ func MockScan(mockPgxRow *MockPgxRow, values []any, t *testing.T) {
 			}
 		},
 	)
-}
-
-// MockPgxCollectableRowMethods mocks all the methods of a MockPgxCollectableRow
-func MockPgxCollectableRowMethods(m *MockPgxCollectableRow, values []any, t *testing.T) {
-	m.On("Scan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		dest := args.Get(0).([]any)
-		if len(dest) != len(values) {
-			t.Errorf("Expected %d destination arguments but got %d", len(values), len(dest))
-			return
-		}
-
-		for i, val := range values {
-			if val == nil {
-				continue // Let the zero value remain
-			}
-
-			parseScanValue(val, dest[i], t)
-		}
-	})
 }
 
 // MockPgxRowsScanValue makes rows.Scan write value into its first destination.

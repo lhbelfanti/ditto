@@ -86,14 +86,6 @@ func MockApplyCapturing(err error, called *bool) Apply {
 	}
 }
 
-// MockStatusCapturing returns a Status that sets *called and returns records and err.
-func MockStatusCapturing(records []Record, err error, called *bool) Status {
-	return func(context.Context) ([]Record, error) {
-		*called = true
-		return records, err
-	}
-}
-
 // MockTx returns a transaction that answers the lock, table creation, file execution and tracking queries as cfg describes.
 func MockTx(cfg MockTxConfig) *database.MockPgxTx {
 	appliedRow := MockPgxRowBool(cfg.Applied)

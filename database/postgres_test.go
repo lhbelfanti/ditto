@@ -43,7 +43,7 @@ func TestInitPostgres_successWhenCalledAgainAfterAFailure(t *testing.T) {
 	t.Setenv("POSTGRES_DB_PORT", "5432")
 
 	pg, err := database.InitPostgres(context.Background())
-	defer pg.Close()
+	t.Cleanup(pg.Close)
 
 	got := err
 
