@@ -48,10 +48,19 @@ func TestBind_success(t *testing.T) {
 	got, err := request.Bind[roleBody](req, path, query)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "Nebula", got.Path.String("username"))
-	assert.Equal(t, 20, got.Query.Int("limit"))
-	assert.Equal(t, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), got.Query.Time("from"))
 	assert.Equal(t, roleBody{Role: "administrator"}, got.Body)
+
+	username, err := got.Path.String("username")
+	assert.NoError(t, err)
+	assert.Equal(t, "Nebula", username)
+
+	limit, err := got.Query.Int("limit")
+	assert.NoError(t, err)
+	assert.Equal(t, 20, limit)
+
+	from, err := got.Query.Time("from")
+	assert.NoError(t, err)
+	assert.Equal(t, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), from)
 }
 
 func TestBind_successWhenOptionalParamIsLeftOut(t *testing.T) {
@@ -62,7 +71,10 @@ func TestBind_successWhenOptionalParamIsLeftOut(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.False(t, got.Query.Has("limit"))
-	assert.Equal(t, 0, got.Query.Int("limit"))
+
+	limit, err := got.Query.Int("limit")
+	assert.NoError(t, err)
+	assert.Equal(t, 0, limit)
 }
 
 func TestBind_successWhenOptionalParamIsSentWithItsZeroValue(t *testing.T) {
@@ -73,7 +85,10 @@ func TestBind_successWhenOptionalParamIsSentWithItsZeroValue(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, got.Query.Has("confirm"))
-	assert.False(t, got.Query.Bool("confirm"))
+
+	confirm, err := got.Query.Bool("confirm")
+	assert.NoError(t, err)
+	assert.False(t, confirm)
 }
 
 func TestBind_successWhenBodyValidatesWithPointerReceiver(t *testing.T) {
@@ -178,13 +193,40 @@ func TestBind_failsWithTheFirstParamInNameOrder(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestValues_panicsWhenParamIsNotDeclaredWithThatKind(t *testing.T) {
+func TestValues_failsWhenQueryParamIsNotDeclared(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/events?limit=5", nil)
 	query := request.Fields{"limit": request.Int}
 
 	got, err := request.Bind[request.NoBody](req, nil, query)
-
 	assert.NoError(t, err)
-	assert.Panics(t, func() { got.Query.String("limit") })
-	assert.Panics(t, func() { got.Query.Int("offset") })
+
+	_, err = got.Query.Int("offset")
+
+	assert.ErrorIs(t, err, request.ErrUndeclaredQueryParam)
+	assert.Equal(t, "undeclared query param: offset as Int", err.Error())
+}
+
+func TestValues_failsWhenQueryParamIsDeclaredWithAnotherKind(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/events?limit=5", nil)
+	query := request.Fields{"limit": request.Int}
+
+	got, err := request.Bind[request.NoBody](req, nil, query)
+	assert.NoError(t, err)
+
+	_, err = got.Query.String("limit")
+
+	want := request.ErrUndeclaredQueryParam
+	assert.ErrorIs(t, err, want)
+}
+
+func TestValues_failsWhenPathParamIsNotDeclared(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/accounts", nil)
+
+	got, err := request.Bind[request.NoBody](req, nil, nil)
+	assert.NoError(t, err)
+
+	_, err = got.Path.String("username")
+
+	want := request.ErrUndeclaredPathParam
+	assert.ErrorIs(t, err, want)
 }

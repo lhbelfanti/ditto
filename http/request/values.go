@@ -6,22 +6,22 @@ import (
 )
 
 // String returns the String param name, or "" when an optional one was left out.
-func (v Values) String(name string) string {
+func (v Values) String(name string) (string, error) {
 	return get[string](v, name, kindString)
 }
 
 // Int returns the Int param name, or 0 when an optional one was left out.
-func (v Values) Int(name string) int {
+func (v Values) Int(name string) (int, error) {
 	return get[int](v, name, kindInt)
 }
 
 // Bool returns the Bool param name, or false when an optional one was left out.
-func (v Values) Bool(name string) bool {
+func (v Values) Bool(name string) (bool, error) {
 	return get[bool](v, name, kindBool)
 }
 
 // Time returns the Time param name, or the zero time when an optional one was left out.
-func (v Values) Time(name string) time.Time {
+func (v Values) Time(name string) (time.Time, error) {
 	return get[time.Time](v, name, kindTime)
 }
 
@@ -32,14 +32,16 @@ func (v Values) Has(name string) bool {
 	return sent
 }
 
-// get panics when name was not declared with the kind of the getter: that is a bug in the handler, not in the request.
-func get[T any](v Values, name string, k kind) T {
+// get fails with ErrUndeclaredPathParam or ErrUndeclaredQueryParam when name was not declared with the kind of the getter.
+func get[T any](v Values, name string, k kind) (T, error) {
 	field, declared := v.fields[name]
 	if !declared || field.kind != k {
-		panic(fmt.Sprintf("request: %q is not declared as %s", name, k))
+		var zero T
+
+		return zero, fmt.Errorf("%w: %s as %s", v.errUndeclared, name, k)
 	}
 
 	value, _ := v.values[name].(T)
 
-	return value
+	return value, nil
 }

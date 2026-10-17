@@ -12,19 +12,51 @@ request. The transport returns an error if more requests are made than results p
 ## `request.Bind`
 
 ```go
-func ChangeRoleHandlerV1(changeRole ChangeRoleV1) http.HandlerFunc {
-    path := request.Fields{"username": request.String}
+// dtos.go
+type TransactionRequestDTOV1 struct {
+    Amount   int    `json:"amount"`
+    Currency string `json:"currency"`
+}
+
+func (dto TransactionRequestDTOV1) IsValid() error {
+    if dto.Amount == 0 {
+        return ErrMissingAmount
+    }
+
+    if dto.Currency == "" {
+        return ErrMissingCurrency
+    }
+
+    return nil
+}
+
+// handlers.go
+func CreateHandlerV1(create CreateV1) http.HandlerFunc {
+    path := request.Fields{"accountID": request.Int}
+    query := request.Fields{"notify": request.Bool.Optional()}
 
     return func(w http.ResponseWriter, r *http.Request) {
         ctx := r.Context()
 
-        req, err := request.Bind[RoleRequestDTOV1](r, path, nil)
+        req, err := request.Bind[TransactionRequestDTOV1](r, path, query)
         if err != nil {
             response.Send(ctx, w, http.StatusBadRequest, err.Error(), nil, err)
             return
         }
 
-        result, err := changeRole(ctx, req.Path.String("username"), req.Body.Role, req.Body.Reason)
+        accountID, err := req.Path.Int("accountID")
+        if err != nil {
+            response.Send(ctx, w, http.StatusBadRequest, err.Error(), nil, err)
+            return
+        }
+
+        notify, err := req.Query.Bool("notify")
+        if err != nil {
+            response.Send(ctx, w, http.StatusBadRequest, err.Error(), nil, err)
+            return
+        }
+
+        result, err := create(ctx, accountID, req.Body.Amount, req.Body.Currency, notify)
         // ...
     }
 }
@@ -46,7 +78,8 @@ order, and returns the first error.
   body: `Bind` then does not touch it.
 - **Reading the values.** `req.Path` and `req.Query` have one getter per type (`String`, `Int`,
   `Bool`, `Time`). A getter called with a name that was not declared, or declared with another
-  type, panics: it is a bug in the handler, and its tests catch it.
+  type, fails with `ErrUndeclaredPathParam` or `ErrUndeclaredQueryParam`
+  (`undeclared query param: notify as String`), and the handler answers it with a 400 too.
 
 The params are checked in name order, so with several missing ones the error is always the same.
 Every error message names the param (`missing path param: username`), so the handler can answer
@@ -104,7 +137,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 |---|---|
 | `FailedToMarshalBody`/`FailedToCreateRequest`/`FailedToExecuteRequest`/`FailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant |
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
-| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrInvalidBody` | `request.Bind` — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
+| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrUndeclaredPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrUndeclaredQueryParam`/`ErrInvalidBody` | `request.Bind` and the `Values` getters — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
 | `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgInvalidToken` is reused across two failure branches, so it's a named constant; the single-use "authorization header required" message stays inline |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more

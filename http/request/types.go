@@ -29,8 +29,9 @@ type (
 
 	// Values holds the path or query params that Bind parsed, read by name with the getter of their type.
 	Values struct {
-		fields Fields
-		values map[string]any
+		fields        Fields
+		values        map[string]any
+		errUndeclared error
 	}
 
 	// Request holds what Bind read from an *http.Request.
