@@ -70,8 +70,11 @@ type (
 )
 
 const (
-	defaultPortEnv       string = "APP_INTERNAL_PORT"
-	defaultMigrationsDir string = "./migrations"
+	defaultPortEnv         string        = "APP_INTERNAL_PORT"
+	defaultMigrationsDir   string        = "./migrations"
+	defaultStartupTimeout  time.Duration = 5 * time.Second
+	defaultPingTimeout     time.Duration = 2 * time.Second
+	defaultShutdownTimeout time.Duration = 5 * time.Second
 )
 
 // WithMiddleware returns a copy of o that also decorates the handler with m. The first middleware

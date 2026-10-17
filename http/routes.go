@@ -9,7 +9,7 @@ import (
 // RegisterSystemRoutes mounts GET /ping/v1 (unconditional liveness — never touches the database)
 // and returns a SystemRoutes to opt into the routes a given service actually needs:
 //
-//	dittohttp.RegisterSystemRoutes(mux).WithDatabasePing(dbPing)
+//	_http.RegisterSystemRoutes(mux).WithDatabasePing(dbPing)
 func RegisterSystemRoutes(mux *http.ServeMux) *SystemRoutes {
 	mux.HandleFunc("GET /ping/v1", pingHandlerV1())
 	return &SystemRoutes{mux: mux}

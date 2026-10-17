@@ -82,33 +82,33 @@ func TestSend_success(t *testing.T) {
 }
 
 func TestSend_successWhenErrorIsLoggedOnce(t *testing.T) {
-	output := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 	w := httptest.NewRecorder()
 
 	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
 
 	want := 1
-	got := bytes.Count(output.Bytes(), []byte(`"level":"error"`))
+	got := bytes.Count(mockOutput.Bytes(), []byte(`"level":"error"`))
 
 	assert.Equal(t, want, got)
 }
 
 func TestSend_successWhenErrorIsLoggedWithMessage(t *testing.T) {
-	output := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 	w := httptest.NewRecorder()
 
 	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
 
-	assert.Contains(t, output.String(), `"message":"request failed"`)
+	assert.Contains(t, mockOutput.String(), `"message":"request failed"`)
 }
 
 func TestSend_successWhenErrorIsLoggedWithCause(t *testing.T) {
-	output := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 	w := httptest.NewRecorder()
 
 	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
 
-	assert.Contains(t, output.String(), `"error":"cause"`)
+	assert.Contains(t, mockOutput.String(), `"error":"cause"`)
 }
 
 func TestSend_successWhenCauseIsNotInTheResponseBody(t *testing.T) {

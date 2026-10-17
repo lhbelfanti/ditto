@@ -80,12 +80,6 @@ type (
 	}
 )
 
-const (
-	// adminDatabase is the maintenance database the administrator connects to, since the service's
-	// own database may not exist yet.
-	adminDatabase string = "postgres"
-)
-
 // resolveDatabaseURL reads the connection target from the environment. POSTGRES_DB_HOST defaults
 // to the compose service name postgres_db, so services that do not set it keep working unchanged.
 func resolveDatabaseURL() string {
@@ -116,6 +110,9 @@ func buildURL(user, pass, host, port, name string) string {
 // and port as the service database, the maintenance database, and POSTGRES_ADMIN_USER/PASS. It
 // returns false when either credential is empty.
 func resolveAdminURL() (string, bool) {
+	// The service's own database may not exist yet, so the administrator connects to the maintenance one.
+	const adminDatabase string = "postgres"
+
 	adminUser := env.Get("POSTGRES_ADMIN_USER", "")
 	adminPass := env.Get("POSTGRES_ADMIN_PASS", "")
 	if adminUser == "" || adminPass == "" {

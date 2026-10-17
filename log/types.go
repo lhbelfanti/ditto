@@ -53,7 +53,8 @@ func (e *FieldsError) Unwrap() error {
 
 // formatField renders a field value for an error text. Times use RFC 3339.
 func formatField(value any) string {
-	if t, ok := value.(time.Time); ok {
+	t, isTime := value.(time.Time)
+	if isTime {
 		return t.Format(time.RFC3339)
 	}
 

@@ -9,11 +9,6 @@ import (
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
-const (
-	queryTableExists  = `SELECT to_regclass('migrations') IS NOT NULL`
-	queryAppliedNames = `SELECT name FROM migrations`
-)
-
 // MakeListFiles creates a ListFiles function that globs *.sql files under dir and returns their
 // sorted basenames, matching MakeRunner's discovery order.
 func MakeListFiles(dir string) ListFiles {
@@ -37,15 +32,29 @@ func MakeListFiles(dir string) ListFiles {
 
 // MakeTableExists creates a TableExists function backed by the injected read-only scalar select.
 func MakeTableExists(selectOne database.SelectOne[bool]) TableExists {
+	const query string = `SELECT to_regclass('migrations') IS NOT NULL`
+
 	return func(ctx context.Context) (bool, error) {
-		return selectOne(ctx, queryTableExists)
+		exists, err := selectOne(ctx, query)
+		if err != nil {
+			return false, fmt.Errorf("%w: %w", ErrFailedToSelectTableExists, err)
+		}
+
+		return exists, nil
 	}
 }
 
 // MakeAppliedNames creates an AppliedNames function backed by the injected read-only select.
 func MakeAppliedNames(selectMany database.Select[string]) AppliedNames {
+	const query string = `SELECT name FROM migrations`
+
 	return func(ctx context.Context) ([]string, error) {
-		return selectMany(ctx, queryAppliedNames)
+		names, err := selectMany(ctx, query)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrFailedToQueryAppliedNames, err)
+		}
+
+		return names, nil
 	}
 }
 
@@ -56,7 +65,7 @@ func MakeStatus(listFiles ListFiles, tableExists TableExists, appliedNames Appli
 	return func(ctx context.Context) ([]Record, error) {
 		names, err := listFiles()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", ErrFailedToListFiles, err)
 		}
 
 		exists, err := tableExists(ctx)

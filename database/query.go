@@ -11,12 +11,18 @@ import (
 // MakeCollectRows creates a CollectRows[T] backed by pgx.CollectRows. Pass nil for fn to use
 // pgx.RowToStructByPos[T] (struct fields mapped by position).
 func MakeCollectRows[T any](fn pgx.RowToFunc[T]) CollectRows[T] {
+	rowToFunc := fn
+	if rowToFunc == nil {
+		rowToFunc = pgx.RowToStructByPos[T]
+	}
+
 	return func(rows pgx.Rows) ([]T, error) {
-		if fn == nil {
-			return pgx.CollectRows(rows, pgx.RowToStructByPos[T])
+		results, err := pgx.CollectRows(rows, rowToFunc)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrFailedToScanRows, err)
 		}
 
-		return pgx.CollectRows(rows, fn)
+		return results, nil
 	}
 }
 
@@ -55,11 +61,11 @@ func MakeSelectOne[T any](db Connection, fn pgx.RowToFunc[T]) SelectOne[T] {
 		}
 
 		result, err := pgx.CollectOneRow(rows, rowToFunc)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return zero, fmt.Errorf("%w: %w", ErrNoRows, err)
-		}
-
 		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return zero, fmt.Errorf("%w: %w", ErrNoRows, err)
+			}
+
 			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 
@@ -113,11 +119,11 @@ func MakeUpdate(db Connection) Update {
 func MakeExecFormatted(selectStatement SelectOne[string], update Update) ExecFormatted {
 	return func(ctx context.Context, query string, args ...any) error {
 		statement, err := selectStatement(ctx, query, args...)
-		if errors.Is(err, ErrNoRows) {
-			return nil
-		}
-
 		if err != nil {
+			if errors.Is(err, ErrNoRows) {
+				return nil
+			}
+
 			return fmt.Errorf("%w: %w", ErrFailedToBuildStatement, err)
 		}
 
