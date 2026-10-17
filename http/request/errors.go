@@ -8,4 +8,5 @@ var (
 	ErrMissingQueryParam = errors.New("missing query param")
 	ErrInvalidQueryParam = errors.New("invalid query param")
 	ErrInvalidBody       = errors.New("invalid request body")
+	ErrInvalidDTO        = errors.New("invalid request DTO")
 )

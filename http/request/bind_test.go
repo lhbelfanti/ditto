@@ -39,58 +39,85 @@ func (b *pointerBody) IsValid() error {
 	return nil
 }
 
+type changeRoleDTO struct {
+	Path struct {
+		Username string `path:"username"`
+	}
+	Query struct {
+		Limit int       `query:"limit"`
+		From  time.Time `query:"from"`
+		Actor *string   `query:"actor"`
+	}
+	Body roleBody
+}
+
+type eventsDTO struct {
+	Query struct {
+		Limit   *int  `query:"limit"`
+		Confirm *bool `query:"confirm"`
+	}
+}
+
+type sessionDTO struct {
+	Path struct {
+		ID int64 `path:"id"`
+	}
+}
+
+type deletionDTO struct {
+	Path struct {
+		Username string `path:"username"`
+		Planet   string `path:"planet"`
+	}
+}
+
 func TestBind_success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/accounts/Nebula?limit=20&from=2026-01-02T03:04:05Z", strings.NewReader(`{"role":"administrator"}`))
 	req.SetPathValue("username", " Nebula ")
-	path := request.Fields{"username": request.String}
-	query := request.Fields{"limit": request.Int, "from": request.Time, "actor": request.String.Optional()}
-	var body roleBody
 
-	got, err := request.New(req).WithPath(path).WithQuery(query).WithBody(&body).Bind()
+	got, err := request.Bind[changeRoleDTO](req)
 
 	assert.NoError(t, err)
-	assert.Equal(t, roleBody{Role: "administrator"}, body)
-	assert.Equal(t, "Nebula", got.Path.String("username"))
-	assert.Equal(t, 20, got.Query.Int("limit"))
-	assert.Equal(t, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), got.Query.Time("from"))
+	assert.Equal(t, "Nebula", got.Path.Username)
+	assert.Equal(t, 20, got.Query.Limit)
+	assert.Equal(t, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), got.Query.From)
+	assert.Nil(t, got.Query.Actor)
+	assert.Equal(t, roleBody{Role: "administrator"}, got.Body)
 }
 
 func TestBind_successWhenOptionalParamIsLeftOut(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/events", nil)
-	query := request.Fields{"limit": request.Int.Optional()}
 
-	got, err := request.New(req).WithQuery(query).Bind()
+	got, err := request.Bind[eventsDTO](req)
 
 	assert.NoError(t, err)
-	assert.False(t, got.Query.Has("limit"))
-	assert.Equal(t, 0, got.Query.Int("limit"))
+	assert.Nil(t, got.Query.Limit)
+	assert.Nil(t, got.Query.Confirm)
 }
 
 func TestBind_successWhenOptionalParamIsSentWithItsZeroValue(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/events?confirm=false", nil)
-	query := request.Fields{"confirm": request.Bool.Optional()}
+	req := httptest.NewRequest(http.MethodGet, "/events?limit=0&confirm=false", nil)
 
-	got, err := request.New(req).WithQuery(query).Bind()
+	got, err := request.Bind[eventsDTO](req)
 
 	assert.NoError(t, err)
-	assert.True(t, got.Query.Has("confirm"))
-	assert.False(t, got.Query.Bool("confirm"))
+	assert.Equal(t, 0, *got.Query.Limit)
+	assert.False(t, *got.Query.Confirm)
 }
 
 func TestBind_successWhenBodyValidatesWithPointerReceiver(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/roles", strings.NewReader(`{"role":"standard"}`))
-	var body pointerBody
 
-	_, err := request.New(req).WithBody(&body).Bind()
+	got, err := request.Bind[struct{ Body pointerBody }](req)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "standard", body.Role)
+	assert.Equal(t, "standard", got.Body.Role)
 }
 
-func TestBind_successWhenWithBodyIsNotCalled(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/roles", strings.NewReader(`not json`))
+func TestBind_successWhenTheDTOHasNoBody(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/events", strings.NewReader(`not json`))
 
-	_, err := request.New(req).Bind()
+	_, err := request.Bind[eventsDTO](req)
 
 	assert.NoError(t, err)
 }
@@ -98,9 +125,8 @@ func TestBind_successWhenWithBodyIsNotCalled(t *testing.T) {
 func TestBind_failsWhenPathParamIsMissing(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/accounts/", nil)
 	req.SetPathValue("username", "   ")
-	path := request.Fields{"username": request.String}
 
-	_, err := request.New(req).WithPath(path).Bind()
+	_, err := request.Bind[changeRoleDTO](req)
 
 	want := request.ErrMissingPathParam
 	got := err
@@ -112,9 +138,8 @@ func TestBind_failsWhenPathParamIsMissing(t *testing.T) {
 func TestBind_failsWhenPathParamIsInvalid(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/sessions/abc", nil)
 	req.SetPathValue("id", "abc")
-	path := request.Fields{"id": request.Int}
 
-	_, err := request.New(req).WithPath(path).Bind()
+	_, err := request.Bind[sessionDTO](req)
 
 	want := request.ErrInvalidPathParam
 	got := err
@@ -123,22 +148,22 @@ func TestBind_failsWhenPathParamIsInvalid(t *testing.T) {
 }
 
 func TestBind_failsWhenRequiredParamIsItsZeroValue(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/events?limit=0", nil)
-	query := request.Fields{"limit": request.Int}
+	req := httptest.NewRequest(http.MethodGet, "/accounts/Nebula?limit=0", nil)
+	req.SetPathValue("username", "Nebula")
 
-	_, err := request.New(req).WithQuery(query).Bind()
+	_, err := request.Bind[changeRoleDTO](req)
 
 	want := request.ErrMissingQueryParam
 	got := err
 
 	assert.ErrorIs(t, got, want)
+	assert.Equal(t, "missing query param: limit", err.Error())
 }
 
 func TestBind_failsWhenQueryParamIsInvalid(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/events?from=yesterday", nil)
-	query := request.Fields{"from": request.Time.Optional()}
+	req := httptest.NewRequest(http.MethodGet, "/events?confirm=maybe", nil)
 
-	_, err := request.New(req).WithQuery(query).Bind()
+	_, err := request.Bind[eventsDTO](req)
 
 	want := request.ErrInvalidQueryParam
 	got := err
@@ -148,9 +173,8 @@ func TestBind_failsWhenQueryParamIsInvalid(t *testing.T) {
 
 func TestBind_failsWhenBodyIsInvalid(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/roles", strings.NewReader(`not json`))
-	var body roleBody
 
-	_, err := request.New(req).WithBody(&body).Bind()
+	_, err := request.Bind[struct{ Body roleBody }](req)
 
 	want := request.ErrInvalidBody
 	got := err
@@ -160,9 +184,8 @@ func TestBind_failsWhenBodyIsInvalid(t *testing.T) {
 
 func TestBind_failsWhenBodyIsNotValid(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/roles", strings.NewReader(`{}`))
-	var body roleBody
 
-	_, err := request.New(req).WithBody(&body).Bind()
+	_, err := request.Bind[struct{ Body roleBody }](req)
 
 	want := errMissingRole
 	got := err
@@ -170,26 +193,30 @@ func TestBind_failsWhenBodyIsNotValid(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
-func TestBind_failsWithTheFirstParamInNameOrder(t *testing.T) {
+func TestBind_failsWithTheFirstParamInFieldOrder(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/deletions", nil)
-	path := request.Fields{"username": request.String, "planet": request.String}
 
-	_, err := request.New(req).WithPath(path).Bind()
+	_, err := request.Bind[deletionDTO](req)
 
-	want := "missing path param: planet"
+	want := "missing path param: username"
 	got := err.Error()
 
 	assert.Equal(t, want, got)
 }
 
-func TestValues_returnsTheZeroValueWhenParamIsNotDeclaredWithThatKind(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/events?limit=5", nil)
-	query := request.Fields{"limit": request.Int}
+func TestBind_failsWhenTheDTOIsInvalid(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/accounts/Nebula?ids=1", nil)
+	req.SetPathValue("username", "Nebula")
 
-	got, err := request.New(req).WithQuery(query).Bind()
+	_, errNotStruct := request.Bind[string](req)
+	_, errUntagged := request.Bind[struct{ Path struct{ Username string } }](req)
+	_, errUnsupported := request.Bind[struct {
+		Query struct {
+			IDs []int `query:"ids"`
+		}
+	}](req)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "", got.Query.String("limit"))
-	assert.Equal(t, 0, got.Query.Int("offset"))
-	assert.Equal(t, "", got.Path.String("username"))
+	assert.ErrorIs(t, errNotStruct, request.ErrInvalidDTO)
+	assert.ErrorIs(t, errUntagged, request.ErrInvalidDTO)
+	assert.ErrorIs(t, errUnsupported, request.ErrInvalidDTO)
 }

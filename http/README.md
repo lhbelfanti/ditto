@@ -1,7 +1,7 @@
 # http
 
 The `http` package covers six concerns for a service's HTTP layer: a standardized JSON response
-envelope (`response`), reading and checking a request (`request.Binder`), a thin synchronous client (`CustomClient`), ditto's own system routes
+envelope (`response`), reading and checking a request (`request.Bind`), a thin synchronous client (`CustomClient`), ditto's own system routes
 (`RegisterSystemRoutes`), bounded graceful shutdown (`GracefulShutdown`), and three middlewares
 (`middleware.Auth`/`CORS`/`RequestID`).
 
@@ -9,16 +9,28 @@ For client tests that need a response sequence (for example, 429 followed by 200
 `NewClient(0).HTTPClient.Transport` to `MockSequenceRoundTripper` with one `MockHTTPResult` per
 request. The transport returns an error if more requests are made than results provided.
 
-## `request.Binder`
+## `request.Bind`
 
 ```go
 // dtos.go
-type TransactionRequestDTOV1 struct {
-    Amount   int    `json:"amount"`
-    Currency string `json:"currency"`
-}
+type (
+    CreateRequestDTOV1 struct {
+        Path struct {
+            AccountID int `path:"accountID"`
+        }
+        Query struct {
+            Notify *bool `query:"notify"`
+        }
+        Body TransactionBodyDTOV1
+    }
 
-func (dto TransactionRequestDTOV1) IsValid() error {
+    TransactionBodyDTOV1 struct {
+        Amount   int    `json:"amount"`
+        Currency string `json:"currency"`
+    }
+)
+
+func (dto TransactionBodyDTOV1) IsValid() error {
     if dto.Amount == 0 {
         return ErrMissingAmount
     }
@@ -32,47 +44,40 @@ func (dto TransactionRequestDTOV1) IsValid() error {
 
 // handlers.go
 func CreateHandlerV1(create CreateV1) http.HandlerFunc {
-    path := request.Fields{"accountID": request.Int}
-    query := request.Fields{"notify": request.Bool.Optional()}
-
     return func(w http.ResponseWriter, r *http.Request) {
         ctx := r.Context()
 
-        var body TransactionRequestDTOV1
-        req, err := request.New(r).WithPath(path).WithQuery(query).WithBody(&body).Bind()
+        req, err := request.Bind[CreateRequestDTOV1](r)
         if err != nil {
             response.Send(ctx, w, http.StatusBadRequest, err.Error(), nil, err)
             return
         }
 
-        result, err := create(ctx, req.Path.Int("accountID"), body.Amount, body.Currency, req.Query.Bool("notify"))
+        result, err := create(ctx, req.Path.AccountID, req.Body.Amount, req.Body.Currency, req.Query.Notify)
         // ...
     }
 }
 ```
 
-`request.New(r)` returns a `Binder`. Each `With*` declares one part of the request, and `Bind` reads
-them in a fixed order: the path params, the query params and the JSON body. It returns the first
-error. A part with no `With*` call is not read.
+`Bind` reads a request into a DTO, one per handler, with up to three fields: `Path`, `Query` and
+`Body`. A field the DTO does not have is not read. It reads path, query and body in that order,
+each in field order, and returns the first error.
 
-- **Params.** The handler Maker declares them as two `request.Fields` maps, from the name of each
-  param to its type: `String` (trimmed), `Int`, `Bool` or `Time` (RFC 3339). A param is required:
-  absent, or equal to its zero value (`""`, `0`, `false`), it fails with `ErrMissingPathParam` or
-  `ErrMissingQueryParam`. Mark it `.Optional()` when the business layer accepts it left out or at
-  its zero value, and use `Values.Has` to tell the two apart. A value that does not parse fails
-  with `ErrInvalidPathParam` or `ErrInvalidQueryParam`. Leave out `WithPath` or `WithQuery` when
-  the handler reads none.
-- **Body.** `WithBody` takes a pointer, and the body is decoded into it. A decode failure is
-  `ErrInvalidBody`. When the pointer implements `request.Validator` (`IsValid() error`, with a value
-  or a pointer receiver), `Bind` calls it and returns its error as it is.
-- **Reading the values.** `req.Path` and `req.Query` have one getter per type (`String`, `Int`,
-  `Bool`, `Time`) that returns the value alone, so it goes straight into the use case call: `Bind`
-  already checked every declared param. An optional param left out reads as its zero value. A name
-  that was not declared, or declared with another type, also reads as the zero value.
+- **Params.** `Path` and `Query` are structs. Each field names its param with a `path:"…"` or
+  `query:"…"` tag and is a `string` (trimmed), an int of any size, a `bool` or a `time.Time`
+  (RFC 3339). A field is required: absent, or equal to its zero value (`""`, `0`, `false`), it fails
+  with `ErrMissingPathParam` or `ErrMissingQueryParam`. Make it a pointer when the business layer
+  accepts it left out or at its zero value: it stays `nil` when the param is absent. A value that
+  does not parse fails with `ErrInvalidPathParam` or `ErrInvalidQueryParam`.
+- **Body.** It is decoded from JSON. A decode failure is `ErrInvalidBody`. When its type implements
+  `request.Validator` (`IsValid() error`, with a value or a pointer receiver), `Bind` calls it and
+  returns its error as it is.
+- **A DTO that does not follow these rules** (not a struct, a param field without its tag or not
+  exported, a type that is not supported) fails with `ErrInvalidDTO`. It is a bug in the handler,
+  and its first test catches it.
 
-The params are checked in name order, so with several missing ones the error is always the same.
-Every error message names the param (`missing path param: username`), so the handler can answer
-the 400 with `err.Error()`.
+Every param error names the param (`missing path param: accountID`), so the handler can answer the
+400 with `err.Error()`.
 
 ## `RegisterSystemRoutes`
 
@@ -126,7 +131,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 |---|---|
 | `FailedToMarshalBody`/`FailedToCreateRequest`/`FailedToExecuteRequest`/`FailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant |
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
-| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrInvalidBody` | `Binder.Bind` — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
+| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrInvalidBody`/`ErrInvalidDTO` | `request.Bind` — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
 | `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgInvalidToken` is reused across two failure branches, so it's a named constant; the single-use "authorization header required" message stays inline |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more

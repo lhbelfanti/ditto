@@ -3,116 +3,140 @@ package request
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"net/http"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// New returns a Binder for r that reads nothing until WithPath, WithQuery or WithBody declare it.
-func New(r *http.Request) Binder {
-	return Binder{r: r}
-}
+// Bind reads r into a new D, a struct with up to three fields: Path, Query and Body.
+// Path and Query are structs whose fields carry a `path:"name"` or `query:"name"` tag. A field is required:
+// absent, or equal to its zero value, it is missing. A pointer field is optional, and stays nil when the param is absent.
+// Body is decoded from JSON and, when it implements Validator, checked with IsValid, whose error is returned as it is.
+// It reads path, query and body in that order, each in field order, and returns the first error.
+func Bind[D any](r *http.Request) (D, error) {
+	var dto D
 
-// WithPath declares the path params the handler reads.
-func (b Binder) WithPath(path Fields) Binder {
-	b.path = path
+	value := reflect.ValueOf(&dto).Elem()
+	if value.Kind() != reflect.Struct {
+		return dto, fmt.Errorf("%w: %s is not a struct", ErrInvalidDTO, value.Type())
+	}
 
-	return b
-}
+	path := value.FieldByName("Path")
+	if path.IsValid() {
+		err := parse(path, "path", r.PathValue, ErrMissingPathParam, ErrInvalidPathParam)
+		if err != nil {
+			return *new(D), err
+		}
+	}
 
-// WithQuery declares the query params the handler reads.
-func (b Binder) WithQuery(query Fields) Binder {
-	b.query = query
+	query := value.FieldByName("Query")
+	if query.IsValid() {
+		err := parse(query, "query", r.URL.Query().Get, ErrMissingQueryParam, ErrInvalidQueryParam)
+		if err != nil {
+			return *new(D), err
+		}
+	}
 
-	return b
-}
+	body := value.FieldByName("Body")
+	if !body.IsValid() {
+		return dto, nil
+	}
 
-// WithBody declares the pointer the JSON body is decoded into.
-func (b Binder) WithBody(body any) Binder {
-	b.body = body
-
-	return b
-}
-
-// Bind reads the path params, the query params and the body, in that order, and returns the first error.
-// A required param that is absent or equal to its zero value is missing; declare it Optional when the zero value is valid.
-// A body that implements Validator is checked with IsValid, and its error is returned as it is.
-func (b Binder) Bind() (Request, error) {
-	path, err := parse(b.path, b.r.PathValue, ErrMissingPathParam, ErrInvalidPathParam)
+	err := json.NewDecoder(r.Body).Decode(body.Addr().Interface())
 	if err != nil {
-		return Request{}, err
+		return *new(D), fmt.Errorf("%w: %w", ErrInvalidBody, err)
 	}
 
-	query, err := parse(b.query, b.r.URL.Query().Get, ErrMissingQueryParam, ErrInvalidQueryParam)
-	if err != nil {
-		return Request{}, err
-	}
-
-	if b.body == nil {
-		return Request{Path: path, Query: query}, nil
-	}
-
-	err = json.NewDecoder(b.r.Body).Decode(b.body)
-	if err != nil {
-		return Request{}, fmt.Errorf("%w: %w", ErrInvalidBody, err)
-	}
-
-	validator, validates := b.body.(Validator)
+	validator, validates := body.Addr().Interface().(Validator)
 	if validates {
 		err = validator.IsValid()
 		if err != nil {
-			return Request{}, err
+			return *new(D), err
 		}
 	}
 
-	return Request{Path: path, Query: query}, nil
+	return dto, nil
 }
 
-// parse reads every declared param with lookup, in name order so that the first error is always the same one.
-func parse(fields Fields, lookup func(string) string, errMissing, errInvalid error) (Values, error) {
-	values := Values{values: make(map[string]any, len(fields))}
+// parse fills every field of section with the param named by its tag, read with lookup.
+func parse(section reflect.Value, tag string, lookup func(string) string, errMissing, errInvalid error) error {
+	if section.Kind() != reflect.Struct {
+		return fmt.Errorf("%w: %s is not a struct", ErrInvalidDTO, section.Type())
+	}
 
-	for _, name := range slices.Sorted(maps.Keys(fields)) {
-		field := fields[name]
+	for i := range section.NumField() {
+		field := section.Type().Field(i)
+
+		name, tagged := field.Tag.Lookup(tag)
+		if !tagged || !field.IsExported() {
+			return fmt.Errorf("%w: %s needs to be exported and have a %s tag", ErrInvalidDTO, field.Name, tag)
+		}
+
+		target := section.Field(i)
+		optional := target.Kind() == reflect.Pointer
 
 		raw := strings.TrimSpace(lookup(name))
 		if raw == "" {
-			if field.optional {
+			if optional {
 				continue
 			}
 
-			return Values{}, fmt.Errorf("%w: %s", errMissing, name)
+			return fmt.Errorf("%w: %s", errMissing, name)
 		}
 
-		value, err := field.kind.parse(raw)
+		if optional {
+			target.Set(reflect.New(target.Type().Elem()))
+			target = target.Elem()
+		}
+
+		err := set(target, raw)
 		if err != nil {
-			return Values{}, fmt.Errorf("%w: %s: %w", errInvalid, name, err)
+			return fmt.Errorf("%w: %s: %w", errInvalid, name, err)
 		}
 
-		if !field.optional && reflect.ValueOf(value).IsZero() {
-			return Values{}, fmt.Errorf("%w: %s", errMissing, name)
+		if !optional && target.IsZero() {
+			return fmt.Errorf("%w: %s", errMissing, name)
 		}
-
-		values.values[name] = value
 	}
 
-	return values, nil
+	return nil
 }
 
-// parse converts the raw text of a param into the type of the kind.
-func (k kind) parse(raw string) (any, error) {
-	switch k {
-	case kindInt:
-		return strconv.Atoi(raw)
-	case kindBool:
-		return strconv.ParseBool(raw)
-	case kindTime:
-		return time.Parse(time.RFC3339, raw)
-	default:
-		return raw, nil
+// set parses raw into target: a string (kept as it is), an int of any size, a bool or a time.Time (RFC 3339).
+func set(target reflect.Value, raw string) error {
+	if target.Type() == reflect.TypeFor[time.Time]() {
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			return err
+		}
+
+		target.Set(reflect.ValueOf(parsed))
+
+		return nil
 	}
+
+	switch target.Kind() {
+	case reflect.String:
+		target.SetString(raw)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		parsed, err := strconv.ParseInt(raw, 10, target.Type().Bits())
+		if err != nil {
+			return err
+		}
+
+		target.SetInt(parsed)
+	case reflect.Bool:
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			return err
+		}
+
+		target.SetBool(parsed)
+	default:
+		return fmt.Errorf("%w: unsupported type %s", ErrInvalidDTO, target.Type())
+	}
+
+	return nil
 }
