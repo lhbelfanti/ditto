@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Bind reads r into a new D, a struct with up to three fields: Path, Query and Body.
+// Bind reads r into a new D, a struct with up to three fields, each one optional: Path, Query and Body.
 // Path and Query are structs whose fields carry a `path:"name"` or `query:"name"` tag. A field is required:
 // absent, or equal to its zero value, it is missing. A pointer field is optional, and stays nil when the param is absent.
 // Body is decoded from JSON and, when it implements Validator, checked with IsValid, whose error is returned as it is.
@@ -25,17 +25,17 @@ func Bind[D any](r *http.Request) (D, error) {
 
 	path := value.FieldByName("Path")
 	if path.IsValid() {
-		err := parse(path, "path", r.PathValue, ErrMissingPathParam, ErrInvalidPathParam)
+		err := parse(path, "path", r.PathValue)
 		if err != nil {
-			return *new(D), err
+			return *new(D), fmt.Errorf("%w: %w", ErrInvalidPath, err)
 		}
 	}
 
 	query := value.FieldByName("Query")
 	if query.IsValid() {
-		err := parse(query, "query", r.URL.Query().Get, ErrMissingQueryParam, ErrInvalidQueryParam)
+		err := parse(query, "query", r.URL.Query().Get)
 		if err != nil {
-			return *new(D), err
+			return *new(D), fmt.Errorf("%w: %w", ErrInvalidQuery, err)
 		}
 	}
 
@@ -61,7 +61,7 @@ func Bind[D any](r *http.Request) (D, error) {
 }
 
 // parse fills every field of section with the param named by its tag, read with lookup.
-func parse(section reflect.Value, tag string, lookup func(string) string, errMissing, errInvalid error) error {
+func parse(section reflect.Value, tag string, lookup lookupParam) error {
 	if section.Kind() != reflect.Struct {
 		return fmt.Errorf("%w: %s is not a struct", ErrInvalidDTO, section.Type())
 	}
@@ -83,7 +83,7 @@ func parse(section reflect.Value, tag string, lookup func(string) string, errMis
 				continue
 			}
 
-			return fmt.Errorf("%w: %s", errMissing, name)
+			return fmt.Errorf("%w: %s", ErrMissingParam, name)
 		}
 
 		if optional {
@@ -93,11 +93,11 @@ func parse(section reflect.Value, tag string, lookup func(string) string, errMis
 
 		err := set(target, raw)
 		if err != nil {
-			return fmt.Errorf("%w: %s: %w", errInvalid, name, err)
+			return fmt.Errorf("%w: %s: %w", ErrInvalidParam, name, err)
 		}
 
 		if !optional && target.IsZero() {
-			return fmt.Errorf("%w: %s", errMissing, name)
+			return fmt.Errorf("%w: %s", ErrMissingParam, name)
 		}
 	}
 
@@ -109,7 +109,7 @@ func set(target reflect.Value, raw string) error {
 	if target.Type() == reflect.TypeFor[time.Time]() {
 		parsed, err := time.Parse(time.RFC3339, raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrNotATime, err)
 		}
 
 		target.Set(reflect.ValueOf(parsed))
@@ -123,14 +123,14 @@ func set(target reflect.Value, raw string) error {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		parsed, err := strconv.ParseInt(raw, 10, target.Type().Bits())
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrNotAnInt, err)
 		}
 
 		target.SetInt(parsed)
 	case reflect.Bool:
 		parsed, err := strconv.ParseBool(raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrNotABool, err)
 		}
 
 		target.SetBool(parsed)

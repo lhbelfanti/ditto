@@ -14,23 +14,32 @@ request. The transport returns an error if more requests are made than results p
 ```go
 // dtos.go
 type (
+    // CreateRequestDTOV1 is what CreateHandlerV1 reads from the request.
     CreateRequestDTOV1 struct {
-        Path struct {
-            AccountID int `path:"accountID"`
-        }
-        Query struct {
-            Notify *bool `query:"notify"`
-        }
-        Body TransactionBodyDTOV1
+        Path  CreatePathDTOV1
+        Query CreateQueryDTOV1
+        Body  CreateBodyDTOV1
     }
 
-    TransactionBodyDTOV1 struct {
+    // CreatePathDTOV1 holds the path params of CreateHandlerV1.
+    CreatePathDTOV1 struct {
+        AccountID int `path:"accountID"`
+    }
+
+    // CreateQueryDTOV1 holds the query params of CreateHandlerV1.
+    CreateQueryDTOV1 struct {
+        Notify *bool `query:"notify"`
+    }
+
+    // CreateBodyDTOV1 is the body of CreateHandlerV1.
+    CreateBodyDTOV1 struct {
         Amount   int    `json:"amount"`
         Currency string `json:"currency"`
     }
 )
 
-func (dto TransactionBodyDTOV1) IsValid() error {
+// IsValid checks that the body has an amount and a currency.
+func (dto CreateBodyDTOV1) IsValid() error {
     if dto.Amount == 0 {
         return ErrMissingAmount
     }
@@ -61,36 +70,17 @@ func CreateHandlerV1(create CreateV1) http.HandlerFunc {
 
 `Bind` reads a request into a DTO, one per handler, with up to three fields: `Path`, `Query` and
 `Body`. Each one is optional: the DTO declares only the parts its handler reads, and a part it
-does not declare is not read. It reads path, query and body in that order, each in field order,
-and returns the first error.
+does not declare is not read. A DTO with only a `Path`, only a `Query`, only a `Body`, any two of
+them or the three is valid. A handler that reads nothing from the request does not call `Bind`.
+It reads path, query and body in that order, each in field order, and returns the first error.
 
-```go
-type GetRequestDTOV1 struct { // GET /accounts/{username}: path only
-    Path struct {
-        Username string `path:"username"`
-    }
-}
-
-type ListRequestDTOV1 struct { // GET /events?from=…&limit=…: query only
-    Query struct {
-        From  *time.Time `query:"from"`
-        Limit *int       `query:"limit"`
-    }
-}
-
-type SetRequestDTOV1 struct { // PUT /preferences: body only
-    Body PreferencesBodyDTOV1
-}
-```
-
-A handler that reads nothing from the request does not call `Bind`.
-
-- **Params.** `Path` and `Query` are structs. Each field names its param with a `path:"…"` or
-  `query:"…"` tag and is a `string` (trimmed), an int of any size, a `bool` or a `time.Time`
-  (RFC 3339). A field is required: absent, or equal to its zero value (`""`, `0`, `false`), it fails
-  with `ErrMissingPathParam` or `ErrMissingQueryParam`. Make it a pointer when the business layer
-  accepts it left out or at its zero value: it stays `nil` when the param is absent. A value that
-  does not parse fails with `ErrInvalidPathParam` or `ErrInvalidQueryParam`.
+- **Params.** `Path` and `Query` are named struct types, declared in `dtos.go` like the DTO. Each
+  field names its param with a `path:"…"` or `query:"…"` tag and is a `string` (trimmed), an int
+  of any size, a `bool` or a `time.Time` (RFC 3339). A field is required: absent, or equal to its
+  zero value (`""`, `0`, `false`), it fails with `ErrMissingParam`. Make it a pointer when the
+  business layer accepts it left out or at its zero value: it stays `nil` when the param is absent.
+  A value that does not parse fails with `ErrInvalidParam`, wrapping `ErrNotAnInt`, `ErrNotABool`
+  or `ErrNotATime`. The error is wrapped in `ErrInvalidPath` or `ErrInvalidQuery`.
 - **Body.** It is decoded from JSON. A decode failure is `ErrInvalidBody`. When its type implements
   `request.Validator` (`IsValid() error`, with a value or a pointer receiver), `Bind` calls it and
   returns its error as it is.
@@ -98,8 +88,8 @@ A handler that reads nothing from the request does not call `Bind`.
   exported, a type that is not supported) fails with `ErrInvalidDTO`. It is a bug in the handler,
   and its first test catches it.
 
-Every param error names the param (`missing path param: accountID`), so the handler can answer the
-400 with `err.Error()`.
+Every param error names the part and the param (`invalid path: missing param: accountID`), so the
+handler can answer the 400 with `err.Error()`.
 
 ## `RegisterSystemRoutes`
 
@@ -153,7 +143,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 |---|---|
 | `FailedToMarshalBody`/`FailedToCreateRequest`/`FailedToExecuteRequest`/`FailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant |
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
-| `request.ErrMissingPathParam`/`ErrInvalidPathParam`/`ErrMissingQueryParam`/`ErrInvalidQueryParam`/`ErrInvalidBody`/`ErrInvalidDTO` | `request.Bind` — bare: the handler sends `err.Error()`, which names the param, so no message is reused |
+| `request.ErrInvalidPath`/`ErrInvalidQuery`/`ErrInvalidBody`/`ErrMissingParam`/`ErrInvalidParam`/`ErrNotAnInt`/`ErrNotABool`/`ErrNotATime`/`ErrInvalidDTO` | `request.Bind` — bare: the handler sends `err.Error()`, which names the part and the param, so no message is reused |
 | `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgInvalidToken` is reused across two failure branches, so it's a named constant; the single-use "authorization header required" message stays inline |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more
