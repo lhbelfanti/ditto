@@ -12,19 +12,24 @@ import (
 )
 
 func TestRun_failsWhenPortIsMissing(t *testing.T) {
+	want := app.ErrInvalidPort
 	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_MISSING_PORT"})
+	wantCause := env.ErrMissingKey
 
-	var keyErr *env.KeyError
-	assert.ErrorAs(t, got, &keyErr)
+	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestRun_failsWhenDatabaseEnvIsIncomplete(t *testing.T) {
 	t.Setenv("APP_TEST_PORT", "4000")
 	t.Setenv("POSTGRES_DB_PORT", "")
 
+	want := app.ErrCantInitDatabase
 	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_PORT"})
+	wantCause := app.ErrInvalidDatabaseEnv
 
-	assert.Error(t, got)
+	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {
@@ -53,7 +58,7 @@ func TestRun_successWhenServiceRoutesAreMounted(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestRun_successWhenMiddlewareRunsOutermostFirst(t *testing.T) {
+func TestRun_successWhenTwoMiddlewareAreAdded(t *testing.T) {
 	service := app.MockRunningService(t)
 
 	want := []string{"outer", "inner"}
@@ -71,27 +76,20 @@ func TestRun_successWhenDatabaseIsDisabled(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestRun_successWhenDeprecatedRoutesAreMounted(t *testing.T) {
-	service := app.MockRunningServiceWith(t, app.Options{Routes: app.MockRoutes("GET /legacy/v1", http.StatusAccepted)})
-
-	want := http.StatusAccepted
-	got := service.Get("/legacy/v1").StatusCode
-
-	assert.Equal(t, want, got)
-}
-
 func TestInitDatabase_failsWhenEnvIsIncomplete(t *testing.T) {
 	t.Setenv("POSTGRES_DB_PORT", "")
 
+	want := app.ErrInvalidDatabaseEnv
 	_, got := app.InitDatabase(context.Background())
 
-	assert.Error(t, got)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestInitDatabaseWithMigrationFolder_failsWhenEnvIsIncomplete(t *testing.T) {
 	t.Setenv("POSTGRES_DB_PORT", "")
 
+	want := app.ErrInvalidDatabaseEnv
 	_, got := app.InitDatabaseWithMigrationFolder(context.Background(), "./sql")
 
-	assert.Error(t, got)
+	assert.ErrorIs(t, got, want)
 }

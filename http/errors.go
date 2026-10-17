@@ -15,17 +15,3 @@ var (
 
 	ErrDatabaseUnavailable = errors.New(ErrMsgDatabaseUnavailable)
 )
-
-var (
-	// Deprecated: use ErrFailedToMarshalBody.
-	FailedToMarshalBody = ErrFailedToMarshalBody
-
-	// Deprecated: use ErrFailedToCreateRequest.
-	FailedToCreateRequest = ErrFailedToCreateRequest
-
-	// Deprecated: use ErrFailedToExecuteRequest.
-	FailedToExecuteRequest = ErrFailedToExecuteRequest
-
-	// Deprecated: use ErrFailedToReadResponse.
-	FailedToReadResponse = ErrFailedToReadResponse
-)

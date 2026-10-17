@@ -59,7 +59,9 @@ func provision(ctx context.Context) error {
 // InitDatabase opens the database and applies the pending migrations in ./migrations. See
 // InitDatabaseWithMigrationFolder for another folder.
 func InitDatabase(ctx context.Context) (*database.Postgres, error) {
-	return InitDatabaseWithMigrationFolder(ctx, defaultMigrationsDir)
+	const migrationsDir string = "./migrations"
+
+	return InitDatabaseWithMigrationFolder(ctx, migrationsDir)
 }
 
 // InitDatabaseWithMigrationFolder validates the POSTGRES_DB_* variables, creates the service's role
@@ -118,7 +120,7 @@ func Run(opts Options) error {
 
 	pg := opts.Database
 	if pg == nil && !opts.NoDatabase {
-		pg, err = InitDatabaseWithMigrationFolder(ctx, opts.MigrationsDir)
+		pg, err = InitDatabase(ctx)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrCantInitDatabase, err)
 		}
@@ -137,9 +139,6 @@ func Run(opts Options) error {
 	}
 
 	_http.MountSystemRoutes(mux, ping)
-	if opts.Routes != nil {
-		opts.Routes(mux, pg)
-	}
 
 	addr := fmt.Sprintf(":%d", port)
 	signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)

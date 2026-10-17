@@ -6,13 +6,10 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"syscall"
 	"testing"
 	"time"
-
-	"github.com/lhbelfanti/ditto/v2/database"
 )
 
 // MockService is a Run started in the background by MockRunningService, reachable at BaseURL.
@@ -32,15 +29,6 @@ func MockMux(pattern string, status int) *http.ServeMux {
 	return mux
 }
 
-// MockRoutes returns Routes that answer GET pattern with status.
-func MockRoutes(pattern string, status int) Routes {
-	return func(mux *http.ServeMux, _ *database.Postgres) {
-		mux.HandleFunc(pattern, func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(status)
-		})
-	}
-}
-
 // MockMiddleware returns a Middleware that adds name to the X-Order response header before calling the next handler.
 func MockMiddleware(name string) Middleware {
 	return func(next http.Handler) http.Handler {
@@ -49,13 +37,6 @@ func MockMiddleware(name string) Middleware {
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-// MockServe calls h on a GET to path and returns the recorded response.
-func MockServe(h http.Handler, path string) *httptest.ResponseRecorder {
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
-	return rec
 }
 
 // MockRunningService starts Run on a free port with a teapot route and two ordered middleware.
