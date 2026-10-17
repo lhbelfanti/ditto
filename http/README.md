@@ -95,8 +95,8 @@ handler can answer the 400 with `err.Error()`.
 
 ```go
 mux := http.NewServeMux()
-dittohttp.RegisterSystemRoutes(mux).
-    WithDatabasePing(dittohttp.DatabasePing(pg.MakeCheck(2*time.Second)))
+_http.RegisterSystemRoutes(mux).
+    WithDatabasePing(_http.DatabasePing(pg.MakeCheck(2*time.Second)))
 ```
 
 `RegisterSystemRoutes` always mounts `GET /ping/v1` (unconditional liveness — never touches the
@@ -112,7 +112,7 @@ signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 defer stop()
 
 log.Info(ctx, "starting on :"+port)
-setup.Must(dittohttp.GracefulShutdown(signalCtx, server.ListenAndServe, server.Shutdown, 5*time.Second))
+setup.Must(_http.GracefulShutdown(signalCtx, server.ListenAndServe, server.Shutdown, 5*time.Second))
 ```
 
 Runs `server.ListenAndServe` until `signalCtx` is cancelled (on `SIGINT`/`SIGTERM`), then calls
@@ -141,10 +141,12 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 
 | Error | Where |
 |---|---|
-| `FailedToMarshalBody`/`FailedToCreateRequest`/`FailedToExecuteRequest`/`FailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant |
+| `ErrFailedToMarshalBody`/`ErrFailedToCreateRequest`/`ErrFailedToExecuteRequest`/`ErrFailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant. The old names without the `Err` prefix stay as deprecated aliases |
+| `ErrFailedToServe`/`ErrFailedToShutdown` | `GracefulShutdown`: the server failed (other than `http.ErrServerClosed`), or the graceful shutdown failed |
+| `ErrCantListen` | `Listen`, wrapping the `GracefulShutdown` error |
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
 | `request.ErrInvalidPath`/`ErrInvalidQuery`/`ErrInvalidBody`/`ErrMissingParam`/`ErrInvalidParam`/`ErrNotAnInt`/`ErrNotABool`/`ErrNotATime`/`ErrInvalidDTO` | `request.Bind` — bare: the handler sends `err.Error()`, which names the part and the param, so no message is reused |
-| `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgInvalidToken` is reused across two failure branches, so it's a named constant; the single-use "authorization header required" message stays inline |
+| `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgMissingAuthHeader` and `ErrMsgInvalidToken` are also the `response.Send` messages, so they are named constants. A failed token lookup is wrapped in `ErrInvalidToken`, so its cause reaches the log |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more
 than one place — see `database/errors.go`'s `SafeError` doc for the same rule applied to a

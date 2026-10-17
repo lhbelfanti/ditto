@@ -87,3 +87,14 @@ before returning.
 
 Every failure before step 5 is returned, not logged-and-exited, so the caller decides how to exit.
 `setup.Must` in the example logs the error, with its whole chain, and then panics.
+
+## Sentinel errors
+
+Every failure is wrapped in the sentinel of the step that failed, with the cause behind it, so
+`errors.Is` still finds the `database`, `env`, `migration` and `http` sentinels underneath.
+
+| Error | Where |
+|---|---|
+| `ErrCantOpenAdmin` / `ErrAdminUnavailable` / `ErrCantProvision` | `provision`: opening or checking the administrator pool, or provisioning the role and database |
+| `ErrInvalidDatabaseEnv` / `ErrCantProvisionDatabase` / `ErrCantOpenDatabase` / `ErrCantReachDatabase` / `ErrCantApplyMigrations` | `InitDatabaseWithMigrationFolder`, one per step |
+| `ErrInvalidPort` / `ErrCantInitDatabase` / `ErrCantServe` | `Run`: the port variable, opening the database, serving |

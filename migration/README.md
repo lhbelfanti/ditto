@@ -93,6 +93,11 @@ The example needs an import of `github.com/jackc/pgx/v5` for `pgx.RowTo`.
 | `ErrFailedToCommitTrackingTable` / `ErrFailedToCommitFile` | The commit of the migrations table creation, or of one file's transaction, failed. |
 | `ErrFailedToApply` | `Apply`'s own sentinel — always present on an `*ApplyError`, alongside the original runner cause via `errors.Is`/`errors.As`. |
 | `ErrUnknownCommand` | The `Dispatch` got anything other than no args, `apply`, or `status`. |
+| `ErrFailedToPrepare` / `ErrFailedToPrepareFile` / `ErrFailedToApplyFile` | `MakeRunner` could not prepare the tracking table, or the transaction of one file, or apply that file. |
+| `ErrFailedToListFiles` / `ErrFailedToSelectTableExists` / `ErrFailedToQueryAppliedNames` | One step of `Status` failed: listing the files, or the read-only selects behind `MakeTableExists` and `MakeAppliedNames`. |
+| `ErrFailedToFindPendingFile` / `ErrNoPendingFile` | `MakePendingFileFinder` could not take the status snapshot, or found no pending file in it. |
+| `ErrFailedToRunApply` / `ErrFailedToRunStatus` | The command `Dispatch` ran failed. |
+| `ErrFailedToGetStatus` / `ErrFailedToWriteStatus` | `MakeStatusRunner` could not get the status, or write it. |
 
 `*ApplyError` additionally carries, when available: the name of the first still-pending file
 (`File`), an allowlisted PostgreSQL SQLSTATE (`Code`), and whether file attribution itself failed
