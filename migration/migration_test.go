@@ -13,8 +13,8 @@ import (
 )
 
 func TestMakeRunner_failsWhenBeginFails(t *testing.T) {
-	db := migration.MockConnection(nil, errors.New("begin failed"))
-	runner := migration.MakeRunner(db, t.TempDir())
+	mockDB := migration.MockConnection(nil, errors.New("begin failed"))
+	runner := migration.MakeRunner(mockDB, t.TempDir())
 
 	want := migration.ErrFailedToBeginTransaction
 	got := runner(context.Background())
@@ -23,9 +23,9 @@ func TestMakeRunner_failsWhenBeginFails(t *testing.T) {
 }
 
 func TestMakeRunner_failsWhenLockFails(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{LockErr: errors.New("lock failed")})
-	db := migration.MockConnection(tx, nil)
-	runner := migration.MakeRunner(db, t.TempDir())
+	mockTx := migration.MockTx(migration.MockTxConfig{LockErr: errors.New("lock failed")})
+	mockDB := migration.MockConnection(mockTx, nil)
+	runner := migration.MakeRunner(mockDB, t.TempDir())
 
 	want := migration.ErrFailedToLockMigrations
 	got := runner(context.Background())
@@ -34,9 +34,9 @@ func TestMakeRunner_failsWhenLockFails(t *testing.T) {
 }
 
 func TestMakeRunner_failsWhenCreateTableFails(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{CreateTableErr: errors.New("create failed")})
-	db := migration.MockConnection(tx, nil)
-	runner := migration.MakeRunner(db, t.TempDir())
+	mockTx := migration.MockTx(migration.MockTxConfig{CreateTableErr: errors.New("create failed")})
+	mockDB := migration.MockConnection(mockTx, nil)
+	runner := migration.MakeRunner(mockDB, t.TempDir())
 
 	want := migration.ErrFailedToCreateTable
 	got := runner(context.Background())
@@ -45,10 +45,10 @@ func TestMakeRunner_failsWhenCreateTableFails(t *testing.T) {
 }
 
 func TestMakeRunner_failsWhenMigrationFileFails(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{FileSQL: "SELECT broken;", FileErr: errors.New("syntax error")})
-	db := migration.MockConnection(tx, nil)
-	dir := migration.MockMigrationDir(t, map[string]string{"001_a.sql": "SELECT broken;"})
-	runner := migration.MakeRunner(db, dir)
+	mockTx := migration.MockTx(migration.MockTxConfig{FileSQL: "SELECT broken;", FileErr: errors.New("syntax error")})
+	mockDB := migration.MockConnection(mockTx, nil)
+	mockDir := migration.MockMigrationDir(t, map[string]string{"001_a.sql": "SELECT broken;"})
+	runner := migration.MakeRunner(mockDB, mockDir)
 
 	want := migration.ErrFailedToExecute
 	got := runner(context.Background())
@@ -57,68 +57,40 @@ func TestMakeRunner_failsWhenMigrationFileFails(t *testing.T) {
 }
 
 func TestMakeRunner_successWhenFileIsAlreadyApplied(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{Applied: true})
-	db := migration.MockConnection(tx, nil)
-	dir := migration.MockMigrationDir(t, map[string]string{"001_a.sql": "CREATE TABLE a();"})
-	runner := migration.MakeRunner(db, dir)
-
-	got := runner(context.Background())
-
-	assert.NoError(t, got)
-}
-
-func TestMakeRunner_successWhenFileIsAlreadyAppliedSkipsExecution(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{Applied: true})
-	db := migration.MockConnection(tx, nil)
-	dir := migration.MockMigrationDir(t, map[string]string{"001_a.sql": "CREATE TABLE a();"})
-	runner := migration.MakeRunner(db, dir)
+	mockTx := migration.MockTx(migration.MockTxConfig{Applied: true})
+	mockDB := migration.MockConnection(mockTx, nil)
+	mockDir := migration.MockMigrationDir(t, map[string]string{"001_a.sql": "CREATE TABLE a();"})
+	runner := migration.MakeRunner(mockDB, mockDir)
 
 	_ = runner(context.Background())
 
-	tx.AssertNotCalled(t, "Exec", mock.Anything, "CREATE TABLE a();", mock.Anything)
+	mockTx.AssertNotCalled(t, "Exec", mock.Anything, "CREATE TABLE a();", mock.Anything)
 }
 
 func TestMakeRunner_successWhenRunIsRepeated(t *testing.T) {
-	pool := migration.MockPostgresPool(t)
-	dir := migration.MockMigrationDir(t, map[string]string{
+	mockPool := migration.MockPostgresPool(t)
+	mockDir := migration.MockMigrationDir(t, map[string]string{
 		"001_audit.sql": "CREATE TABLE mig_audit (id SERIAL PRIMARY KEY, note TEXT);",
 		"002_mark.sql":  "INSERT INTO mig_audit (note) VALUES ('applied');",
 	})
-	runner := migration.MakeRunner(pool, dir)
+	runner := migration.MakeRunner(mockPool, mockDir)
 
 	_ = runner(context.Background())
 	_ = runner(context.Background())
 
-	want := 1
-	got := migration.MockRowCount(t, pool, "mig_audit")
-
-	assert.Equal(t, want, got)
-}
-
-func TestMakeRunner_successWhenRunIsRepeatedTracksEachFileOnce(t *testing.T) {
-	pool := migration.MockPostgresPool(t)
-	dir := migration.MockMigrationDir(t, map[string]string{
-		"001_audit.sql": "CREATE TABLE mig_audit (id SERIAL PRIMARY KEY, note TEXT);",
-		"002_mark.sql":  "INSERT INTO mig_audit (note) VALUES ('applied');",
-	})
-	runner := migration.MakeRunner(pool, dir)
-
-	_ = runner(context.Background())
-	_ = runner(context.Background())
-
-	want := 2
-	got := migration.MockRowCount(t, pool, "migrations")
+	want := map[string]int{"mig_audit": 1, "migrations": 2}
+	got := map[string]int{"mig_audit": migration.MockRowCount(t, mockPool, "mig_audit"), "migrations": migration.MockRowCount(t, mockPool, "migrations")}
 
 	assert.Equal(t, want, got)
 }
 
 func TestMakeRunner_successWhenReplicasRunConcurrently(t *testing.T) {
-	pool := migration.MockPostgresPool(t)
-	dir := migration.MockMigrationDir(t, map[string]string{
+	mockPool := migration.MockPostgresPool(t)
+	mockDir := migration.MockMigrationDir(t, map[string]string{
 		"001_audit.sql": "CREATE TABLE mig_audit (id SERIAL PRIMARY KEY, note TEXT);",
 		"002_mark.sql":  "INSERT INTO mig_audit (note) VALUES ('applied');",
 	})
-	runner := migration.MakeRunner(pool, dir)
+	runner := migration.MakeRunner(mockPool, mockDir)
 
 	const replicas = 6
 	var wg sync.WaitGroup
@@ -132,75 +104,38 @@ func TestMakeRunner_successWhenReplicasRunConcurrently(t *testing.T) {
 	wg.Wait()
 	close(errs)
 
-	want := 1
-	got := migration.MockRowCount(t, pool, "mig_audit")
-
-	assert.Equal(t, want, got)
-}
-
-func TestMakeRunner_successWhenReplicasRunConcurrentlyWithoutErrors(t *testing.T) {
-	pool := migration.MockPostgresPool(t)
-	dir := migration.MockMigrationDir(t, map[string]string{
-		"001_audit.sql": "CREATE TABLE mig_audit (id SERIAL PRIMARY KEY, note TEXT);",
-	})
-	runner := migration.MakeRunner(pool, dir)
-
-	const replicas = 6
-	var wg sync.WaitGroup
-	errs := make(chan error, replicas)
-	for range replicas {
-		wg.Go(func() {
-			errs <- runner(context.Background())
-		})
-	}
-
-	wg.Wait()
-	close(errs)
-
-	want := 0
-	got := 0
+	failures := 0
 	for err := range errs {
 		if err != nil {
-			got++
+			failures++
 		}
 	}
 
+	want := map[string]int{"failures": 0, "mig_audit": 1}
+	got := map[string]int{"failures": failures, "mig_audit": migration.MockRowCount(t, mockPool, "mig_audit")}
+
 	assert.Equal(t, want, got)
 }
 
-func TestMakeRunner_failsWhenFileFailsLeavesNoTableBehind(t *testing.T) {
-	pool := migration.MockPostgresPool(t)
-	dir := migration.MockMigrationDir(t, map[string]string{
+func TestMakeRunner_failsWhenFileFailsAfterCreatingATable(t *testing.T) {
+	mockPool := migration.MockPostgresPool(t)
+	mockDir := migration.MockMigrationDir(t, map[string]string{
 		"001_partial.sql": "CREATE TABLE mig_partial (id INT); SELECT * FROM does_not_exist;",
 	})
-	runner := migration.MakeRunner(pool, dir)
+	runner := migration.MakeRunner(mockPool, mockDir)
 
 	_ = runner(context.Background())
 
-	got := migration.MockTableInDatabase(t, pool, "mig_partial")
-
-	assert.False(t, got)
-}
-
-func TestMakeRunner_failsWhenFileFailsLeavesNoTrackingRow(t *testing.T) {
-	pool := migration.MockPostgresPool(t)
-	dir := migration.MockMigrationDir(t, map[string]string{
-		"001_partial.sql": "CREATE TABLE mig_partial (id INT); SELECT * FROM does_not_exist;",
-	})
-	runner := migration.MakeRunner(pool, dir)
-
-	_ = runner(context.Background())
-
-	want := 0
-	got := migration.MockRowCount(t, pool, "migrations")
+	want := map[string]any{"mig_partial exists": false, "migrations rows": 0}
+	got := map[string]any{"mig_partial exists": migration.MockTableInDatabase(t, mockPool, "mig_partial"), "migrations rows": migration.MockRowCount(t, mockPool, "migrations")}
 
 	assert.Equal(t, want, got)
 }
 
 func TestMakeRunner_failsWhenCommittingTheTrackingTableFails(t *testing.T) {
-	tx := migration.MockTx(migration.MockTxConfig{CommitErr: errors.New("commit failed")})
-	db := migration.MockConnection(tx, nil)
-	runner := migration.MakeRunner(db, t.TempDir())
+	mockTx := migration.MockTx(migration.MockTxConfig{CommitErr: errors.New("commit failed")})
+	mockDB := migration.MockConnection(mockTx, nil)
+	runner := migration.MakeRunner(mockDB, t.TempDir())
 
 	want := migration.ErrFailedToCommitTrackingTable
 	got := runner(context.Background())

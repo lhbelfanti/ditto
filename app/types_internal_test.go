@@ -2,6 +2,7 @@ package app
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -23,24 +24,30 @@ func TestTimeouts_orDefaults_successWhenValuesAreSet(t *testing.T) {
 }
 
 func TestOptions_orDefaults_success(t *testing.T) {
-	want := Options{PortEnv: defaultPortEnv, MigrationsDir: defaultMigrationsDir}
+	want := Options{PortEnv: defaultPortEnv}
 	got := Options{}.orDefaults()
 
 	assert.Equal(t, want, got)
 }
 
 func TestOptions_orDefaults_successWhenValuesAreSet(t *testing.T) {
-	want := Options{PortEnv: "PORT", MigrationsDir: "./sql"}
+	want := Options{PortEnv: "PORT"}
 	got := want.orDefaults()
 
 	assert.Equal(t, want, got)
 }
 
-func TestOptions_decorate_successWhenWrapRunsOutsideMiddleware(t *testing.T) {
-	opts := Options{Wrap: MockMiddleware("wrap")}.WithMiddleware(MockMiddleware("mw"))
+func TestOptions_decorate_success(t *testing.T) {
+	mockFirst := MockMiddleware("first")
+	mockSecond := MockMiddleware("second")
+	opts := Options{}.WithMiddleware(mockFirst).WithMiddleware(mockSecond)
+	handler := opts.decorate(http.NewServeMux())
+	w := httptest.NewRecorder()
 
-	want := []string{"wrap", "mw"}
-	got := MockServe(opts.decorate(http.NewServeMux()), "/").Header().Values("X-Order")
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	want := []string{"first", "second"}
+	got := w.Header().Values("X-Order")
 
 	assert.Equal(t, want, got)
 }

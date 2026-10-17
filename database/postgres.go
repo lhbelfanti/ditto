@@ -2,8 +2,12 @@ package database
 
 import (
 	"context"
+	"net"
+	"net/url"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/lhbelfanti/ditto/v2/env"
 )
 
 // InitPostgres opens the connection pool for the service database, whose settings it reads from
@@ -35,4 +39,49 @@ func open(ctx context.Context, url string) (*Postgres, error) {
 	}
 
 	return &Postgres{db}, nil
+}
+
+// resolveDatabaseURL reads the connection target from the environment. POSTGRES_DB_HOST defaults
+// to the compose service name postgres_db, so services that do not set it keep working unchanged.
+func resolveDatabaseURL() string {
+	dbUser := env.Get("POSTGRES_DB_USER", "")
+	dbPass := env.Get("POSTGRES_DB_PASS", "")
+	dbHost := env.Get("POSTGRES_DB_HOST", "postgres_db")
+	dbName := env.Get("POSTGRES_DB_NAME", "")
+	dbPort := env.Get("POSTGRES_DB_PORT", "")
+
+	return buildURL(dbUser, dbPass, dbHost, dbPort, dbName)
+}
+
+// buildURL assembles the connection URL, escaping the credentials so a password holding spaces,
+// "@", "/", ":" or "=" cannot break it.
+func buildURL(user, pass, host, port, name string) string {
+	u := url.URL{
+		Scheme:   "postgresql",
+		User:     url.UserPassword(user, pass),
+		Host:     net.JoinHostPort(host, port),
+		Path:     "/" + name,
+		RawQuery: "sslmode=disable",
+	}
+
+	return u.String()
+}
+
+// resolveAdminURL reads the administrator connection target from the environment: the same host
+// and port as the service database, the maintenance database, and POSTGRES_ADMIN_USER/PASS. It
+// returns false when either credential is empty.
+func resolveAdminURL() (string, bool) {
+	// The service's own database may not exist yet, so the administrator connects to the maintenance one.
+	const adminDatabase string = "postgres"
+
+	adminUser := env.Get("POSTGRES_ADMIN_USER", "")
+	adminPass := env.Get("POSTGRES_ADMIN_PASS", "")
+	if adminUser == "" || adminPass == "" {
+		return "", false
+	}
+
+	dbHost := env.Get("POSTGRES_DB_HOST", "postgres_db")
+	dbPort := env.Get("POSTGRES_DB_PORT", "")
+
+	return buildURL(adminUser, adminPass, dbHost, dbPort, adminDatabase), true
 }

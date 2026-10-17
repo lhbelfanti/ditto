@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -11,7 +12,13 @@ import (
 // within shutdownTimeout.
 func Listen(ctx context.Context, addr string, handler http.Handler, shutdownTimeout time.Duration) error {
 	server := &http.Server{Addr: addr, Handler: handler}
-	return GracefulShutdown(ctx, server.ListenAndServe, server.Shutdown, shutdownTimeout)
+
+	err := GracefulShutdown(ctx, server.ListenAndServe, server.Shutdown, shutdownTimeout)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrCantListen, err)
+	}
+
+	return nil
 }
 
 // GracefulShutdown runs serve until ctx is cancelled, then calls shutdown bounded by timeout so
@@ -26,14 +33,24 @@ func GracefulShutdown(ctx context.Context, serve Serve, shutdown Shutdown, timeo
 
 	select {
 	case err := <-serveErr:
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return err
+		if err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return nil
+			}
+
+			return fmt.Errorf("%w: %w", ErrFailedToServe, err)
 		}
 
 		return nil
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		return shutdown(shutdownCtx)
+
+		err := shutdown(shutdownCtx)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrFailedToShutdown, err)
+		}
+
+		return nil
 	}
 }

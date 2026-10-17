@@ -66,7 +66,7 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 		default:
 			jsonData, err = json.Marshal(body)
 			if err != nil {
-				return Response{}, fmt.Errorf("%w: %w", FailedToMarshalBody, err)
+				return Response{}, fmt.Errorf("%w: %w", ErrFailedToMarshalBody, err)
 			}
 		}
 
@@ -76,31 +76,28 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 
 	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
-		return Response{}, fmt.Errorf("%w: %w", FailedToCreateRequest, err)
+		return Response{}, fmt.Errorf("%w: %w", ErrFailedToCreateRequest, err)
 	}
 
-	// A nil body means the caller is making a body-less request (e.g. a GET with only
-	// query parameters, like an exchange klines endpoint) — Content-Type would be
-	// misleading there, so it is only set when a JSON body is actually being sent.
 	if hasJSONBody {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return Response{}, fmt.Errorf("%w: %w", FailedToExecuteRequest, err)
+		return Response{}, fmt.Errorf("%w: %w", ErrFailedToExecuteRequest, err)
 	}
 
 	defer func(body io.ReadCloser) {
-		err = body.Close()
-		if err != nil {
-			log.Warn(ctx, "failed to close the response body: "+err.Error())
+		closeErr := body.Close()
+		if closeErr != nil {
+			log.Warn(ctx, "failed to close the response body: "+closeErr.Error())
 		}
 	}(resp.Body)
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Response{}, fmt.Errorf("%w: %w", FailedToReadResponse, err)
+		return Response{}, fmt.Errorf("%w: %w", ErrFailedToReadResponse, err)
 	}
 
 	return Response{

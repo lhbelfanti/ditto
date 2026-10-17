@@ -11,118 +11,103 @@ import (
 )
 
 func TestCORS_successWhenOriginIsAllowed(t *testing.T) {
-	handler := middleware.CORS()(middleware.MockOKHandler())
+	mockNext := middleware.MockOKHandler()
+
+	cors := middleware.CORS()
+	handler := cors(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
-	want := "http://localhost:3000"
-	got := rr.Header().Get("Access-Control-Allow-Origin")
+	want := middleware.MockCORSHeaders("http://localhost:3000")
+	got := w.Header()
 
 	assert.Equal(t, want, got)
-}
-
-func TestCORS_successWhenOriginIsAllowedVariesByOrigin(t *testing.T) {
-	handler := middleware.CORS()(middleware.MockOKHandler())
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Origin", "http://localhost:3000")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	assert.Contains(t, rr.Header().Values("Vary"), "Origin")
 }
 
 func TestCORS_successWhenOriginIsNotAllowed(t *testing.T) {
-	handler := middleware.CORS()(middleware.MockOKHandler())
+	mockNext := middleware.MockOKHandler()
+
+	cors := middleware.CORS()
+	handler := cors(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Origin", "http://not-allowed.example.com")
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
-	got := rr.Header().Get("Access-Control-Allow-Origin")
-
-	assert.Empty(t, got)
-}
-
-func TestCORS_successWhenOriginIsMissing(t *testing.T) {
-	handler := middleware.CORS()(middleware.MockOKHandler())
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	got := rr.Header().Get("Access-Control-Allow-Origin")
-
-	assert.Empty(t, got)
-}
-
-func TestCORS_successWhenRequestIsPreflight(t *testing.T) {
-	handler := middleware.CORS()(middleware.MockOKHandler())
-	req := httptest.NewRequest(http.MethodOptions, "/test", nil)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	want := http.StatusNoContent
-	got := rr.Code
+	want := middleware.MockCORSHeaders("")
+	got := w.Header()
 
 	assert.Equal(t, want, got)
 }
 
-func TestCORS_successWhenRequestIsPreflightDoesNotCallNext(t *testing.T) {
-	nextCalled := false
-	handler := middleware.CORS()(middleware.MockNextHandler(&nextCalled))
-	req := httptest.NewRequest(http.MethodOptions, "/test", nil)
-	rr := httptest.NewRecorder()
+func TestCORS_successWhenOriginIsMissing(t *testing.T) {
+	mockNext := middleware.MockOKHandler()
 
-	handler.ServeHTTP(rr, req)
+	cors := middleware.CORS()
+	handler := cors(mockNext)
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
 
-	assert.False(t, nextCalled)
+	handler.ServeHTTP(w, req)
+
+	want := middleware.MockCORSHeaders("")
+	got := w.Header()
+
+	assert.Equal(t, want, got)
 }
 
-func TestCORS_successWhenCredentialsAllowed(t *testing.T) {
-	handler := middleware.CORS()(middleware.MockOKHandler())
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rr := httptest.NewRecorder()
+func TestCORS_successWhenRequestIsPreflight(t *testing.T) {
+	mockNext := middleware.MockUnreachableHandler(t)
 
-	handler.ServeHTTP(rr, req)
+	cors := middleware.CORS()
+	handler := cors(mockNext)
+	req := httptest.NewRequest(http.MethodOptions, "/test", nil)
+	w := httptest.NewRecorder()
 
-	want := "true"
-	got := rr.Header().Get("Access-Control-Allow-Credentials")
+	handler.ServeHTTP(w, req)
+
+	want := http.StatusNoContent
+	got := w.Result().StatusCode
 
 	assert.Equal(t, want, got)
 }
 
 func TestCORS_successWhenOriginIsConfigured(t *testing.T) {
 	t.Setenv("CORS_ALLOWED_ORIGIN", "http://example.com")
-	handler := middleware.CORS()(middleware.MockOKHandler())
+	mockNext := middleware.MockOKHandler()
+
+	cors := middleware.CORS()
+	handler := cors(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Origin", "http://example.com")
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
-	want := "http://example.com"
-	got := rr.Header().Get("Access-Control-Allow-Origin")
+	want := middleware.MockCORSHeaders("http://example.com")
+	got := w.Header()
 
 	assert.Equal(t, want, got)
 }
 
 func TestCORS_successWhenMultipleOriginsConfigured(t *testing.T) {
 	t.Setenv("CORS_ALLOWED_ORIGIN", "http://a.example.com, http://b.example.com")
-	handler := middleware.CORS()(middleware.MockOKHandler())
+	mockNext := middleware.MockOKHandler()
+
+	cors := middleware.CORS()
+	handler := cors(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.Header.Set("Origin", "http://b.example.com")
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
-	want := "http://b.example.com"
-	got := rr.Header().Get("Access-Control-Allow-Origin")
+	want := middleware.MockCORSHeaders("http://b.example.com")
+	got := w.Header()
 
 	assert.Equal(t, want, got)
 }

@@ -9,10 +9,12 @@ import (
 	"github.com/lhbelfanti/ditto/v2/app"
 )
 
-func TestOptions_WithMiddleware_successWhenFirstAddedRunsFirst(t *testing.T) {
-	opts := app.Options{Mux: app.MockMux("GET /a", http.StatusOK)}.
-		WithMiddleware(app.MockMiddleware("first")).
-		WithMiddleware(app.MockMiddleware("second"))
+func TestOptions_WithMiddleware_successWhenCalledTwice(t *testing.T) {
+	mockMux := app.MockMux("GET /a", http.StatusOK)
+	mockFirst := app.MockMiddleware("first")
+	mockSecond := app.MockMiddleware("second")
+
+	opts := app.Options{Mux: mockMux}.WithMiddleware(mockFirst).WithMiddleware(mockSecond)
 	service := app.MockRunningServiceWith(t, opts)
 
 	want := []string{"first", "second"}
@@ -22,8 +24,12 @@ func TestOptions_WithMiddleware_successWhenFirstAddedRunsFirst(t *testing.T) {
 }
 
 func TestOptions_WithMiddleware_successWhenOriginalIsNotModified(t *testing.T) {
-	base := app.Options{Mux: app.MockMux("GET /a", http.StatusOK)}.WithMiddleware(app.MockMiddleware("base"))
-	_ = base.WithMiddleware(app.MockMiddleware("extra"))
+	mockMux := app.MockMux("GET /a", http.StatusOK)
+	mockBase := app.MockMiddleware("base")
+	mockExtra := app.MockMiddleware("extra")
+
+	base := app.Options{Mux: mockMux}.WithMiddleware(mockBase)
+	_ = base.WithMiddleware(mockExtra)
 	service := app.MockRunningServiceWith(t, base)
 
 	want := []string{"base"}

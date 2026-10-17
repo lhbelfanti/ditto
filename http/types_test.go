@@ -10,41 +10,28 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	dittohttp "github.com/lhbelfanti/ditto/v2/http"
+	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
 func TestCustomClient_NewRequest_successWhenBodyIsJSON(t *testing.T) {
-	server, request := dittohttp.MockServer(http.StatusOK, nil, `{"ok":true}`)
-	defer server.Close()
-	client := dittohttp.NewClient(5 * time.Second)
+	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
+	defer mockServer.Close()
+	client := _http.NewClient(5 * time.Second)
 
-	_, _ = client.NewRequest(context.Background(), http.MethodPost, server.URL, map[string]string{"symbol": "BTC/USDT"})
+	_, _ = client.NewRequest(context.Background(), http.MethodPost, mockServer.URL, map[string]string{"symbol": "BTC/USDT"})
 
-	want := `{"symbol":"BTC/USDT"}`
-	got := request.Body
-
-	assert.Equal(t, want, got)
-}
-
-func TestCustomClient_NewRequest_successWhenBodyIsJSONSetsContentType(t *testing.T) {
-	server, request := dittohttp.MockServer(http.StatusOK, nil, "")
-	defer server.Close()
-	client := dittohttp.NewClient(5 * time.Second)
-
-	_, _ = client.NewRequest(context.Background(), http.MethodPost, server.URL, map[string]string{"symbol": "BTC/USDT"})
-
-	want := "application/json"
-	got := request.ContentType
+	want := _http.MockServerRequest{ContentType: "application/json", Body: `{"symbol":"BTC/USDT"}`}
+	got := *mockRequest
 
 	assert.Equal(t, want, got)
 }
 
 func TestCustomClient_NewRequest_successWhenResponseHasBody(t *testing.T) {
-	server, _ := dittohttp.MockServer(http.StatusOK, nil, `{"ok":true}`)
-	defer server.Close()
-	client := dittohttp.NewClient(5 * time.Second)
+	mockServer, _ := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
+	defer mockServer.Close()
+	client := _http.NewClient(5 * time.Second)
 
-	resp, _ := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+	resp, _ := client.NewRequest(context.Background(), http.MethodGet, mockServer.URL, nil)
 
 	want := `{"ok":true}`
 	got := resp.Body
@@ -53,11 +40,11 @@ func TestCustomClient_NewRequest_successWhenResponseHasBody(t *testing.T) {
 }
 
 func TestCustomClient_NewRequest_successWhenResponseHasStatus(t *testing.T) {
-	server, _ := dittohttp.MockServer(http.StatusOK, nil, "")
-	defer server.Close()
-	client := dittohttp.NewClient(5 * time.Second)
+	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
+	defer mockServer.Close()
+	client := _http.NewClient(5 * time.Second)
 
-	resp, _ := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+	resp, _ := client.NewRequest(context.Background(), http.MethodGet, mockServer.URL, nil)
 
 	want := "200 OK"
 	got := resp.Status
@@ -66,38 +53,25 @@ func TestCustomClient_NewRequest_successWhenResponseHasStatus(t *testing.T) {
 }
 
 func TestCustomClient_NewRequest_successWhenBodyIsNil(t *testing.T) {
-	server, request := dittohttp.MockServer(http.StatusOK, nil, "")
-	defer server.Close()
-	client := dittohttp.NewClient(5 * time.Second)
+	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, "")
+	defer mockServer.Close()
+	client := _http.NewClient(5 * time.Second)
 
-	_, _ = client.NewRequest(context.Background(), http.MethodGet, server.URL+"?symbol=BTCUSDT", nil)
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, mockServer.URL+"?symbol=BTCUSDT", nil)
 
-	want := ""
-	got := request.Body
-
-	assert.Equal(t, want, got)
-}
-
-func TestCustomClient_NewRequest_successWhenBodyIsNilOmitsContentType(t *testing.T) {
-	server, request := dittohttp.MockServer(http.StatusOK, nil, "")
-	defer server.Close()
-	client := dittohttp.NewClient(5 * time.Second)
-
-	_, _ = client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
-
-	want := ""
-	got := request.ContentType
+	want := _http.MockServerRequest{}
+	got := *mockRequest
 
 	assert.Equal(t, want, got)
 }
 
 func TestCustomClient_NewRequest_successWhenResponseHasHeaders(t *testing.T) {
 	header := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
-	server, _ := dittohttp.MockServer(http.StatusTooManyRequests, header, "")
-	defer server.Close()
-	client := dittohttp.NewClient(5 * time.Second)
+	mockServer, _ := _http.MockServer(http.StatusTooManyRequests, header, "")
+	defer mockServer.Close()
+	client := _http.NewClient(5 * time.Second)
 
-	resp, _ := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+	resp, _ := client.NewRequest(context.Background(), http.MethodGet, mockServer.URL, nil)
 
 	want := "42"
 	got := resp.Header.Get("X-MBX-USED-WEIGHT-1M")
@@ -107,11 +81,11 @@ func TestCustomClient_NewRequest_successWhenResponseHasHeaders(t *testing.T) {
 
 func TestCustomClient_NewRequest_successWhenResponseHasRetryAfterHeader(t *testing.T) {
 	header := http.Header{"Retry-After": {"5"}}
-	server, _ := dittohttp.MockServer(http.StatusTooManyRequests, header, "")
-	defer server.Close()
-	client := dittohttp.NewClient(5 * time.Second)
+	mockServer, _ := _http.MockServer(http.StatusTooManyRequests, header, "")
+	defer mockServer.Close()
+	client := _http.NewClient(5 * time.Second)
 
-	resp, _ := client.NewRequest(context.Background(), http.MethodGet, server.URL, nil)
+	resp, _ := client.NewRequest(context.Background(), http.MethodGet, mockServer.URL, nil)
 
 	want := http.StatusTooManyRequests
 	got := resp.StatusCode
@@ -120,44 +94,33 @@ func TestCustomClient_NewRequest_successWhenResponseHasRetryAfterHeader(t *testi
 }
 
 func TestCustomClient_NewRequest_failsWhenURLIsInvalid(t *testing.T) {
-	client := dittohttp.NewClient(5 * time.Second)
+	client := _http.NewClient(5 * time.Second)
 
-	want := dittohttp.FailedToCreateRequest
+	want := _http.ErrFailedToCreateRequest
 	_, got := client.NewRequest(context.Background(), http.MethodGet, "://invalid-url", nil)
 
 	assert.ErrorIs(t, got, want)
 }
 
 func TestCustomClient_NewRequest_failsWhenContextIsCanceled(t *testing.T) {
-	server, _ := dittohttp.MockServer(http.StatusOK, nil, "")
-	defer server.Close()
+	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
+	defer mockServer.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	client := dittohttp.NewClient(5 * time.Second)
+	client := _http.NewClient(5 * time.Second)
 
-	want := dittohttp.FailedToExecuteRequest
-	_, got := client.NewRequest(ctx, http.MethodGet, server.URL, nil)
-
-	assert.ErrorIs(t, got, want)
-}
-
-func TestCustomClient_NewRequest_failsWhenContextIsCanceledKeepsCause(t *testing.T) {
-	server, _ := dittohttp.MockServer(http.StatusOK, nil, "")
-	defer server.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	client := dittohttp.NewClient(5 * time.Second)
-
-	want := context.Canceled
-	_, got := client.NewRequest(ctx, http.MethodGet, server.URL, nil)
+	want := _http.ErrFailedToExecuteRequest
+	_, got := client.NewRequest(ctx, http.MethodGet, mockServer.URL, nil)
+	wantCause := context.Canceled
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestSystemRoutes_WithDatabasePing_success(t *testing.T) {
-	mockPing := dittohttp.MockDatabasePing(nil)
+	mockPing := _http.MockDatabasePing(nil)
 	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux).WithDatabasePing(mockPing)
+	_http.RegisterSystemRoutes(mux).WithDatabasePing(mockPing)
 
 	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
 	w := httptest.NewRecorder()
@@ -170,9 +133,9 @@ func TestSystemRoutes_WithDatabasePing_success(t *testing.T) {
 }
 
 func TestSystemRoutes_WithDatabasePing_failsWhenPingFails(t *testing.T) {
-	mockPing := dittohttp.MockDatabasePing(errors.New("database unreachable"))
+	mockPing := _http.MockDatabasePing(errors.New("database unreachable"))
 	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux).WithDatabasePing(mockPing)
+	_http.RegisterSystemRoutes(mux).WithDatabasePing(mockPing)
 
 	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
 	w := httptest.NewRecorder()
@@ -186,15 +149,17 @@ func TestSystemRoutes_WithDatabasePing_failsWhenPingFails(t *testing.T) {
 
 func TestSystemRoutes_WithDatabasePing_failsWhenPingFailsWithSensitiveError(t *testing.T) {
 	underlyingErrText := "pgx: connection refused on host db-internal:5432"
-	mockPing := dittohttp.MockDatabasePing(errors.New(underlyingErrText))
+	mockPing := _http.MockDatabasePing(errors.New(underlyingErrText))
 	mux := http.NewServeMux()
-	dittohttp.RegisterSystemRoutes(mux).WithDatabasePing(mockPing)
+	_http.RegisterSystemRoutes(mux).WithDatabasePing(mockPing)
 
 	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
 	w := httptest.NewRecorder()
+
 	mux.ServeHTTP(w, req)
 
+	want := `{"code":503,"message":"` + _http.ErrMsgDatabaseUnavailable + `"}` + "\n"
 	got := w.Body.String()
 
-	assert.NotContains(t, got, underlyingErrText)
+	assert.Equal(t, want, got)
 }

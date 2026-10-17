@@ -1,10 +1,8 @@
 package log
 
 import (
-	"fmt"
 	"sort"
 	"strings"
-	"time"
 )
 
 type (
@@ -49,13 +47,4 @@ func (e *FieldsError) Error() string {
 // Unwrap returns the cause, so errors.Is and errors.As keep working through a FieldsError.
 func (e *FieldsError) Unwrap() error {
 	return e.cause
-}
-
-// formatField renders a field value for an error text. Times use RFC 3339.
-func formatField(value any) string {
-	if t, ok := value.(time.Time); ok {
-		return t.Format(time.RFC3339)
-	}
-
-	return fmt.Sprint(value)
 }

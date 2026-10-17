@@ -24,34 +24,26 @@ func TestMakeApply_success(t *testing.T) {
 }
 
 func TestMakeApply_failsWhenExecutionFails(t *testing.T) {
-	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, &pgconn.PgError{Code: "42601"})
-	mockRunner := migration.MockRunner(runnerErr)
+	mockErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, &pgconn.PgError{Code: "42601"})
+	mockRunner := migration.MockRunner(mockErr)
 	mockFinder := migration.MockPendingFileFinder("001_second.sql", nil)
 
 	apply := migration.MakeApply(mockRunner, mockFinder)
+
+	err := apply(context.Background())
+	var got *migration.ApplyError
+	_ = errors.As(err, &got)
 
 	want := &migration.ApplyError{File: "001_second.sql", Code: "42601"}
-	var got *migration.ApplyError
-	_ = errors.As(apply(context.Background()), &got)
+	wantCause := mockErr
 
 	assert.Equal(t, want.Error(), got.Error())
-}
-
-func TestMakeApply_failsWhenExecutionFailsKeepsCause(t *testing.T) {
-	want := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, &pgconn.PgError{Code: "42601"})
-	mockRunner := migration.MockRunner(want)
-	mockFinder := migration.MockPendingFileFinder("001_second.sql", nil)
-
-	apply := migration.MakeApply(mockRunner, mockFinder)
-
-	got := apply(context.Background())
-
-	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, err, wantCause)
 }
 
 func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
-	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToCreateTable, errors.New("connection refused"))
-	mockRunner := migration.MockRunner(runnerErr)
+	mockErr := fmt.Errorf("%w: %w", migration.ErrFailedToCreateTable, errors.New("connection refused"))
+	mockRunner := migration.MockRunner(mockErr)
 	mockFinder := migration.MockPendingFileFinder("", errors.New("must not be called"))
 
 	apply := migration.MakeApply(mockRunner, mockFinder)
@@ -64,8 +56,8 @@ func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
 }
 
 func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
-	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, errors.New("execution error"))
-	mockRunner := migration.MockRunner(runnerErr)
+	mockErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, errors.New("execution error"))
+	mockRunner := migration.MockRunner(mockErr)
 	mockFinder := migration.MockPendingFileFinder("", errors.New("status query failed"))
 
 	apply := migration.MakeApply(mockRunner, mockFinder)

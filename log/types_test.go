@@ -36,7 +36,8 @@ func TestFieldsError_Unwrap_success(t *testing.T) {
 	ctx := log.With(context.Background(), log.Param("symbol", "BTC/USDT"))
 	err := log.NewFieldsError(ctx, cause)
 
+	want := cause
 	got := errors.Unwrap(err)
 
-	assert.Equal(t, cause, got)
+	assert.Equal(t, want, got)
 }

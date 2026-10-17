@@ -11,7 +11,9 @@ import (
 )
 
 func TestMakeProvision_success(t *testing.T) {
-	provision := database.MakeProvision(database.MockExecFormatted(nil), database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
+	mockExecFormatted := database.MockExecFormatted(nil)
+
+	provision := database.MakeProvision(mockExecFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
 	got := provision(context.Background())
 
@@ -19,7 +21,9 @@ func TestMakeProvision_success(t *testing.T) {
 }
 
 func TestMakeProvision_failsWhenCreatingTheRoleFails(t *testing.T) {
-	provision := database.MakeProvision(database.MockExecFormatted(errors.New("boom")), database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
+	mockExecFormatted := database.MockExecFormatted(errors.New("boom"))
+
+	provision := database.MakeProvision(mockExecFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
 	want := database.ErrFailedToCreateRole
 	got := provision(context.Background())
@@ -28,8 +32,8 @@ func TestMakeProvision_failsWhenCreatingTheRoleFails(t *testing.T) {
 }
 
 func TestMakeProvision_failsWhenPasswordSyncFails(t *testing.T) {
-	execFormatted := database.MockExecFormattedSequence(nil, errors.New("boom"))
-	provision := database.MakeProvision(execFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
+	mockExecFormatted := database.MockExecFormattedSequence(nil, errors.New("boom"))
+	provision := database.MakeProvision(mockExecFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
 	want := database.ErrFailedToSyncPassword
 	got := provision(context.Background())
@@ -38,8 +42,8 @@ func TestMakeProvision_failsWhenPasswordSyncFails(t *testing.T) {
 }
 
 func TestMakeProvision_failsWhenCreatingTheDatabaseFails(t *testing.T) {
-	execFormatted := database.MockExecFormattedSequence(nil, nil, errors.New("boom"))
-	provision := database.MakeProvision(execFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
+	mockExecFormatted := database.MockExecFormattedSequence(nil, nil, errors.New("boom"))
+	provision := database.MakeProvision(mockExecFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
 	want := database.ErrFailedToCreateDatabase
 	got := provision(context.Background())
@@ -48,8 +52,8 @@ func TestMakeProvision_failsWhenCreatingTheDatabaseFails(t *testing.T) {
 }
 
 func TestMakeProvision_failsWhenRevokingPublicAccessFails(t *testing.T) {
-	execFormatted := database.MockExecFormattedSequence(nil, nil, nil, errors.New("boom"))
-	provision := database.MakeProvision(execFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
+	mockExecFormatted := database.MockExecFormattedSequence(nil, nil, nil, errors.New("boom"))
+	provision := database.MakeProvision(mockExecFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
 	want := database.ErrFailedToRevokePublic
 	got := provision(context.Background())
@@ -57,11 +61,24 @@ func TestMakeProvision_failsWhenRevokingPublicAccessFails(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
-func TestMakeProvision_failsWithTheCauseWhenAStepFails(t *testing.T) {
+func TestMakeProvision_failsWhenExecFormattedFails(t *testing.T) {
 	want := errors.New("boom")
-	provision := database.MakeProvision(database.MockExecFormatted(want), database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
+	mockExecFormatted := database.MockExecFormatted(want)
+
+	provision := database.MakeProvision(mockExecFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
 	got := provision(context.Background())
 
 	assert.ErrorIs(t, got, want)
+}
+
+func TestTargetFromEnv_success(t *testing.T) {
+	t.Setenv("POSTGRES_DB_NAME", "svc_db")
+	t.Setenv("POSTGRES_DB_USER", "svc")
+	t.Setenv("POSTGRES_DB_PASS", "pw")
+
+	want := database.Target{Name: "svc_db", Role: "svc", Pass: "pw"}
+	got := database.TargetFromEnv()
+
+	assert.Equal(t, want, got)
 }

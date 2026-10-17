@@ -3,6 +3,7 @@ package migration
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -39,7 +40,7 @@ func MakePendingFileFinder(status Status) PendingFileFinder {
 	return func(ctx context.Context) (string, error) {
 		records, err := status(ctx)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("%w: %w", ErrFailedToFindPendingFile, err)
 		}
 
 		for _, record := range records {
@@ -48,7 +49,7 @@ func MakePendingFileFinder(status Status) PendingFileFinder {
 			}
 		}
 
-		return "", errors.New("migration: no pending migration found in post-failure status snapshot")
+		return "", ErrNoPendingFile
 	}
 }
 

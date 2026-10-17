@@ -41,18 +41,17 @@ func TestBaseParam_successWhenValueIsKept(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestWith_successWhenChildAddsFieldsParentDoesNotSeeThem(t *testing.T) {
-	buf := log.MockLogOutput(t)
+func TestWith_successWhenAChildIsDerived(t *testing.T) {
+	mockOutput := log.MockLogOutput(t)
 	parent := log.With(context.Background(), log.Param("request_id", "abc"))
 	_ = log.With(parent, log.Param("worker", 1))
+
 	log.Info(parent, "from the parent")
 
-	entry := map[string]any{}
-	_ = json.Unmarshal(buf.Bytes(), &entry)
+	want := []map[string]any{{"level": "info", "message": "from the parent", "request_id": "abc"}}
+	got := log.MockLogEntries(mockOutput)
 
-	got := entry["worker"]
-
-	assert.Nil(t, got)
+	assert.Equal(t, want, got)
 }
 
 func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
@@ -67,11 +66,11 @@ func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
 
 	wg.Wait()
 
-	buf := log.MockLogOutput(t)
+	mockOutput := log.MockLogOutput(t)
 	log.Info(parent, "from the parent")
 
 	entry := map[string]any{}
-	_ = json.Unmarshal(buf.Bytes(), &entry)
+	_ = json.Unmarshal(mockOutput.Bytes(), &entry)
 
 	got := entry["worker"]
 
@@ -87,13 +86,14 @@ func TestNewFieldsError_successWhenContextCarriesFields(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestNewFieldsError_successWhenCauseIsStillMatched(t *testing.T) {
+func TestNewFieldsError_successWhenErrorWrapsACause(t *testing.T) {
 	cause := errors.New("boom")
 	ctx := log.With(context.Background(), log.Param("symbol", "BTC/USDT"))
 
+	want := cause
 	got := log.NewFieldsError(ctx, fmt.Errorf("wrapped: %w", cause))
 
-	assert.ErrorIs(t, got, cause)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestNewFieldsError_successWhenContextHasNoFields(t *testing.T) {

@@ -2,9 +2,12 @@ package middleware
 
 import "errors"
 
-const ErrMsgInvalidToken string = "invalid or expired token"
+const (
+	ErrMsgMissingAuthHeader string = "authorization header required"
+	ErrMsgInvalidToken      string = "invalid or expired token"
+)
 
 var (
-	ErrMissingAuthHeader = errors.New("middleware: authorization header required")
+	ErrMissingAuthHeader = errors.New(ErrMsgMissingAuthHeader)
 	ErrInvalidToken      = errors.New(ErrMsgInvalidToken)
 )

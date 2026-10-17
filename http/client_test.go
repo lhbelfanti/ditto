@@ -6,12 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	dittohttp "github.com/lhbelfanti/ditto/v2/http"
+	"github.com/lhbelfanti/ditto/v2/http"
 )
 
 func TestNewClient_success(t *testing.T) {
 	want := 5 * time.Second
-	client := dittohttp.NewClient(want)
+	client := http.NewClient(want)
 
 	got := client.HTTPClient.Timeout
 

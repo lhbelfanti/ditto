@@ -120,7 +120,7 @@ func TestBind_failsWhenBodyWithPointerReceiverIsNotValid(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
-func TestBind_failsWithTheFirstMissingParamInFieldOrder(t *testing.T) {
+func TestBind_failsWhenSeveralParamsAreMissing(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/deletions", nil)
 
 	_, err := request.Bind[request.MockDeletionDTO](req)

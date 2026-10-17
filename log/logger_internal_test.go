@@ -3,7 +3,6 @@ package log
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -16,10 +15,8 @@ func TestLogWithLevel_success(t *testing.T) {
 
 	logWithLevel(context.Background(), zerolog.WarnLevel, "careful")
 
-	want := map[string]any{"level": "warn", "message": "careful"}
-	got := map[string]any{}
-	_ = json.Unmarshal(buf.Bytes(), &got)
-	delete(got, "time")
+	want := []map[string]any{{"level": "warn", "message": "careful"}}
+	got := MockLogEntries(buf)
 
 	assert.Equal(t, want, got)
 }
@@ -31,11 +28,10 @@ func TestLogWithLevel_successWhenContextCarriesParams(t *testing.T) {
 
 	logWithLevel(ctx, zerolog.InfoLevel, "hello")
 
-	want := "abc"
-	got := map[string]any{}
-	_ = json.Unmarshal(buf.Bytes(), &got)
+	want := []map[string]any{{"level": "info", "message": "hello", "request_id": "abc"}}
+	got := MockLogEntries(buf)
 
-	assert.Equal(t, want, got["request_id"])
+	assert.Equal(t, want, got)
 }
 
 func TestLogWithLevel_successWhenLevelIsBelowThreshold(t *testing.T) {

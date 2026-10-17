@@ -8,9 +8,9 @@ import (
 )
 
 func TestDeclareQueue_success(t *testing.T) {
-	ch := &MockChannel{}
+	mockChannel := &MockChannel{}
 
-	queue, _ := declareQueue(ch, "work")
+	queue, _ := declareQueue(mockChannel, "work")
 
 	want := "work"
 	got := queue.Name
@@ -19,19 +19,13 @@ func TestDeclareQueue_success(t *testing.T) {
 }
 
 func TestDeclareQueue_failsWhenChannelRejectsDeclaration(t *testing.T) {
-	ch := &MockChannel{QueueErr: errors.New("unavailable")}
+	mockErr := errors.New("unavailable")
+	mockChannel := &MockChannel{QueueErr: mockErr}
 
 	want := ErrFailedToDeclareQueue
-	_, got := declareQueue(ch, "work")
+	_, got := declareQueue(mockChannel, "work")
+	wantCause := mockErr
 
 	assert.ErrorIs(t, got, want)
-}
-
-func TestDeclareQueue_failsWhenChannelRejectsDeclarationKeepsCause(t *testing.T) {
-	want := errors.New("unavailable")
-	ch := &MockChannel{QueueErr: want}
-
-	_, got := declareQueue(ch, "work")
-
-	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }

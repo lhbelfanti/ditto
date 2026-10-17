@@ -46,7 +46,7 @@ func main() {
 
 The `main` wires every dependency top-down; `Run` only serves the result. A service whose
 endpoints do not need the pool before `Run` can leave `Database` unset: `Run` opens it itself
-from `MigrationsDir`. A service without a database sets `NoDatabase: true`.
+with `InitDatabase`. A service without a database sets `NoDatabase: true`.
 
 ## `InitDatabase`
 
@@ -67,15 +67,13 @@ before returning.
 |---|---|
 | `Name` | Appears in the startup log line, e.g. `Nebula Saturn`. |
 | `PortEnv` | Variable holding the internal listen port. Defaults to `APP_INTERNAL_PORT`. |
-| `Mux` | The service's endpoints. `Run` mounts its system routes on it. |
-| `Database` | The pool from `InitDatabase`. When nil, `Run` opens the database itself. Either way `Run` mounts `GET /database/ping/v1`. |
-| `MigrationsDir` | Where `Run` looks for migrations when it opens the database itself. Defaults to `./migrations`; to use another folder, open the database with `InitDatabaseWithMigrationFolder` and set `Database`. Deprecated. |
+| `Mux` | The service's endpoints. `Run` mounts its system routes on it, and creates an empty one when nil. |
+| `Database` | The pool from `InitDatabase`. When nil, `Run` opens the database itself. Either way `Run` mounts `GET /database/ping/v1`. Closing a pool passed here is up to the caller. |
 | `NoDatabase` | For a service without a database: nothing is opened and no ping route is mounted. |
 | `Timeouts` | Bounds the ping route and shutdown. Zero fields use their defaults. |
 | `WithMiddleware(m)` | Adds a middleware around the whole handler. The first one added is the outermost. |
 
-`WithMiddleware` returns a copy, so an `Options` value can be shared and extended safely. The
-`Routes` and `Wrap` fields still work but are deprecated in favour of `Mux` and `WithMiddleware`.
+`WithMiddleware` returns a copy, so an `Options` value can be shared and extended safely.
 
 ## What `Run` does, in order
 
@@ -87,3 +85,14 @@ before returning.
 
 Every failure before step 5 is returned, not logged-and-exited, so the caller decides how to exit.
 `setup.Must` in the example logs the error, with its whole chain, and then panics.
+
+## Sentinel errors
+
+Every failure is wrapped in the sentinel of the step that failed, with the cause behind it, so
+`errors.Is` still finds the `database`, `env`, `migration` and `http` sentinels underneath.
+
+| Error | Where |
+|---|---|
+| `ErrCantOpenAdmin` / `ErrAdminUnavailable` / `ErrCantProvision` | `provision`: opening or checking the administrator pool, or provisioning the role and database |
+| `ErrInvalidDatabaseEnv` / `ErrCantProvisionDatabase` / `ErrCantOpenDatabase` / `ErrCantReachDatabase` / `ErrCantApplyMigrations` | `InitDatabaseWithMigrationFolder`, one per step |
+| `ErrInvalidPort` / `ErrCantInitDatabase` / `ErrCantServe` | `Run`: the port variable, opening the database, serving |

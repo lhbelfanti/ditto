@@ -97,14 +97,6 @@ func MockShutdown(err error) Shutdown {
 	return func(context.Context) error { return err }
 }
 
-// MockCountingShutdown builds a Shutdown that returns err and increments *calls on every call.
-func MockCountingShutdown(err error, calls *int) Shutdown {
-	return func(context.Context) error {
-		*calls++
-		return err
-	}
-}
-
 // MockCapturingShutdown builds a Shutdown that returns err and records the ctx of its most
 // recent call into *captured.
 func MockCapturingShutdown(err error, captured *context.Context) Shutdown {

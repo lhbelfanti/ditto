@@ -7,11 +7,7 @@ import (
 )
 
 const (
-	// CommandApply runs pending migrations through Apply. It is also the default when no
-	// argument is given, preserving a no-argument-apply CLI's prior behavior.
-	CommandApply string = "apply"
-
-	// CommandStatus reports applied/pending migration files without mutating the database.
+	CommandApply  string = "apply"
 	CommandStatus string = "status"
 )
 
@@ -31,12 +27,20 @@ func MakeDispatch(apply Apply, runStatus StatusRunner) Dispatch {
 
 		switch command {
 		case CommandApply:
-			return apply(ctx)
+			err := apply(ctx)
+			if err != nil {
+				return fmt.Errorf("%w: %w", ErrFailedToRunApply, err)
+			}
 		case CommandStatus:
-			return runStatus(ctx)
+			err := runStatus(ctx)
+			if err != nil {
+				return fmt.Errorf("%w: %w", ErrFailedToRunStatus, err)
+			}
 		default:
 			return ErrUnknownCommand
 		}
+
+		return nil
 	}
 }
 
@@ -46,7 +50,7 @@ func MakeStatusRunner(status Status, out io.Writer) StatusRunner {
 	return func(ctx context.Context) error {
 		records, err := status(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrFailedToGetStatus, err)
 		}
 
 		for _, record := range records {
@@ -57,7 +61,7 @@ func MakeStatusRunner(status Status, out io.Writer) StatusRunner {
 
 			_, err = fmt.Fprintf(out, "%s %s\n", state, record.Name)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w: %w", ErrFailedToWriteStatus, err)
 			}
 		}
 

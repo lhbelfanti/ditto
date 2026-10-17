@@ -2,6 +2,8 @@ package broker
 
 import (
 	"context"
+	"os"
+	"testing"
 
 	"github.com/rabbitmq/amqp091-go"
 )
@@ -29,6 +31,12 @@ type (
 	MockAckRecorder struct {
 		Acks  chan uint64
 		Nacks chan uint64
+	}
+
+	// MockAcks holds the delivery tags a MockAckRecorder acknowledged and rejected.
+	MockAcks struct {
+		Acks  []uint64
+		Nacks []uint64
 	}
 )
 
@@ -115,6 +123,20 @@ func (m *MockAckRecorder) Reject(tag uint64, _ bool) error {
 	return nil
 }
 
+// Recorded drains the tags acknowledged and rejected so far.
+func (m *MockAckRecorder) Recorded() MockAcks {
+	recorded := MockAcks{}
+	for len(m.Acks) > 0 {
+		recorded.Acks = append(recorded.Acks, <-m.Acks)
+	}
+
+	for len(m.Nacks) > 0 {
+		recorded.Nacks = append(recorded.Nacks, <-m.Nacks)
+	}
+
+	return recorded
+}
+
 // MockProcessor returns a Processor that always returns err.
 func MockProcessor(err error) Processor {
 	return func(context.Context, []byte) error { return err }
@@ -146,4 +168,22 @@ func MockClosedMessages(deliveries ...amqp091.Delivery) <-chan amqp091.Delivery 
 
 	close(messages)
 	return messages
+}
+
+// MockConnection returns a connection to the RabbitMQ server in DITTO_TEST_RABBITMQ_URL, closed when the test ends, and skips the test when the variable is unset.
+func MockConnection(t *testing.T) *amqp091.Connection {
+	t.Helper()
+	url := os.Getenv("DITTO_TEST_RABBITMQ_URL")
+	if url == "" {
+		t.Skip("DITTO_TEST_RABBITMQ_URL not set")
+	}
+
+	conn, err := amqp091.Dial(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	return conn
 }

@@ -7,14 +7,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	dittohttp "github.com/lhbelfanti/ditto/v2/http"
+	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
 func TestMockSequenceRoundTripper_success(t *testing.T) {
-	client := dittohttp.NewClient(0)
-	client.HTTPClient.Transport = dittohttp.MockSequenceRoundTripper(
-		dittohttp.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Body: "retry"},
-		dittohttp.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"},
+	client := _http.NewClient(0)
+	client.HTTPClient.Transport = _http.MockSequenceRoundTripper(
+		_http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Body: "retry"},
+		_http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"},
 	)
 	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
 
@@ -27,9 +27,9 @@ func TestMockSequenceRoundTripper_success(t *testing.T) {
 }
 
 func TestMockSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
-	client := dittohttp.NewClient(0)
-	client.HTTPClient.Transport = dittohttp.MockSequenceRoundTripper(
-		dittohttp.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": []string{"1"}}},
+	client := _http.NewClient(0)
+	client.HTTPClient.Transport = _http.MockSequenceRoundTripper(
+		_http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": []string{"1"}}},
 	)
 
 	first, _ := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
@@ -41,10 +41,10 @@ func TestMockSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
 }
 
 func TestMockSequenceRoundTripper_failsWhenSequenceIsExhausted(t *testing.T) {
-	client := dittohttp.NewClient(0)
-	client.HTTPClient.Transport = dittohttp.MockSequenceRoundTripper()
+	client := _http.NewClient(0)
+	client.HTTPClient.Transport = _http.MockSequenceRoundTripper()
 
-	want := dittohttp.FailedToExecuteRequest
+	want := _http.ErrFailedToExecuteRequest
 	_, got := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
 
 	assert.ErrorIs(t, got, want)

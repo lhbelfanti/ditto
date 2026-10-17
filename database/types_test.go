@@ -11,10 +11,10 @@ import (
 )
 
 func TestPostgres_MakeCheck_failsWhenDatabaseIsUnreachable(t *testing.T) {
-	pg := database.MockPostgres()
-	defer pg.Close()
+	mockPostgres := database.MockPostgres()
+	defer mockPostgres.Close()
 
-	check := pg.MakeCheck(time.Second)
+	check := mockPostgres.MakeCheck(time.Second)
 
 	want := database.ErrDatabaseUnavailable
 	got := check(context.Background())
@@ -23,32 +23,21 @@ func TestPostgres_MakeCheck_failsWhenDatabaseIsUnreachable(t *testing.T) {
 }
 
 func TestPostgres_Database_success(t *testing.T) {
-	pg := database.MockPostgres()
-	defer pg.Close()
+	mockPostgres := database.MockPostgres()
+	defer mockPostgres.Close()
 
-	got := pg.Database()
+	got := mockPostgres.Database()
 
 	assert.NotNil(t, got)
 }
 
 func TestPostgres_Close_success(t *testing.T) {
-	pg := database.MockPostgres()
-	pool := pg.Database()
+	mockPostgres := database.MockPostgres()
+	pool := mockPostgres.Database()
 
-	pg.Close()
+	mockPostgres.Close()
 
 	got := pool.Ping(context.Background()) != nil
 
 	assert.True(t, got)
-}
-
-func TestTargetFromEnv_success(t *testing.T) {
-	t.Setenv("POSTGRES_DB_NAME", "svc_db")
-	t.Setenv("POSTGRES_DB_USER", "svc")
-	t.Setenv("POSTGRES_DB_PASS", "pw")
-
-	want := database.Target{Name: "svc_db", Role: "svc", Pass: "pw"}
-	got := database.TargetFromEnv()
-
-	assert.Equal(t, want, got)
 }

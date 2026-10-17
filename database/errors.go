@@ -7,6 +7,8 @@ var (
 	ErrQuery   = errors.New("database: query execution failed")
 	ErrCollect = errors.New("database: failed to collect rows")
 
+	ErrFailedToScanRows = errors.New("database: failed to scan rows")
+
 	ErrDatabaseUnavailable = errors.New("database: unavailable")
 	ErrCantInitDatabase    = errors.New("database: can't initialize database")
 

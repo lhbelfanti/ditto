@@ -3,13 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
-)
 
-const (
-	createRole     string = `SELECT format('CREATE ROLE %I LOGIN', $1::text) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = $1::text)`
-	syncPassword   string = `SELECT format('ALTER ROLE %I PASSWORD %L', $1::text, $2::text)`
-	createDatabase string = `SELECT format('CREATE DATABASE %I OWNER %I', $1::text, $2::text) WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = $1::text)`
-	revokePublic   string = `SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', $1::text)`
+	"github.com/lhbelfanti/ditto/v2/env"
 )
 
 // MakeProvision returns a Provision that, through execFormatted, creates target's role and database when
@@ -18,6 +13,19 @@ const (
 // step fails with its own sentinel (ErrFailedToCreateRole, ErrFailedToSyncPassword,
 // ErrFailedToCreateDatabase, ErrFailedToRevokePublic), wrapping the cause.
 func MakeProvision(execFormatted ExecFormatted, target Target) Provision {
+	const (
+		createRole string = `
+			SELECT format('CREATE ROLE %I LOGIN', $1::text)
+			WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = $1::text)`
+		syncPassword string = `
+			SELECT format('ALTER ROLE %I PASSWORD %L', $1::text, $2::text)`
+		createDatabase string = `
+			SELECT format('CREATE DATABASE %I OWNER %I', $1::text, $2::text)
+			WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = $1::text)`
+		revokePublic string = `
+			SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', $1::text)`
+	)
+
 	return func(ctx context.Context) error {
 		err := execFormatted(ctx, createRole, target.Role)
 		if err != nil {
@@ -40,5 +48,15 @@ func MakeProvision(execFormatted ExecFormatted, target Target) Provision {
 		}
 
 		return nil
+	}
+}
+
+// TargetFromEnv reads the service's database name, role and password from POSTGRES_DB_NAME,
+// POSTGRES_DB_USER and POSTGRES_DB_PASS.
+func TargetFromEnv() Target {
+	return Target{
+		Name: env.Get("POSTGRES_DB_NAME", ""),
+		Role: env.Get("POSTGRES_DB_USER", ""),
+		Pass: env.Get("POSTGRES_DB_PASS", ""),
 	}
 }

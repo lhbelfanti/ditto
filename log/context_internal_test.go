@@ -1,93 +1,16 @@
 package log
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestWithContextParams_success(t *testing.T) {
-	tests := []struct {
-		name string
-		ctx  context.Context
-		want map[string]any
-	}{
-		{
-			name: "Nil context",
-			ctx:  nil,
-			want: map[string]any{},
-		},
-		{
-			name: "Empty context",
-			ctx:  context.Background(),
-			want: map[string]any{},
-		},
-		{
-			name: "Single types",
-			ctx: With(context.Background(),
-				Param("stringKey", "stringValue"),
-				Param("intKey", 42),
-				Param("float64Key", 42.5),
-				Param("boolKey", true),
-			),
-			want: map[string]any{
-				"stringKey":  "stringValue",
-				"intKey":     42,
-				"float64Key": 42.5,
-				"boolKey":    true,
-			},
-		},
-		{
-			name: "Error value",
-			ctx:  With(context.Background(), Param("errorKey", assert.AnError)),
-			want: map[string]any{"errorKey": assert.AnError},
-		},
-		{
-			name: "Array values",
-			ctx: With(context.Background(),
-				Param("stringArrayKey", []string{"value1", "value2"}),
-				Param("intArrayKey", []int{1, 2, 3}),
-				Param("float64ArrayKey", []float64{1.0, 2.0, 3.0}),
-				Param("bytesKey", []byte("value")),
-			),
-			want: map[string]any{
-				"stringArrayKey":  []string{"value1", "value2"},
-				"intArrayKey":     []int{1, 2, 3},
-				"float64ArrayKey": []float64{1.0, 2.0, 3.0},
-				"bytesKey":        []byte("value"),
-			},
-		},
-		{
-			name: "Time value",
-			ctx:  With(context.Background(), Param("timeKey", time.Now())),
-			want: map[string]any{"timeKey": time.Now()},
-		},
-		{
-			name: "Interface value",
-			ctx: With(context.Background(),
-				Param("interfaceKey", struct{ key string }{key: "value"}),
-			),
-			want: map[string]any{
-				"interfaceKey": struct{ key string }{key: "value"},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			buf := MockLogOutput(t)
-			Info(tt.ctx, "")
-
-			got := buf.String()
-
-			for key := range tt.want {
-				assert.Contains(t, got, key)
-			}
-		})
-	}
-}
 func TestWith_success(t *testing.T) {
 	ctx := With(context.Background(), Param("key1", "value1"), Param("key2", 123))
 
@@ -105,6 +28,44 @@ func TestWith_successWhenContextAlreadyHasParams(t *testing.T) {
 	got := ctx.Value(logCtxKey{}).(map[string]any)
 
 	assert.Equal(t, want, got)
+}
+
+func TestWithContextParams_success(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  context.Context
+		want string
+	}{
+		{name: "NilContext", ctx: nil, want: `{}`},
+		{name: "EmptyContext", ctx: context.Background(), want: `{}`},
+		{
+			name: "SingleTypes",
+			ctx:  With(context.Background(), Param("string", "value"), Param("int", 42), Param("float64", 42.5), Param("bool", true)),
+			want: `{"string":"value","int":42,"float64":42.5,"bool":true}`,
+		},
+		{name: "Error", ctx: With(context.Background(), Param("error", errors.New("boom"))), want: `{"error":"boom"}`},
+		{
+			name: "Slices",
+			ctx:  With(context.Background(), Param("strings", []string{"a", "b"}), Param("ints", []int{1, 2}), Param("floats", []float64{1.5}), Param("bytes", []byte("value"))),
+			want: `{"strings":["a","b"],"ints":[1,2],"floats":[1.5],"bytes":"value"}`,
+		},
+		{name: "Time", ctx: With(context.Background(), Param("time", time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))), want: `{"time":"2026-01-02T03:04:05Z"}`},
+		{name: "OtherType", ctx: With(context.Background(), Param("map", map[string]int{"a": 1})), want: `{"map":{"a":1}}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := &bytes.Buffer{}
+			logger := zerolog.New(buf)
+			event := logger.Log()
+
+			withContextParams(tt.ctx, event).Send()
+
+			got := buf.String()
+
+			assert.JSONEq(t, tt.want, got)
+		})
+	}
 }
 
 func TestFormatField_successWhenValueIsATime(t *testing.T) {

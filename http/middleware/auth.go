@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -17,7 +18,7 @@ func Auth(selectUserIDByToken SelectUserIDByToken) func(http.Handler) http.Handl
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				response.Send(r.Context(), w, http.StatusUnauthorized, "authorization header required", nil, ErrMissingAuthHeader)
+				response.Send(r.Context(), w, http.StatusUnauthorized, ErrMsgMissingAuthHeader, nil, ErrMissingAuthHeader)
 				return
 			}
 
@@ -30,7 +31,7 @@ func Auth(selectUserIDByToken SelectUserIDByToken) func(http.Handler) http.Handl
 			token := parts[1]
 			userID, err := selectUserIDByToken(r.Context(), token)
 			if err != nil {
-				response.Send(r.Context(), w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, ErrInvalidToken)
+				response.Send(r.Context(), w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, fmt.Errorf("%w: %w", ErrInvalidToken, err))
 				return
 			}
 

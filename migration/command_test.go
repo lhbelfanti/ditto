@@ -16,17 +16,21 @@ func TestDispatch_successWhenNoArguments(t *testing.T) {
 	called := false
 	mockApply := migration.MockApplyCapturing(nil, &called)
 	mockRunStatus := migration.MockStatusRunner(errors.New("must not be called"), new(bool))
+
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
 	_ = dispatch(context.Background(), []string{})
 
-	assert.True(t, called)
+	got := called
+
+	assert.True(t, got)
 }
 
 func TestDispatch_successWhenApplyIsExplicit(t *testing.T) {
 	want := errors.New("apply failed")
 	mockApply := migration.MockApply(want)
 	mockRunStatus := migration.MockStatusRunner(errors.New("must not be called"), new(bool))
+
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
 	got := dispatch(context.Background(), []string{migration.CommandApply})
@@ -38,17 +42,21 @@ func TestDispatch_successWhenStatusIsRequested(t *testing.T) {
 	called := false
 	mockApply := migration.MockApply(errors.New("must not be called"))
 	mockRunStatus := migration.MockStatusRunner(nil, &called)
+
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
 	_ = dispatch(context.Background(), []string{migration.CommandStatus})
 
-	assert.True(t, called)
+	got := called
+
+	assert.True(t, got)
 }
 
 func TestDispatch_failsWhenStatusRunnerFails(t *testing.T) {
 	want := errors.New("status query failed")
 	mockApply := migration.MockApply(nil)
 	mockRunStatus := migration.MockStatusRunner(want, new(bool))
+
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
 	got := dispatch(context.Background(), []string{migration.CommandStatus})
@@ -59,6 +67,7 @@ func TestDispatch_failsWhenStatusRunnerFails(t *testing.T) {
 func TestDispatch_failsWhenCommandIsUnknown(t *testing.T) {
 	mockApply := migration.MockApply(nil)
 	mockRunStatus := migration.MockStatusRunner(nil, new(bool))
+
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
 	want := migration.ErrUnknownCommand
@@ -70,6 +79,7 @@ func TestDispatch_failsWhenCommandIsUnknown(t *testing.T) {
 func TestDispatch_failsWhenTooManyArguments(t *testing.T) {
 	mockApply := migration.MockApply(nil)
 	mockRunStatus := migration.MockStatusRunner(nil, new(bool))
+
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
 	want := migration.ErrUnknownCommand
@@ -108,7 +118,9 @@ func TestStatusRunner_failsWhenStatusFails(t *testing.T) {
 func TestStatusRunner_failsWhenWriterFails(t *testing.T) {
 	records := []migration.Record{{Name: "000_foundation.sql", Applied: true}}
 	mockStatus := migration.MockStatus(records, nil)
-	runStatus := migration.MakeStatusRunner(mockStatus, migration.MockClosedWriter())
+	mockOut := migration.MockClosedWriter()
+
+	runStatus := migration.MakeStatusRunner(mockStatus, mockOut)
 
 	want := io.ErrClosedPipe
 	got := runStatus(context.Background())

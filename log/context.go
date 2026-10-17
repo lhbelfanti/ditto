@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"time"
 
@@ -79,7 +80,6 @@ func withContextParams(ctx context.Context, event *zerolog.Event) *zerolog.Event
 		return event
 	}
 
-	// If a specific type (supported by zerolog.Event) is needed, add it to the switch
 	for key, value := range params {
 		switch v := value.(type) {
 		case string:
@@ -108,4 +108,14 @@ func withContextParams(ctx context.Context, event *zerolog.Event) *zerolog.Event
 	}
 
 	return event
+}
+
+// formatField renders a field value for an error text. Times use RFC 3339.
+func formatField(value any) string {
+	t, isTime := value.(time.Time)
+	if isTime {
+		return t.Format(time.RFC3339)
+	}
+
+	return fmt.Sprint(value)
 }

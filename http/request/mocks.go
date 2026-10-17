@@ -100,16 +100,6 @@ type (
 	MockInvalidPointerBodyDTO struct {
 		Body MockInvalidPointerBody
 	}
-
-	// MockUntaggedDTO is a request DTO whose Path has a field without its tag.
-	MockUntaggedDTO struct {
-		Path MockUntaggedPath
-	}
-
-	// MockNotAStructPathDTO is a request DTO whose Path is not a struct.
-	MockNotAStructPathDTO struct {
-		Path string
-	}
 )
 
 // IsValid returns nil.

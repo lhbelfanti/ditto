@@ -13,29 +13,17 @@ import (
 )
 
 func TestAuth_success(t *testing.T) {
-	next := middleware.MockOKHandler()
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(42, nil))(next)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer a-valid-token")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	want := http.StatusOK
-	got := rr.Code
-
-	assert.Equal(t, want, got)
-}
-
-func TestAuth_successWhenTokenIsValidInjectsUserID(t *testing.T) {
 	var gotUserID int
-	next := middleware.MockUserIDHandler(&gotUserID)
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(42, nil))(next)
+	mockNext := middleware.MockUserIDHandler(&gotUserID)
+	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(42, nil)
+
+	auth := middleware.Auth(mockSelectUserIDByToken)
+	handler := auth(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer a-valid-token")
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
 	want := 42
 	got := gotUserID
@@ -44,148 +32,74 @@ func TestAuth_successWhenTokenIsValidInjectsUserID(t *testing.T) {
 }
 
 func TestAuth_failsWhenAuthorizationHeaderMissing(t *testing.T) {
-	next := middleware.MockOKHandler()
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, nil))(next)
+	mockNext := middleware.MockUnreachableHandler(t)
+	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(0, nil)
+
+	auth := middleware.Auth(mockSelectUserIDByToken)
+	handler := auth(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
-	want := http.StatusUnauthorized
-	got := rr.Code
+	want := `{"code":401,"message":"` + middleware.ErrMsgMissingAuthHeader + `"}` + "\n"
+	got := w.Body.String()
 
 	assert.Equal(t, want, got)
-}
-
-func TestAuth_failsWhenAuthorizationHeaderMissingDoesNotCallNext(t *testing.T) {
-	nextCalled := false
-	next := middleware.MockNextHandler(&nextCalled)
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, nil))(next)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	assert.False(t, nextCalled)
-}
-
-func TestAuth_failsWhenAuthorizationHeaderMissingExplainsWhy(t *testing.T) {
-	next := middleware.MockOKHandler()
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, nil))(next)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	assert.Contains(t, rr.Body.String(), "authorization header required")
 }
 
 func TestAuth_failsWhenSchemeIsNotBearer(t *testing.T) {
-	next := middleware.MockOKHandler()
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, nil))(next)
+	mockNext := middleware.MockUnreachableHandler(t)
+	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(0, nil)
+
+	auth := middleware.Auth(mockSelectUserIDByToken)
+	handler := auth(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Basic a-valid-token")
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
-	want := http.StatusUnauthorized
-	got := rr.Code
+	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
+	got := w.Body.String()
 
 	assert.Equal(t, want, got)
-}
-
-func TestAuth_failsWhenSchemeIsNotBearerDoesNotCallNext(t *testing.T) {
-	nextCalled := false
-	next := middleware.MockNextHandler(&nextCalled)
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, nil))(next)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Basic a-valid-token")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	assert.False(t, nextCalled)
-}
-
-func TestAuth_failsWhenSchemeIsNotBearerExplainsWhy(t *testing.T) {
-	next := middleware.MockOKHandler()
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, nil))(next)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Basic a-valid-token")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	assert.Contains(t, rr.Body.String(), middleware.ErrMsgInvalidToken)
 }
 
 func TestAuth_failsWhenAuthorizationHeaderIsMalformed(t *testing.T) {
-	next := middleware.MockOKHandler()
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, nil))(next)
+	mockNext := middleware.MockUnreachableHandler(t)
+	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(0, nil)
+
+	auth := middleware.Auth(mockSelectUserIDByToken)
+	handler := auth(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer")
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
-	want := http.StatusUnauthorized
-	got := rr.Code
+	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
+	got := w.Body.String()
 
 	assert.Equal(t, want, got)
-}
-
-func TestAuth_failsWhenAuthorizationHeaderIsMalformedDoesNotCallNext(t *testing.T) {
-	nextCalled := false
-	next := middleware.MockNextHandler(&nextCalled)
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, nil))(next)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	assert.False(t, nextCalled)
 }
 
 func TestAuth_failsWhenTokenLookupFails(t *testing.T) {
-	next := middleware.MockOKHandler()
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, errors.New("session not found")))(next)
+	mockNext := middleware.MockUnreachableHandler(t)
+	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(0, errors.New("session not found"))
+
+	auth := middleware.Auth(mockSelectUserIDByToken)
+	handler := auth(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer an-expired-token")
-	rr := httptest.NewRecorder()
+	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(rr, req)
+	handler.ServeHTTP(w, req)
 
-	want := http.StatusUnauthorized
-	got := rr.Code
+	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
+	got := w.Body.String()
 
 	assert.Equal(t, want, got)
-}
-
-func TestAuth_failsWhenTokenLookupFailsDoesNotCallNext(t *testing.T) {
-	nextCalled := false
-	next := middleware.MockNextHandler(&nextCalled)
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, errors.New("session not found")))(next)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer an-expired-token")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	assert.False(t, nextCalled)
-}
-
-func TestAuth_failsWhenTokenLookupFailsExplainsWhy(t *testing.T) {
-	next := middleware.MockOKHandler()
-	handler := middleware.Auth(middleware.MockSelectUserIDByToken(0, errors.New("session not found")))(next)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer an-expired-token")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	assert.Contains(t, rr.Body.String(), middleware.ErrMsgInvalidToken)
 }
 
 func TestUserIDFromContext_successWhenUserIDAbsent(t *testing.T) {
