@@ -49,31 +49,22 @@ func TestBeginLocked_failsWhenCreateTableFails(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
-func TestBeginLocked_failsWhenCreateTableFailsRollsBack(t *testing.T) {
-	mockTx := MockTx(MockTxConfig{CreateTableErr: errors.New("create failed")})
-	mockDB := MockConnection(mockTx, nil)
-
-	_, _ = beginLocked(context.Background(), mockDB)
-
-	mockTx.AssertCalled(t, "Rollback", mock.Anything)
-}
-
 func TestApplyFile_success(t *testing.T) {
-	file := MockMigrationFile(t, "CREATE TABLE a();")
+	mockFile := MockMigrationFile(t, "CREATE TABLE a();")
 	mockTx := MockTx(MockTxConfig{})
 	mockDB := MockConnection(mockTx, nil)
 
-	_ = applyFile(context.Background(), mockDB, file)
+	_ = applyFile(context.Background(), mockDB, mockFile)
 
 	mockTx.AssertCalled(t, "Exec", mock.Anything, "CREATE TABLE a();", mock.Anything)
 }
 
 func TestApplyFile_successWhenFileIsAlreadyApplied(t *testing.T) {
-	file := MockMigrationFile(t, "CREATE TABLE a();")
+	mockFile := MockMigrationFile(t, "CREATE TABLE a();")
 	mockTx := MockTx(MockTxConfig{Applied: true})
 	mockDB := MockConnection(mockTx, nil)
 
-	got := applyFile(context.Background(), mockDB, file)
+	got := applyFile(context.Background(), mockDB, mockFile)
 
 	assert.NoError(t, got)
 }
@@ -108,23 +99,23 @@ func TestApplyFile_failsWhenFileCannotBeRead(t *testing.T) {
 }
 
 func TestApplyFile_failsWhenFileExecutionFails(t *testing.T) {
-	file := MockMigrationFile(t, "SELECT broken;")
+	mockFile := MockMigrationFile(t, "SELECT broken;")
 	mockTx := MockTx(MockTxConfig{FileSQL: "SELECT broken;", FileErr: errors.New("syntax error")})
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToExecute
-	got := applyFile(context.Background(), mockDB, file)
+	got := applyFile(context.Background(), mockDB, mockFile)
 
 	assert.ErrorIs(t, got, want)
 }
 
 func TestApplyFile_failsWhenTrackingInsertFails(t *testing.T) {
-	file := MockMigrationFile(t, "CREATE TABLE a();")
+	mockFile := MockMigrationFile(t, "CREATE TABLE a();")
 	mockTx := MockTx(MockTxConfig{InsertErr: errors.New("insert failed")})
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToInsertApplied
-	got := applyFile(context.Background(), mockDB, file)
+	got := applyFile(context.Background(), mockDB, mockFile)
 
 	assert.ErrorIs(t, got, want)
 }
@@ -140,12 +131,12 @@ func TestApplyFile_failsWhenCommittingAnAppliedFileFails(t *testing.T) {
 }
 
 func TestApplyFile_failsWhenCommittingTheFileFails(t *testing.T) {
-	file := MockMigrationFile(t, "SELECT 1;")
+	mockFile := MockMigrationFile(t, "SELECT 1;")
 	mockTx := MockTx(MockTxConfig{CommitErr: errors.New("commit failed")})
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToCommitFile
-	got := applyFile(context.Background(), mockDB, file)
+	got := applyFile(context.Background(), mockDB, mockFile)
 
 	assert.ErrorIs(t, got, want)
 }

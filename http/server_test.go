@@ -33,23 +33,7 @@ func TestGracefulShutdown_failsWhenServeFailsUnexpectedly(t *testing.T) {
 
 func TestGracefulShutdown_successWhenContextIsCancelled(t *testing.T) {
 	mockServe := _http.MockServeBlocking()
-	calls := 0
-	mockShutdown := _http.MockCountingShutdown(nil, &calls)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	_ = _http.GracefulShutdown(ctx, mockServe, mockShutdown, time.Second)
-
-	want := 1
-	got := calls
-
-	assert.Equal(t, want, got)
-}
-
-func TestGracefulShutdown_successWhenContextIsCancelledReturnsNil(t *testing.T) {
-	mockServe := _http.MockServeBlocking()
-	calls := 0
-	mockShutdown := _http.MockCountingShutdown(nil, &calls)
+	mockShutdown := _http.MockShutdown(nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

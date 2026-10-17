@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/database"
-	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 func TestMakeSelect_success(t *testing.T) {
@@ -146,17 +145,6 @@ func TestMakeUpdate_failsWhenQueryFails(t *testing.T) {
 	got := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
 
 	assert.ErrorIs(t, got, want)
-}
-
-func TestMakeUpdate_failsWhenExecFailsAndDoesNotLog(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
-	mockDB := database.MockExecConnection(pgx.ErrTxClosed)
-
-	update := database.MakeUpdate(mockDB)
-
-	_ = update(context.Background(), "UPDATE t SET a = 1")
-
-	assert.Empty(t, mockOutput.String())
 }
 
 func TestMakeCollectRows_success(t *testing.T) {

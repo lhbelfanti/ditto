@@ -18,9 +18,19 @@ func TestInit_success(t *testing.T) {
 }
 
 func TestInit_failsWhenErrorIsPassed(t *testing.T) {
-	assert.Panics(t, func() {
-		_ = setup.Init("test", errors.New("initialization failed"))
-	})
+	mockOutput := log.MockLogOutput(t)
+	initErr := errors.New("database: boom")
+	var recovered any
+
+	func() {
+		defer func() { recovered = recover() }()
+		_ = setup.Init("test", initErr)
+	}()
+
+	want := []any{initErr, []map[string]any{{"level": "error", "message": "failed to initialize a dependency", "error": "database: boom"}}}
+	got := []any{recovered, log.MockLogEntries(mockOutput)}
+
+	assert.Equal(t, want, got)
 }
 
 func TestMust_success(t *testing.T) {
@@ -30,27 +40,17 @@ func TestMust_success(t *testing.T) {
 }
 
 func TestMust_failsWhenErrorIsPassed(t *testing.T) {
-	assert.Panics(t, func() {
-		setup.Must(errors.New("initialization failed"))
-	})
-}
-
-func TestInit_successWhenErrorIsLoggedBeforePanicking(t *testing.T) {
 	mockOutput := log.MockLogOutput(t)
+	initErr := errors.New("database: boom")
+	var recovered any
 
-	assert.Panics(t, func() {
-		_ = setup.Init("test", errors.New("database: boom"))
-	})
+	func() {
+		defer func() { recovered = recover() }()
+		setup.Must(initErr)
+	}()
 
-	assert.Contains(t, mockOutput.String(), "database: boom")
-}
+	want := []any{initErr, []map[string]any{{"level": "error", "message": "failed to initialize a dependency", "error": "database: boom"}}}
+	got := []any{recovered, log.MockLogEntries(mockOutput)}
 
-func TestMust_successWhenErrorIsLoggedBeforePanicking(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
-
-	assert.Panics(t, func() {
-		setup.Must(errors.New("database: boom"))
-	})
-
-	assert.Contains(t, mockOutput.String(), "database: boom")
+	assert.Equal(t, want, got)
 }

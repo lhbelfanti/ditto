@@ -2,7 +2,9 @@ package log
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -16,4 +18,21 @@ func MockLogOutput(t *testing.T) *bytes.Buffer {
 	NewCustomLogger(buf, zerolog.TraceLevel)
 	t.Cleanup(func() { NewCustomLogger(os.Stdout, zerolog.DebugLevel) })
 	return buf
+}
+
+// MockLogEntries returns the entries written to output, one per line, without their time.
+func MockLogEntries(output *bytes.Buffer) []map[string]any {
+	entries := []map[string]any{}
+	for _, line := range strings.Split(strings.TrimSpace(output.String()), "\n") {
+		entry := map[string]any{}
+		err := json.Unmarshal([]byte(line), &entry)
+		if err != nil {
+			continue
+		}
+
+		delete(entry, "time")
+		entries = append(entries, entry)
+	}
+
+	return entries
 }

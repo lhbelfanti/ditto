@@ -42,8 +42,8 @@ func TestMakeApply_failsWhenExecutionFails(t *testing.T) {
 }
 
 func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
-	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToCreateTable, errors.New("connection refused"))
-	mockRunner := migration.MockRunner(runnerErr)
+	mockErr := fmt.Errorf("%w: %w", migration.ErrFailedToCreateTable, errors.New("connection refused"))
+	mockRunner := migration.MockRunner(mockErr)
 	mockFinder := migration.MockPendingFileFinder("", errors.New("must not be called"))
 
 	apply := migration.MakeApply(mockRunner, mockFinder)
@@ -56,8 +56,8 @@ func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
 }
 
 func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
-	runnerErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, errors.New("execution error"))
-	mockRunner := migration.MockRunner(runnerErr)
+	mockErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, errors.New("execution error"))
+	mockRunner := migration.MockRunner(mockErr)
 	mockFinder := migration.MockPendingFileFinder("", errors.New("status query failed"))
 
 	apply := migration.MakeApply(mockRunner, mockFinder)

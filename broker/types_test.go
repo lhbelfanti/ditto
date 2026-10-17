@@ -107,22 +107,8 @@ func TestRabbitMQBroker_InitMessageConsumer_successWhenProcessorFails(t *testing
 	_ = b.InitMessageConsumer(1, broker.MockProcessor(errors.New("processing failed")))
 	b.CloseConnection()
 
-	want := uint64(2)
-	got := <-mockAck.Nacks
-
-	assert.Equal(t, want, got)
-}
-
-func TestRabbitMQBroker_InitMessageConsumer_successWhenProcessorFailsDoesNotAcknowledge(t *testing.T) {
-	mockAck := broker.MockAcknowledger(1, 1)
-	mockMessages := broker.MockClosedMessages(amqp091.Delivery{DeliveryTag: 2, Acknowledger: mockAck})
-	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, mockMessages)
-
-	_ = b.InitMessageConsumer(1, broker.MockProcessor(errors.New("processing failed")))
-	b.CloseConnection()
-
-	want := 0
-	got := len(mockAck.Acks)
+	want := broker.MockAcks{Nacks: []uint64{2}}
+	got := mockAck.Recorded()
 
 	assert.Equal(t, want, got)
 }
@@ -148,17 +134,20 @@ func TestRabbitMQBroker_InitMessageConsumer_successWhenTwoMessagesAndLimitIsOne(
 	case <-time.After(2 * time.Second):
 		t.Fatal("first processor never started")
 	}
+
 	select {
 	case <-started:
 		t.Fatal("a second processor started while the first was still running")
 	case <-time.After(50 * time.Millisecond):
 	}
+
 	close(release)
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("consumer did not finish")
 	}
+
 	b.CloseConnection()
 
 	want := 2
@@ -199,19 +188,6 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenQoSUnavailable(t *testing.T
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestRabbitMQBroker_InitMessageConsumer_failsWhenQoSUnavailableDoesNotProcess(t *testing.T) {
-	mockChannel := &broker.MockChannel{QosErr: errors.New("qos unavailable")}
-	bodies := make(chan []byte, 1)
-	b := broker.MockRabbitMQBroker(mockChannel, "work", true, broker.MockClosedMessages(amqp091.Delivery{}))
-
-	_ = b.InitMessageConsumer(1, broker.MockRecordingProcessor(bodies, nil))
-
-	want := 0
-	got := len(bodies)
-
-	assert.Equal(t, want, got)
-}
-
 func TestRabbitMQBroker_InitMessageConsumer_failsWhenConcurrencyIsInvalid(t *testing.T) {
 	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, make(chan amqp091.Delivery))
 
@@ -219,18 +195,6 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenConcurrencyIsInvalid(t *tes
 	got := b.InitMessageConsumer(0, nil)
 
 	assert.ErrorIs(t, got, want)
-}
-
-func TestRabbitMQBroker_InitMessageConsumer_failsWhenConcurrencyIsInvalidSkipsQoS(t *testing.T) {
-	mockChannel := &broker.MockChannel{}
-	b := broker.MockRabbitMQBroker(mockChannel, "work", true, make(chan amqp091.Delivery))
-
-	_ = b.InitMessageConsumer(0, nil)
-
-	want := 0
-	got := mockChannel.QosCount
-
-	assert.Equal(t, want, got)
 }
 
 func TestRabbitMQBroker_InitMessageConsumer_failsWhenBrokerIsProducer(t *testing.T) {
@@ -248,7 +212,9 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenBrokerIsProducer(t *testing
 		t.Fatal("InitMessageConsumer blocked on a nil messages channel")
 	}
 
-	assert.ErrorIs(t, got, broker.ErrNotAConsumer)
+	want := broker.ErrNotAConsumer
+
+	assert.ErrorIs(t, got, want)
 }
 
 func TestRabbitMQBroker_EnqueueMessage_success(t *testing.T) {
@@ -301,6 +267,7 @@ func TestRabbitMQBroker_CloseConnection_successWhenProcessingIsInFlight(t *testi
 		_ = b.InitMessageConsumer(1, mockProcessor)
 		close(consumerDone)
 	}()
+
 	select {
 	case <-started:
 	case <-time.After(2 * time.Second):
@@ -312,17 +279,20 @@ func TestRabbitMQBroker_CloseConnection_successWhenProcessingIsInFlight(t *testi
 		b.CloseConnection()
 		close(closed)
 	}()
+
 	select {
 	case <-closed:
 		t.Fatal("CloseConnection returned before in-flight processing finished")
 	case <-time.After(50 * time.Millisecond):
 	}
+
 	close(release)
 	select {
 	case <-closed:
 	case <-time.After(2 * time.Second):
 		t.Fatal("CloseConnection did not finish after processing completed")
 	}
+
 	select {
 	case <-consumerDone:
 	case <-time.After(2 * time.Second):

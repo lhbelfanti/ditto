@@ -14,27 +14,14 @@ import (
 )
 
 func TestCustomClient_NewRequest_successWhenBodyIsJSON(t *testing.T) {
-	mockServer, request := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
+	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
 	_, _ = client.NewRequest(context.Background(), http.MethodPost, mockServer.URL, map[string]string{"symbol": "BTC/USDT"})
 
-	want := `{"symbol":"BTC/USDT"}`
-	got := request.Body
-
-	assert.Equal(t, want, got)
-}
-
-func TestCustomClient_NewRequest_successWhenBodyIsJSONSetsContentType(t *testing.T) {
-	mockServer, request := _http.MockServer(http.StatusOK, nil, "")
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
-
-	_, _ = client.NewRequest(context.Background(), http.MethodPost, mockServer.URL, map[string]string{"symbol": "BTC/USDT"})
-
-	want := "application/json"
-	got := request.ContentType
+	want := _http.MockServerRequest{ContentType: "application/json", Body: `{"symbol":"BTC/USDT"}`}
+	got := *mockRequest
 
 	assert.Equal(t, want, got)
 }
@@ -66,27 +53,14 @@ func TestCustomClient_NewRequest_successWhenResponseHasStatus(t *testing.T) {
 }
 
 func TestCustomClient_NewRequest_successWhenBodyIsNil(t *testing.T) {
-	mockServer, request := _http.MockServer(http.StatusOK, nil, "")
+	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
 	_, _ = client.NewRequest(context.Background(), http.MethodGet, mockServer.URL+"?symbol=BTCUSDT", nil)
 
-	want := ""
-	got := request.Body
-
-	assert.Equal(t, want, got)
-}
-
-func TestCustomClient_NewRequest_successWhenBodyIsNilOmitsContentType(t *testing.T) {
-	mockServer, request := _http.MockServer(http.StatusOK, nil, "")
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
-
-	_, _ = client.NewRequest(context.Background(), http.MethodGet, mockServer.URL, nil)
-
-	want := ""
-	got := request.ContentType
+	want := _http.MockServerRequest{}
+	got := *mockRequest
 
 	assert.Equal(t, want, got)
 }
@@ -122,7 +96,7 @@ func TestCustomClient_NewRequest_successWhenResponseHasRetryAfterHeader(t *testi
 func TestCustomClient_NewRequest_failsWhenURLIsInvalid(t *testing.T) {
 	client := _http.NewClient(5 * time.Second)
 
-	want := _http.FailedToCreateRequest
+	want := _http.ErrFailedToCreateRequest
 	_, got := client.NewRequest(context.Background(), http.MethodGet, "://invalid-url", nil)
 
 	assert.ErrorIs(t, got, want)
@@ -181,9 +155,11 @@ func TestSystemRoutes_WithDatabasePing_failsWhenPingFailsWithSensitiveError(t *t
 
 	req := httptest.NewRequest(http.MethodGet, "/database/ping/v1", nil)
 	w := httptest.NewRecorder()
+
 	mux.ServeHTTP(w, req)
 
+	want := `{"code":503,"message":"` + _http.ErrMsgDatabaseUnavailable + `"}` + "\n"
 	got := w.Body.String()
 
-	assert.NotContains(t, got, underlyingErrText)
+	assert.Equal(t, want, got)
 }

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"testing"
 
 	"github.com/lhbelfanti/ditto/v2/log"
 )
@@ -24,13 +25,6 @@ func MockNoopHandler() http.Handler {
 	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 }
 
-// MockNextHandler returns a handler that sets *called to true.
-func MockNextHandler(called *bool) http.Handler {
-	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		*called = true
-	})
-}
-
 // MockUserIDHandler returns a handler that stores the user ID from the request context in *gotUserID and answers 200.
 func MockUserIDHandler(gotUserID *int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,4 +38,27 @@ func MockRequestIDLoggingHandler() http.Handler {
 	return http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		log.Info(r.Context(), "test message")
 	})
+}
+
+// MockUnreachableHandler returns a handler that fails the test when the middleware calls it.
+func MockUnreachableHandler(t *testing.T) http.Handler {
+	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("the middleware called the next handler")
+	})
+}
+
+// MockCORSHeaders returns the headers CORS sets on a response, with origin as the allowed origin, or without one when origin is empty.
+func MockCORSHeaders(origin string) http.Header {
+	headers := http.Header{
+		"Vary":                             {"Origin"},
+		"Access-Control-Allow-Methods":     {"GET, POST, PUT, DELETE, OPTIONS"},
+		"Access-Control-Allow-Headers":     {"Authorization, Content-Type"},
+		"Access-Control-Allow-Credentials": {"true"},
+		"Access-Control-Max-Age":           {"86400"},
+	}
+	if origin != "" {
+		headers.Set("Access-Control-Allow-Origin", origin)
+	}
+
+	return headers
 }

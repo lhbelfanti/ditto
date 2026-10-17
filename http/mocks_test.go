@@ -44,7 +44,7 @@ func TestMockSequenceRoundTripper_failsWhenSequenceIsExhausted(t *testing.T) {
 	client := _http.NewClient(0)
 	client.HTTPClient.Transport = _http.MockSequenceRoundTripper()
 
-	want := _http.FailedToExecuteRequest
+	want := _http.ErrFailedToExecuteRequest
 	_, got := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
 
 	assert.ErrorIs(t, got, want)

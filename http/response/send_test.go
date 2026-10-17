@@ -1,9 +1,7 @@
 package response_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -22,44 +20,11 @@ func TestSend_success(t *testing.T) {
 		message string
 		data    any
 		err     error
-		want    response.DTO
+		want    string
 	}{
-		{
-			name:    "Success response with data",
-			code:    http.StatusOK,
-			message: "Request successful",
-			data:    map[string]string{"key": "value"},
-			err:     nil,
-			want: response.DTO{
-				Code:    http.StatusOK,
-				Message: "Request successful",
-				Data:    map[string]string{"key": "value"},
-			},
-		},
-		{
-			name:    "Error response with an error hides the cause",
-			code:    http.StatusUnauthorized,
-			message: "Unauthorized access",
-			data:    nil,
-			err:     errors.New("invalid token"),
-			want: response.DTO{
-				Code:    http.StatusUnauthorized,
-				Message: "Unauthorized access",
-				Data:    nil,
-			},
-		},
-		{
-			name:    "Empty data response",
-			code:    http.StatusNoContent,
-			message: "No content",
-			data:    nil,
-			err:     nil,
-			want: response.DTO{
-				Code:    http.StatusNoContent,
-				Message: "No content",
-				Data:    nil,
-			},
-		},
+		{name: "WithData", code: http.StatusOK, message: "Request successful", data: map[string]string{"key": "value"}, want: `{"code":200,"message":"Request successful","data":{"key":"value"}}`},
+		{name: "WithoutData", code: http.StatusNoContent, message: "No content", want: `{"code":204,"message":"No content"}`},
+		{name: "WithAnErrorThatStaysOutOfTheBody", code: http.StatusUnauthorized, message: "Unauthorized access", err: errors.New("secret cause"), want: `{"code":401,"message":"Unauthorized access"}`},
 	}
 
 	for _, tt := range tests {
@@ -67,54 +32,46 @@ func TestSend_success(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			response.Send(context.Background(), w, tt.code, tt.message, tt.data, tt.err)
-			resp := w.Result()
-			defer resp.Body.Close()
 
-			var got response.DTO
-			_ = json.NewDecoder(resp.Body).Decode(&got)
+			got := w.Body.String()
 
-			jsonWant, _ := json.Marshal(tt.want)
-			jsonGot, _ := json.Marshal(got)
-
-			assert.JSONEq(t, string(jsonWant), string(jsonGot))
+			assert.JSONEq(t, tt.want, got)
 		})
 	}
 }
 
-func TestSend_successWhenErrorIsLoggedOnce(t *testing.T) {
+func TestSend_successWhenCodeIsAnErrorWithACause(t *testing.T) {
 	mockOutput := log.MockLogOutput(t)
 	w := httptest.NewRecorder()
 
 	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
 
-	want := 1
-	got := bytes.Count(mockOutput.Bytes(), []byte(`"level":"error"`))
+	want := []map[string]any{{"level": "error", "message": "request failed", "error": "cause"}}
+	got := log.MockLogEntries(mockOutput)
 
 	assert.Equal(t, want, got)
 }
 
-func TestSend_successWhenErrorIsLoggedWithMessage(t *testing.T) {
+func TestSend_successWhenCodeIsAnErrorWithoutACause(t *testing.T) {
 	mockOutput := log.MockLogOutput(t)
 	w := httptest.NewRecorder()
 
-	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
+	response.Send(context.Background(), w, http.StatusNotFound, "not found", nil, nil)
 
-	assert.Contains(t, mockOutput.String(), `"message":"request failed"`)
+	want := []map[string]any{{"level": "error", "message": "not found"}}
+	got := log.MockLogEntries(mockOutput)
+
+	assert.Equal(t, want, got)
 }
 
-func TestSend_successWhenErrorIsLoggedWithCause(t *testing.T) {
+func TestSend_successWhenCodeIsNotAnError(t *testing.T) {
 	mockOutput := log.MockLogOutput(t)
 	w := httptest.NewRecorder()
 
-	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
+	response.Send(context.Background(), w, http.StatusOK, "done", nil, nil)
 
-	assert.Contains(t, mockOutput.String(), `"error":"cause"`)
-}
+	want := []map[string]any{{"level": "info", "message": "done"}}
+	got := log.MockLogEntries(mockOutput)
 
-func TestSend_successWhenCauseIsNotInTheResponseBody(t *testing.T) {
-	w := httptest.NewRecorder()
-
-	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("secret cause"))
-
-	assert.NotContains(t, w.Body.String(), "secret cause")
+	assert.Equal(t, want, got)
 }

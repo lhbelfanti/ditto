@@ -12,7 +12,9 @@ import (
 )
 
 func TestRequestID_successWhenHeaderIsAbsent(t *testing.T) {
-	handler := middleware.RequestID(middleware.MockNoopHandler())
+	mockNext := middleware.MockNoopHandler()
+
+	handler := middleware.RequestID(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
@@ -24,7 +26,9 @@ func TestRequestID_successWhenHeaderIsAbsent(t *testing.T) {
 }
 
 func TestRequestID_successWhenRequestsAreDistinct(t *testing.T) {
-	handler := middleware.RequestID(middleware.MockNoopHandler())
+	mockNext := middleware.MockNoopHandler()
+
+	handler := middleware.RequestID(mockNext)
 	firstW := httptest.NewRecorder()
 	handler.ServeHTTP(firstW, httptest.NewRequest(http.MethodGet, "/", nil))
 	secondW := httptest.NewRecorder()
@@ -37,7 +41,9 @@ func TestRequestID_successWhenRequestsAreDistinct(t *testing.T) {
 }
 
 func TestRequestID_successWhenInboundHeaderPresent(t *testing.T) {
-	handler := middleware.RequestID(middleware.MockNoopHandler())
+	mockNext := middleware.MockNoopHandler()
+
+	handler := middleware.RequestID(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("X-Request-ID", "upstream-id-123")
 	w := httptest.NewRecorder()
@@ -50,15 +56,19 @@ func TestRequestID_successWhenInboundHeaderPresent(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestRequestID_successWhenContextIsLogged(t *testing.T) {
+func TestRequestID_successWhenNextLogs(t *testing.T) {
 	mockOutput := log.MockLogOutput(t)
-	handler := middleware.RequestID(middleware.MockRequestIDLoggingHandler())
+	mockNext := middleware.MockRequestIDLoggingHandler()
+
+	handler := middleware.RequestID(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", "upstream-id-123")
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
 
-	got := mockOutput.String()
+	want := []map[string]any{{"level": "info", "message": "test message", "request_id": "upstream-id-123"}}
+	got := log.MockLogEntries(mockOutput)
 
-	assert.Contains(t, got, "request_id")
+	assert.Equal(t, want, got)
 }

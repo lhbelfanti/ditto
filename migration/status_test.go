@@ -12,12 +12,12 @@ import (
 )
 
 func TestMakeListFiles_success(t *testing.T) {
-	dir := migration.MockMigrationDir(t, map[string]string{
+	mockDir := migration.MockMigrationDir(t, map[string]string{
 		"001_second.sql":     "SELECT 1;",
 		"000_foundation.sql": "SELECT 1;",
 		"notes.txt":          "not a migration",
 	})
-	listFiles := migration.MakeListFiles(dir)
+	listFiles := migration.MakeListFiles(mockDir)
 
 	want := []string{"000_foundation.sql", "001_second.sql"}
 	got, _ := listFiles()
@@ -26,8 +26,8 @@ func TestMakeListFiles_success(t *testing.T) {
 }
 
 func TestMakeListFiles_successWhenDirectoryIsEmpty(t *testing.T) {
-	dir := migration.MockMigrationDir(t, nil)
-	listFiles := migration.MakeListFiles(dir)
+	mockDir := migration.MockMigrationDir(t, nil)
+	listFiles := migration.MakeListFiles(mockDir)
 
 	want := []string{}
 	got, _ := listFiles()

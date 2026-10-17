@@ -20,19 +20,8 @@ func TestRequireValue_successWhenValueHasSurroundingSpaces(t *testing.T) {
 func TestRequireValue_failsWhenMissing(t *testing.T) {
 	mockLookup := env.MockLookup(map[string]string{})
 
-	want := env.ErrMissingKey
+	want := &env.KeyError{Key: "KEY", Err: env.ErrMissingKey}
 	_, got := env.RequireValue(mockLookup, "KEY")
-
-	assert.ErrorIs(t, got, want)
-}
-
-func TestRequireValue_failsWhenMissingNamesTheKey(t *testing.T) {
-	mockLookup := env.MockLookup(map[string]string{})
-
-	_, err := env.RequireValue(mockLookup, "KEY")
-
-	want := "KEY: " + env.ErrMissingKey.Error()
-	got := err.Error()
 
 	assert.Equal(t, want, got)
 }
@@ -40,10 +29,10 @@ func TestRequireValue_failsWhenMissingNamesTheKey(t *testing.T) {
 func TestRequireValue_failsWhenBlank(t *testing.T) {
 	mockLookup := env.MockLookup(map[string]string{"KEY": "   "})
 
-	want := env.ErrMissingKey
+	want := &env.KeyError{Key: "KEY", Err: env.ErrMissingKey}
 	_, got := env.RequireValue(mockLookup, "KEY")
 
-	assert.ErrorIs(t, got, want)
+	assert.Equal(t, want, got)
 }
 
 func TestRequirePort_success(t *testing.T) {
@@ -91,10 +80,10 @@ func TestRequirePort_failsWhenInvalid(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockLookup := env.MockLookup(map[string]string{"PORT": tt.value})
 
-			want := env.ErrInvalidPort
+			want := &env.KeyError{Key: "PORT", Err: env.ErrInvalidPort}
 			_, got := env.RequirePort(mockLookup, "PORT")
 
-			assert.ErrorIs(t, got, want)
+			assert.Equal(t, want, got)
 		})
 	}
 }
@@ -102,16 +91,8 @@ func TestRequirePort_failsWhenInvalid(t *testing.T) {
 func TestRequirePort_failsWhenMissing(t *testing.T) {
 	mockLookup := env.MockLookup(map[string]string{})
 
-	want := env.ErrMissingKey
+	want := &env.KeyError{Key: "PORT", Err: env.ErrMissingKey}
 	_, got := env.RequirePort(mockLookup, "PORT")
 
-	assert.ErrorIs(t, got, want)
-}
-
-func TestRequirePort_failsWhenValueIsInvalidKeepsValueOutOfError(t *testing.T) {
-	mockLookup := env.MockLookup(map[string]string{"PORT": "not-a-port"})
-
-	_, err := env.RequirePort(mockLookup, "PORT")
-
-	assert.NotContains(t, err.Error(), "not-a-port")
+	assert.Equal(t, want, got)
 }
