@@ -122,6 +122,24 @@ func TestBind_successWhenTheDTOHasNoBody(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestBind_successWhenTheDTOHasOnlyPath(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/sessions/42?ignored=1", strings.NewReader(`not json`))
+	req.SetPathValue("id", "42")
+
+	got, err := request.Bind[sessionDTO](req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(42), got.Path.ID)
+}
+
+func TestBind_successWhenTheDTOHasNoFields(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/health?ignored=1", strings.NewReader(`not json`))
+
+	_, err := request.Bind[struct{}](req)
+
+	assert.NoError(t, err)
+}
+
 func TestBind_failsWhenPathParamIsMissing(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/accounts/", nil)
 	req.SetPathValue("username", "   ")

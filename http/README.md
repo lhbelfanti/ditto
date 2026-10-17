@@ -60,8 +60,30 @@ func CreateHandlerV1(create CreateV1) http.HandlerFunc {
 ```
 
 `Bind` reads a request into a DTO, one per handler, with up to three fields: `Path`, `Query` and
-`Body`. A field the DTO does not have is not read. It reads path, query and body in that order,
-each in field order, and returns the first error.
+`Body`. Each one is optional: the DTO declares only the parts its handler reads, and a part it
+does not declare is not read. It reads path, query and body in that order, each in field order,
+and returns the first error.
+
+```go
+type GetRequestDTOV1 struct { // GET /accounts/{username}: path only
+    Path struct {
+        Username string `path:"username"`
+    }
+}
+
+type ListRequestDTOV1 struct { // GET /events?from=…&limit=…: query only
+    Query struct {
+        From  *time.Time `query:"from"`
+        Limit *int       `query:"limit"`
+    }
+}
+
+type SetRequestDTOV1 struct { // PUT /preferences: body only
+    Body PreferencesBodyDTOV1
+}
+```
+
+A handler that reads nothing from the request does not call `Bind`.
 
 - **Params.** `Path` and `Query` are structs. Each field names its param with a `path:"…"` or
   `query:"…"` tag and is a `string` (trimmed), an int of any size, a `bool` or a `time.Time`
