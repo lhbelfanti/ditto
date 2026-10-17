@@ -11,25 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestWith_success(t *testing.T) {
-	ctx := With(context.Background(), Param("key1", "value1"), Param("key2", 123))
-
-	want := map[string]any{"key1": "value1", "key2": 123}
-	got := ctx.Value(logCtxKey{}).(map[string]any)
-
-	assert.Equal(t, want, got)
-}
-
-func TestWith_successWhenContextAlreadyHasParams(t *testing.T) {
-	ctx := With(context.Background(), Param("key1", "value1"), Param("key2", 123))
-	ctx = With(ctx, Param("key1", "newValue"))
-
-	want := map[string]any{"key1": "newValue", "key2": 123}
-	got := ctx.Value(logCtxKey{}).(map[string]any)
-
-	assert.Equal(t, want, got)
-}
-
 func TestWithContextParams_success(t *testing.T) {
 	tests := []struct {
 		name string

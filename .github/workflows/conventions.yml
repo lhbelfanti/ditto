@@ -1,0 +1,31 @@
+name: Conventions
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  conventions:
+    name: Go conventions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Checkout the Go conventions
+        uses: actions/checkout@v4
+        with:
+          repository: lhbelfanti/skills
+          token: ${{ secrets.SKILLS_READ_TOKEN }}
+          path: .skills
+
+      - name: Go conventions
+        run: cd .skills/code-conventions/go/linter && go run . "$GITHUB_WORKSPACE"

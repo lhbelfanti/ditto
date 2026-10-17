@@ -54,7 +54,7 @@ func MockRunningService(t *testing.T) *MockService {
 // fails with EADDRINUSE and the service starts again on a new port.
 func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
 	t.Helper()
-	const attempts = 3
+	const attempts int = 3
 	opts.Name, opts.PortEnv, opts.NoDatabase = "svc", "APP_MOCK_PORT", true
 
 	for attempt := 1; ; attempt++ {

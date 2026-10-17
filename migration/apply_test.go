@@ -31,13 +31,14 @@ func TestMakeApply_failsWhenExecutionFails(t *testing.T) {
 	apply := migration.MakeApply(mockRunner, mockFinder)
 
 	err := apply(context.Background())
-	var got *migration.ApplyError
-	_ = errors.As(err, &got)
+	var target *migration.ApplyError
+	_ = errors.As(err, &target)
 
-	want := &migration.ApplyError{File: "001_second.sql", Code: "42601"}
+	want := (&migration.ApplyError{File: "001_second.sql", Code: "42601"}).Error()
+	got := target.Error()
 	wantCause := mockErr
 
-	assert.Equal(t, want.Error(), got.Error())
+	assert.Equal(t, want, got)
 	assert.ErrorIs(t, err, wantCause)
 }
 
@@ -48,11 +49,13 @@ func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
 
 	apply := migration.MakeApply(mockRunner, mockFinder)
 
-	want := &migration.ApplyError{}
-	var got *migration.ApplyError
-	_ = errors.As(apply(context.Background()), &got)
+	var target *migration.ApplyError
+	_ = errors.As(apply(context.Background()), &target)
 
-	assert.Equal(t, want.Error(), got.Error())
+	want := (&migration.ApplyError{}).Error()
+	got := target.Error()
+
+	assert.Equal(t, want, got)
 }
 
 func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
@@ -62,11 +65,13 @@ func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
 
 	apply := migration.MakeApply(mockRunner, mockFinder)
 
-	want := &migration.ApplyError{AttributionUnavailable: true}
-	var got *migration.ApplyError
-	_ = errors.As(apply(context.Background()), &got)
+	var target *migration.ApplyError
+	_ = errors.As(apply(context.Background()), &target)
 
-	assert.Equal(t, want.Error(), got.Error())
+	want := (&migration.ApplyError{AttributionUnavailable: true}).Error()
+	got := target.Error()
+
+	assert.Equal(t, want, got)
 }
 
 func TestPendingFileFinder_success(t *testing.T) {

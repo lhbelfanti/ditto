@@ -45,8 +45,10 @@ func TestMakeSelect_failsWhenCollectFails(t *testing.T) {
 
 	want := database.ErrCollect
 	_, got := sel(context.Background(), "SELECT name FROM t")
+	wantCause := pgx.ErrNoRows
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeSelectOne_success(t *testing.T) {
@@ -79,8 +81,10 @@ func TestMakeSelectOne_failsWhenQueryFails(t *testing.T) {
 
 	want := database.ErrQuery
 	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
+	wantCause := pgx.ErrTxClosed
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeInsert_success(t *testing.T) {
@@ -101,8 +105,10 @@ func TestMakeInsert_failsWhenQueryFails(t *testing.T) {
 
 	want := database.ErrQuery
 	_, got := insert(context.Background(), "INSERT INTO t DEFAULT VALUES RETURNING id")
+	wantCause := pgx.ErrTxClosed
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeDelete_success(t *testing.T) {
@@ -122,8 +128,10 @@ func TestMakeDelete_failsWhenQueryFails(t *testing.T) {
 
 	want := database.ErrQuery
 	got := del(context.Background(), "DELETE FROM t WHERE id = $1", 1)
+	wantCause := pgx.ErrTxClosed
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeUpdate_success(t *testing.T) {
@@ -143,8 +151,10 @@ func TestMakeUpdate_failsWhenQueryFails(t *testing.T) {
 
 	want := database.ErrQuery
 	got := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
+	wantCause := pgx.ErrTxClosed
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeCollectRows_success(t *testing.T) {
@@ -193,8 +203,10 @@ func TestMakeExecFormatted_failsWhenBuildingTheStatementFails(t *testing.T) {
 
 	want := database.ErrFailedToBuildStatement
 	got := execFormatted(context.Background(), "SELECT 1")
+	wantCause := database.ErrQuery
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeExecFormatted_failsWhenExecutingTheStatementFails(t *testing.T) {
@@ -205,6 +217,8 @@ func TestMakeExecFormatted_failsWhenExecutingTheStatementFails(t *testing.T) {
 
 	want := database.ErrFailedToExecuteStatement
 	got := execFormatted(context.Background(), "SELECT 1")
+	wantCause := database.ErrQuery
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }

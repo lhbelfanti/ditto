@@ -41,6 +41,31 @@ func TestBaseParam_successWhenValueIsKept(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestWith_success(t *testing.T) {
+	mockOutput := log.MockLogOutput(t)
+	ctx := log.With(context.Background(), log.Param("key1", "value1"), log.Param("key2", 123))
+
+	log.Info(ctx, "hello")
+
+	want := []map[string]any{{"level": "info", "message": "hello", "key1": "value1", "key2": float64(123)}}
+	got := log.MockLogEntries(mockOutput)
+
+	assert.Equal(t, want, got)
+}
+
+func TestWith_successWhenContextAlreadyHasParams(t *testing.T) {
+	mockOutput := log.MockLogOutput(t)
+	ctx := log.With(context.Background(), log.Param("key1", "value1"), log.Param("key2", 123))
+	ctx = log.With(ctx, log.Param("key1", "newValue"))
+
+	log.Info(ctx, "hello")
+
+	want := []map[string]any{{"level": "info", "message": "hello", "key1": "newValue", "key2": float64(123)}}
+	got := log.MockLogEntries(mockOutput)
+
+	assert.Equal(t, want, got)
+}
+
 func TestWith_successWhenAChildIsDerived(t *testing.T) {
 	mockOutput := log.MockLogOutput(t)
 	parent := log.With(context.Background(), log.Param("request_id", "abc"))
