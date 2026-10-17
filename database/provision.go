@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
+
+	"github.com/lhbelfanti/ditto/v2/env"
 )
 
 // MakeProvision returns a Provision that, through execFormatted, creates target's role and database when
@@ -46,5 +48,15 @@ func MakeProvision(execFormatted ExecFormatted, target Target) Provision {
 		}
 
 		return nil
+	}
+}
+
+// TargetFromEnv reads the service's database name, role and password from POSTGRES_DB_NAME,
+// POSTGRES_DB_USER and POSTGRES_DB_PASS.
+func TargetFromEnv() Target {
+	return Target{
+		Name: env.Get("POSTGRES_DB_NAME", ""),
+		Role: env.Get("POSTGRES_DB_USER", ""),
+		Pass: env.Get("POSTGRES_DB_PASS", ""),
 	}
 }

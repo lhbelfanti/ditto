@@ -71,3 +71,14 @@ func TestMakeProvision_failsWhenExecFormattedFails(t *testing.T) {
 
 	assert.ErrorIs(t, got, want)
 }
+
+func TestTargetFromEnv_success(t *testing.T) {
+	t.Setenv("POSTGRES_DB_NAME", "svc_db")
+	t.Setenv("POSTGRES_DB_USER", "svc")
+	t.Setenv("POSTGRES_DB_PASS", "pw")
+
+	want := database.Target{Name: "svc_db", Role: "svc", Pass: "pw"}
+	got := database.TargetFromEnv()
+
+	assert.Equal(t, want, got)
+}

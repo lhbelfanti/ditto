@@ -79,9 +79,6 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 		return Response{}, fmt.Errorf("%w: %w", ErrFailedToCreateRequest, err)
 	}
 
-	// A nil body means the caller is making a body-less request (e.g. a GET with only
-	// query parameters, like an exchange klines endpoint) — Content-Type would be
-	// misleading there, so it is only set when a JSON body is actually being sent.
 	if hasJSONBody {
 		req.Header.Set("Content-Type", "application/json")
 	}

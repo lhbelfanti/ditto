@@ -7,11 +7,7 @@ import (
 )
 
 const (
-	// CommandApply runs pending migrations through Apply. It is also the default when no
-	// argument is given, preserving a no-argument-apply CLI's prior behavior.
-	CommandApply string = "apply"
-
-	// CommandStatus reports applied/pending migration files without mutating the database.
+	CommandApply  string = "apply"
 	CommandStatus string = "status"
 )
 
