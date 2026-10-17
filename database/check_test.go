@@ -23,25 +23,17 @@ func TestMakeCheck_success(t *testing.T) {
 }
 
 func TestMakeCheck_failsWhenPingFails(t *testing.T) {
-	mockPing := database.MockPing(errors.New("ping failed"))
+	mockErr := errors.New("ping failed")
+	mockPing := database.MockPing(mockErr)
 
 	check := database.MakeCheck(mockPing, time.Second)
 
 	want := database.ErrDatabaseUnavailable
 	got := check(context.Background())
+	wantCause := mockErr
 
 	assert.ErrorIs(t, got, want)
-}
-
-func TestMakeCheck_failsWhenPingFailsKeepsCause(t *testing.T) {
-	want := errors.New("ping failed")
-	mockPing := database.MockPing(want)
-
-	check := database.MakeCheck(mockPing, time.Second)
-
-	got := check(context.Background())
-
-	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeCheck_failsWhenPingExceedsTimeout(t *testing.T) {

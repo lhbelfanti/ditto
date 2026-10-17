@@ -32,8 +32,10 @@ func TestMakeSelect_failsWhenQueryFails(t *testing.T) {
 
 	want := database.ErrQuery
 	_, got := sel(context.Background(), "SELECT name FROM t")
+	wantCause := pgx.ErrTxClosed
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeSelect_failsWhenCollectFails(t *testing.T) {
@@ -65,8 +67,10 @@ func TestMakeSelectOne_failsWhenNoRowsFound(t *testing.T) {
 
 	want := database.ErrNoRows
 	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
+	wantCause := pgx.ErrNoRows
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestMakeSelectOne_failsWhenQueryFails(t *testing.T) {
@@ -140,28 +144,6 @@ func TestMakeUpdate_failsWhenQueryFails(t *testing.T) {
 
 	want := database.ErrQuery
 	got := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
-
-	assert.ErrorIs(t, got, want)
-}
-
-func TestMakeSelect_failsWhenQueryFailsAndKeepsTheCause(t *testing.T) {
-	mockConn := database.MockQueryConnection(nil, pgx.ErrTxClosed)
-	mockCollectRows := database.MockCollectRows[string](nil, nil)
-
-	sel := database.MakeSelect[string](mockConn, mockCollectRows)
-
-	want := pgx.ErrTxClosed
-	_, got := sel(context.Background(), "SELECT name FROM t")
-
-	assert.ErrorIs(t, got, want)
-}
-
-func TestMakeSelectOne_failsWhenNoRowsFoundAndKeepsTheCause(t *testing.T) {
-	mockConn := database.MockQueryConnection(database.MockEmptyRows(), nil)
-	selOne := database.MakeSelectOne[string](mockConn, pgx.RowTo[string])
-
-	want := pgx.ErrNoRows
-	_, got := selOne(context.Background(), "SELECT name FROM t")
 
 	assert.ErrorIs(t, got, want)
 }

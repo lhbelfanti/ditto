@@ -135,23 +135,12 @@ func TestCustomClient_NewRequest_failsWhenContextIsCanceled(t *testing.T) {
 	cancel()
 	client := _http.NewClient(5 * time.Second)
 
-	want := _http.FailedToExecuteRequest
+	want := _http.ErrFailedToExecuteRequest
 	_, got := client.NewRequest(ctx, http.MethodGet, mockServer.URL, nil)
+	wantCause := context.Canceled
 
 	assert.ErrorIs(t, got, want)
-}
-
-func TestCustomClient_NewRequest_failsWhenContextIsCanceledKeepsCause(t *testing.T) {
-	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
-	defer mockServer.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	client := _http.NewClient(5 * time.Second)
-
-	want := context.Canceled
-	_, got := client.NewRequest(ctx, http.MethodGet, mockServer.URL, nil)
-
-	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestSystemRoutes_WithDatabasePing_success(t *testing.T) {
