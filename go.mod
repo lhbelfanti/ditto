@@ -1,6 +1,6 @@
 module github.com/lhbelfanti/ditto/v2
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/jackc/pgx/v5 v5.7.6
