@@ -12,7 +12,7 @@ import (
 	"github.com/lhbelfanti/ditto/v2/env"
 )
 
-func TestMakeCheck_success(t *testing.T) {
+func TestCheck_success(t *testing.T) {
 	mockPing := database.MockPing(nil)
 
 	check := database.MakeCheck(mockPing, time.Second)
@@ -22,34 +22,34 @@ func TestMakeCheck_success(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestMakeCheck_failsWhenPingFails(t *testing.T) {
+func TestCheck_failsWhenPingFails(t *testing.T) {
 	mockErr := errors.New("ping failed")
 	mockPing := database.MockPing(mockErr)
 
 	check := database.MakeCheck(mockPing, time.Second)
 
 	want := database.ErrDatabaseUnavailable
-	got := check(context.Background())
 	wantCause := mockErr
+	got := check(context.Background())
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeCheck_failsWhenPingExceedsTimeout(t *testing.T) {
+func TestCheck_failsWhenPingExceedsTimeout(t *testing.T) {
 	mockPing := database.MockBlockingPing(nil)
 
 	check := database.MakeCheck(mockPing, 10*time.Millisecond)
 
 	want := database.ErrDatabaseUnavailable
-	got := check(context.Background())
 	wantCause := context.DeadlineExceeded
+	got := check(context.Background())
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeCheck_failsWhenPingErrorCarriesCredentials(t *testing.T) {
+func TestCheck_failsWhenPingErrorCarriesCredentials(t *testing.T) {
 	credentialBearingDSN := errors.New("dial postgres://nebula_earth_user:super-secret@db:5432/nebula_earth failed")
 	mockPing := database.MockPing(credentialBearingDSN)
 

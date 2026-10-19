@@ -68,7 +68,9 @@ func TestApplyError_Unwrap_success(t *testing.T) {
 	cause := errors.New("execution error")
 	mockRunner := migration.MockRunner(cause)
 	mockFinder := migration.MockPendingFileFinder("", errors.New("status failed"))
+
 	apply := migration.MakeApply(mockRunner, mockFinder)
+
 	var applyErr *migration.ApplyError
 	_ = errors.As(apply(context.Background()), &applyErr)
 

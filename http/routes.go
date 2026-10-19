@@ -25,7 +25,9 @@ func MountSystemRoutes(mux *http.ServeMux, ping DatabasePing) {
 
 func pingHandlerV1() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		response.Send(r.Context(), w, http.StatusOK, "pong", nil, nil)
+		ctx := r.Context()
+
+		response.Send(ctx, w, http.StatusOK, "pong", nil, nil)
 	}
 }
 

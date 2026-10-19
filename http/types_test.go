@@ -110,8 +110,8 @@ func TestCustomClient_NewRequest_failsWhenContextIsCanceled(t *testing.T) {
 	client := _http.NewClient(5 * time.Second)
 
 	want := _http.ErrFailedToExecuteRequest
-	_, got := client.NewRequest(ctx, http.MethodGet, mockServer.URL, nil)
 	wantCause := context.Canceled
+	_, got := client.NewRequest(ctx, http.MethodGet, mockServer.URL, nil)
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

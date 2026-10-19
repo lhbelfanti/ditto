@@ -19,9 +19,9 @@ func MakeListFiles(dir string) ListFiles {
 			return nil, fmt.Errorf("%w: %w", ErrUnableToReadFile, err)
 		}
 
-		names := make([]string, len(files))
-		for i, file := range files {
-			names[i] = filepath.Base(file)
+		names := make([]string, 0, len(files))
+		for _, file := range files {
+			names = append(names, filepath.Base(file))
 		}
 
 		sort.Strings(names)
@@ -85,9 +85,9 @@ func MakeStatus(listFiles ListFiles, tableExists TableExists, appliedNames Appli
 			}
 		}
 
-		records := make([]Record, len(names))
-		for i, name := range names {
-			records[i] = Record{Name: name, Applied: applied[name]}
+		records := make([]Record, 0, len(names))
+		for _, name := range names {
+			records = append(records, Record{Name: name, Applied: applied[name]})
 		}
 
 		return records, nil

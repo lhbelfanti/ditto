@@ -92,8 +92,8 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenSubscriptionFails(t *testin
 	b := broker.MockRabbitMQBroker(mockChannel, "work", true, nil)
 
 	want := broker.ErrFailedToConsumeQueue
-	got := b.InitMessageConsumer(2, broker.MockProcessor(nil))
 	wantCause := mockErr
+	got := b.InitMessageConsumer(2, broker.MockProcessor(nil))
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -181,8 +181,8 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenQoSUnavailable(t *testing.T
 	b := broker.MockRabbitMQBroker(mockChannel, "work", true, broker.MockClosedMessages(amqp091.Delivery{}))
 
 	want := broker.ErrFailedToSetQoS
-	got := b.InitMessageConsumer(1, broker.MockProcessor(nil))
 	wantCause := mockErr
+	got := b.InitMessageConsumer(1, broker.MockProcessor(nil))
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -247,8 +247,8 @@ func TestRabbitMQBroker_EnqueueMessage_failsWhenPublishFails(t *testing.T) {
 	b := broker.MockRabbitMQBroker(mockChannel, "work", false, nil)
 
 	want := broker.ErrFailedToPublishMessage
-	got := b.EnqueueMessage(context.Background(), "{}")
 	wantCause := mockErr
+	got := b.EnqueueMessage(context.Background(), "{}")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

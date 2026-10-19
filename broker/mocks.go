@@ -47,7 +47,11 @@ func MockEnqueue(err error) MessageBroker {
 
 // MockRabbitMQBroker builds a RabbitMQBroker over channel without dialing RabbitMQ. A nil channel builds a producer-only broker.
 func MockRabbitMQBroker(channel *MockChannel, queueName string, consumer bool, messages <-chan amqp091.Delivery) *RabbitMQBroker {
-	b := &RabbitMQBroker{queue: amqp091.Queue{Name: queueName}, consumer: consumer, messages: messages}
+	b := &RabbitMQBroker{
+		queue:    amqp091.Queue{Name: queueName},
+		consumer: consumer,
+		messages: messages,
+	}
 	if channel != nil {
 		b.channel = channel
 	}

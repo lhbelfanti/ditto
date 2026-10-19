@@ -13,8 +13,8 @@ import (
 
 func TestRun_failsWhenPortIsMissing(t *testing.T) {
 	want := app.ErrInvalidPort
-	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_MISSING_PORT"})
 	wantCause := env.ErrMissingKey
+	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_MISSING_PORT"})
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -25,8 +25,8 @@ func TestRun_failsWhenDatabaseEnvIsIncomplete(t *testing.T) {
 	t.Setenv("POSTGRES_DB_PORT", "")
 
 	want := app.ErrCantInitDatabase
-	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_PORT"})
 	wantCause := app.ErrInvalidDatabaseEnv
+	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_PORT"})
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

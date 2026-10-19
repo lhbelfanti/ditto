@@ -48,6 +48,15 @@ func MockAppliedNames(names []string, err error) AppliedNames {
 	}
 }
 
+// MockRecords returns three migration files: the first one applied and the other two pending.
+func MockRecords() []Record {
+	return []Record{
+		{Name: "000_foundation.sql", Applied: true},
+		{Name: "001_second.sql", Applied: false},
+		{Name: "002_third.sql", Applied: false},
+	}
+}
+
 // MockStatus returns a Status that always returns the given records and error.
 func MockStatus(records []Record, err error) Status {
 	return func(context.Context) ([]Record, error) {

@@ -36,9 +36,9 @@ func (e *FieldsError) Error() string {
 
 	sort.Strings(keys)
 
-	parts := make([]string, len(keys))
-	for i, key := range keys {
-		parts[i] = key + "=" + formatField(e.fields[key])
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, key+"="+formatField(e.fields[key]))
 	}
 
 	return e.cause.Error() + " [" + strings.Join(parts, " ") + "]"

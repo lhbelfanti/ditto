@@ -22,13 +22,16 @@ func TestGracefulShutdown_successWhenServeClosesCleanly(t *testing.T) {
 }
 
 func TestGracefulShutdown_failsWhenServeFailsUnexpectedly(t *testing.T) {
-	want := errors.New("bind: address already in use")
-	mockServe := _http.MockServe(want)
+	mockErr := errors.New("bind: address already in use")
+	mockServe := _http.MockServe(mockErr)
 	mockShutdown := _http.MockShutdown(nil)
 
+	want := _http.ErrFailedToServe
+	wantCause := mockErr
 	got := _http.GracefulShutdown(context.Background(), mockServe, mockShutdown, time.Second)
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestGracefulShutdown_successWhenContextIsCancelled(t *testing.T) {
@@ -44,14 +47,17 @@ func TestGracefulShutdown_successWhenContextIsCancelled(t *testing.T) {
 
 func TestGracefulShutdown_failsWhenShutdownFails(t *testing.T) {
 	mockServe := _http.MockServeBlocking()
-	want := errors.New("shutdown: deadline exceeded")
-	mockShutdown := _http.MockShutdown(want)
+	mockErr := errors.New("shutdown: deadline exceeded")
+	mockShutdown := _http.MockShutdown(mockErr)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
+	want := _http.ErrFailedToShutdown
+	wantCause := mockErr
 	got := _http.GracefulShutdown(ctx, mockServe, mockShutdown, time.Second)
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestGracefulShutdown_successWhenShutdownIsBoundedByTimeout(t *testing.T) {

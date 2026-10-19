@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/rabbitmq/amqp091-go"
+
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 type (
@@ -28,7 +30,11 @@ type (
 		Close() error
 	}
 
-	// RabbitMQBroker is an implementation of MessageBroker using RabbitMQ.
+	// RabbitMQBroker is an implementation of MessageBroker using RabbitMQ. inFlight tracks the
+	// message-processing goroutines InitMessageConsumer spawns, so CloseConnection can give them a
+	// bounded chance to finish; a producer-only broker never touches it. processor and semaphore are
+	// set when InitMessageConsumer starts, because the semaphore is sized by the concurrency limit it
+	// receives.
 	RabbitMQBroker struct {
 		conn         *amqp091.Connection
 		channel      channel
@@ -40,16 +46,9 @@ type (
 		shutdownOnce sync.Once
 		dispatchMu   sync.Mutex
 		closing      bool
-
-		// inFlight tracks message-processing goroutines spawned by InitMessageConsumer,
-		// so CloseConnection can give them a bounded chance to finish before tearing the connection
-		// down. Zero-value on a producer-only broker, where it is never touched.
-		inFlight sync.WaitGroup
-
-		// processor and semaphore are set when InitMessageConsumer starts: the semaphore is sized
-		// by the concurrency limit it receives, so neither can be injected earlier.
-		processor Processor
-		semaphore chan struct{}
+		inFlight     sync.WaitGroup
+		processor    Processor
+		semaphore    chan struct{}
 	}
 
 	dialResult struct {
@@ -150,13 +149,22 @@ func (b *RabbitMQBroker) processDelivery(d amqp091.Delivery) {
 	defer b.inFlight.Done()
 	defer func() { <-b.semaphore }()
 
-	err := b.processor(context.Background(), d.Body)
+	ctx := context.Background()
+
+	err := b.processor(ctx, d.Body)
 	if err != nil {
-		_ = d.Nack(false, false)
+		nackErr := d.Nack(false, false)
+		if nackErr != nil {
+			log.Warn(log.With(ctx, log.Param("cause", nackErr)), "failed to reject the message")
+		}
+
 		return
 	}
 
-	_ = d.Ack(false)
+	ackErr := d.Ack(false)
+	if ackErr != nil {
+		log.Warn(log.With(ctx, log.Param("cause", ackErr)), "failed to acknowledge the message")
+	}
 }
 
 // EnqueueMessage publishes a message to the broker.

@@ -144,7 +144,7 @@ func Run(opts Options) error {
 	signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Info(ctx, "starting "+opts.Name+" on "+addr)
+	log.Info(log.With(ctx, log.Param("service", opts.Name), log.Param("addr", addr)), "starting the service")
 
 	err = _http.Listen(signalCtx, addr, opts.decorate(mux), timeouts.Shutdown)
 	if err != nil {

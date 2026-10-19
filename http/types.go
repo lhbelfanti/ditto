@@ -91,7 +91,7 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 	defer func(body io.ReadCloser) {
 		closeErr := body.Close()
 		if closeErr != nil {
-			log.Warn(ctx, "failed to close the response body: "+closeErr.Error())
+			log.Warn(log.With(ctx, log.Param("cause", closeErr)), "failed to close the response body")
 		}
 	}(resp.Body)
 

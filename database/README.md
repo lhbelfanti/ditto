@@ -143,33 +143,39 @@ corpusDeleteAll := corpus.MakeDeleteAll(deleteCorpus)
 No real database needed in unit tests — inject mock operations directly:
 
 ```go
-func TestSelectAll(t *testing.T) {
-    expected := []corpus.DAO{{ID: 1, TweetAuthor: "alice"}}
-    sel := database.MockSelect(expected, nil)
+func TestSelectAll_success(t *testing.T) {
+    mockSelectOp := database.MockSelect(corpus.MockDAOs(), nil)
 
-    selectAll := corpus.MakeSelectAll(sel)
-    got, err := selectAll(context.Background())
+    selectAll := corpus.MakeSelectAll(mockSelectOp)
 
-    assert.NoError(t, err)
-    assert.Equal(t, expected, got)
+    want := corpus.MockDAOs()
+    got, _ := selectAll(context.Background())
+
+    assert.Equal(t, want, got)
 }
 
-func TestInsert_Error(t *testing.T) {
-    ins := database.MockInsert[int](-1, errors.New("db error"))
+func TestInsert_failsWhenQueryFails(t *testing.T) {
+    mockErr := errors.New("db error")
+    mockInsertOp := database.MockInsert[int](0, mockErr)
 
-    insert := corpus.MakeInsert(ins)
-    _, err := insert(context.Background(), corpus.DTO{})
+    insert := corpus.MakeInsert(mockInsertOp)
 
-    assert.Error(t, err)
+    _, got := insert(context.Background(), corpus.DTO{})
+    want := corpus.ErrCantInsert
+    wantCause := mockErr
+
+    assert.ErrorIs(t, got, want)
+    assert.ErrorIs(t, got, wantCause)
 }
 
-func TestDeleteAll(t *testing.T) {
-    del := database.MockDelete(nil)
+func TestDeleteAll_success(t *testing.T) {
+    mockDeleteOp := database.MockDelete(nil)
 
-    deleteAll := corpus.MakeDeleteAll(del)
-    err := deleteAll(context.Background())
+    deleteAll := corpus.MakeDeleteAll(mockDeleteOp)
 
-    assert.NoError(t, err)
+    got := deleteAll(context.Background())
+
+    assert.NoError(t, got)
 }
 ```
 
