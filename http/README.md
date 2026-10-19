@@ -111,7 +111,7 @@ Migrations are not exposed over HTTP: `app.Run` applies them at boot.
 signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 defer stop()
 
-log.Info(ctx, "starting on :"+port)
+log.Info(log.With(ctx, log.Param("port", port)), "starting the server")
 setup.Must(_http.GracefulShutdown(signalCtx, server.ListenAndServe, server.Shutdown, 5*time.Second))
 ```
 

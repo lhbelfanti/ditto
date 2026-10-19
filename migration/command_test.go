@@ -53,15 +53,18 @@ func TestDispatch_successWhenStatusIsRequested(t *testing.T) {
 }
 
 func TestDispatch_failsWhenStatusRunnerFails(t *testing.T) {
-	want := errors.New("status query failed")
+	mockErr := errors.New("status query failed")
 	mockApply := migration.MockApply(nil)
-	mockRunStatus := migration.MockStatusRunner(want, new(bool))
+	mockRunStatus := migration.MockStatusRunner(mockErr, new(bool))
 
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
 	got := dispatch(context.Background(), []string{migration.CommandStatus})
+	want := migration.ErrFailedToRunStatus
+	wantCause := mockErr
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestDispatch_failsWhenCommandIsUnknown(t *testing.T) {
@@ -89,30 +92,31 @@ func TestDispatch_failsWhenTooManyArguments(t *testing.T) {
 }
 
 func TestStatusRunner_success(t *testing.T) {
-	records := []migration.Record{
-		{Name: "000_foundation.sql", Applied: true},
-		{Name: "001_second.sql", Applied: false},
-	}
-	mockStatus := migration.MockStatus(records, nil)
+	mockStatus := migration.MockStatus(migration.MockRecords(), nil)
 	out := &bytes.Buffer{}
+
 	runStatus := migration.MakeStatusRunner(mockStatus, out)
 
 	_ = runStatus(context.Background())
 
-	want := "applied 000_foundation.sql\npending 001_second.sql\n"
+	want := "applied 000_foundation.sql\npending 001_second.sql\npending 002_third.sql\n"
 	got := out.String()
 
 	assert.Equal(t, want, got)
 }
 
 func TestStatusRunner_failsWhenStatusFails(t *testing.T) {
-	want := errors.New("status failed")
-	mockStatus := migration.MockStatus(nil, want)
+	mockErr := errors.New("status failed")
+	mockStatus := migration.MockStatus(nil, mockErr)
+
 	runStatus := migration.MakeStatusRunner(mockStatus, &bytes.Buffer{})
 
 	got := runStatus(context.Background())
+	want := migration.ErrFailedToGetStatus
+	wantCause := mockErr
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestStatusRunner_failsWhenWriterFails(t *testing.T) {

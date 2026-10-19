@@ -12,7 +12,7 @@ import (
 	"github.com/lhbelfanti/ditto/v2/migration"
 )
 
-func TestMakeApply_success(t *testing.T) {
+func TestApply_success(t *testing.T) {
 	mockRunner := migration.MockRunner(nil)
 	mockFinder := migration.MockPendingFileFinder("", errors.New("must not be called"))
 
@@ -23,7 +23,7 @@ func TestMakeApply_success(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestMakeApply_failsWhenExecutionFails(t *testing.T) {
+func TestApply_failsWhenExecutionFails(t *testing.T) {
 	mockErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, &pgconn.PgError{Code: "42601"})
 	mockRunner := migration.MockRunner(mockErr)
 	mockFinder := migration.MockPendingFileFinder("001_second.sql", nil)
@@ -42,7 +42,7 @@ func TestMakeApply_failsWhenExecutionFails(t *testing.T) {
 	assert.ErrorIs(t, err, wantCause)
 }
 
-func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
+func TestApply_failsWhenTrackingTableSetupFails(t *testing.T) {
 	mockErr := fmt.Errorf("%w: %w", migration.ErrFailedToCreateTable, errors.New("connection refused"))
 	mockRunner := migration.MockRunner(mockErr)
 	mockFinder := migration.MockPendingFileFinder("", errors.New("must not be called"))
@@ -58,7 +58,7 @@ func TestMakeApply_failsWhenTrackingTableSetupFails(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
+func TestApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
 	mockErr := fmt.Errorf("%w: %w", migration.ErrFailedToExecute, errors.New("execution error"))
 	mockRunner := migration.MockRunner(mockErr)
 	mockFinder := migration.MockPendingFileFinder("", errors.New("status query failed"))
@@ -75,12 +75,8 @@ func TestMakeApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
 }
 
 func TestPendingFileFinder_success(t *testing.T) {
-	records := []migration.Record{
-		{Name: "000_foundation.sql", Applied: true},
-		{Name: "001_second.sql", Applied: false},
-		{Name: "002_third.sql", Applied: false},
-	}
-	mockStatus := migration.MockStatus(records, nil)
+	mockStatus := migration.MockStatus(migration.MockRecords(), nil)
+
 	findPendingFile := migration.MakePendingFileFinder(mockStatus)
 
 	want := "001_second.sql"
@@ -90,21 +86,27 @@ func TestPendingFileFinder_success(t *testing.T) {
 }
 
 func TestPendingFileFinder_failsWhenStatusFails(t *testing.T) {
-	want := errors.New("status failed")
-	mockStatus := migration.MockStatus(nil, want)
+	mockErr := errors.New("status failed")
+	mockStatus := migration.MockStatus(nil, mockErr)
+
 	findPendingFile := migration.MakePendingFileFinder(mockStatus)
 
 	_, got := findPendingFile(context.Background())
+	want := migration.ErrFailedToFindPendingFile
+	wantCause := mockErr
 
 	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestPendingFileFinder_failsWhenNoFileIsPending(t *testing.T) {
 	records := []migration.Record{{Name: "000_foundation.sql", Applied: true}}
 	mockStatus := migration.MockStatus(records, nil)
+
 	findPendingFile := migration.MakePendingFileFinder(mockStatus)
 
 	_, got := findPendingFile(context.Background())
+	want := migration.ErrNoPendingFile
 
-	assert.Error(t, got)
+	assert.ErrorIs(t, got, want)
 }

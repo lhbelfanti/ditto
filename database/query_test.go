@@ -11,7 +11,7 @@ import (
 	"github.com/lhbelfanti/ditto/v2/database"
 )
 
-func TestMakeSelect_success(t *testing.T) {
+func TestSelect_success(t *testing.T) {
 	mockConn := database.MockQueryConnection(&database.MockPgxRows{}, nil)
 	mockCollectRows := database.MockCollectRows([]string{"a", "b"}, nil)
 
@@ -23,7 +23,7 @@ func TestMakeSelect_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestMakeSelect_failsWhenQueryFails(t *testing.T) {
+func TestSelect_failsWhenQueryFails(t *testing.T) {
 	mockConn := database.MockQueryConnection(nil, pgx.ErrTxClosed)
 	mockCollectRows := database.MockCollectRows[string](nil, nil)
 
@@ -37,7 +37,7 @@ func TestMakeSelect_failsWhenQueryFails(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeSelect_failsWhenCollectFails(t *testing.T) {
+func TestSelect_failsWhenCollectFails(t *testing.T) {
 	mockConn := database.MockQueryConnection(&database.MockPgxRows{}, nil)
 	mockCollectRows := database.MockCollectRows[string](nil, pgx.ErrNoRows)
 
@@ -51,7 +51,7 @@ func TestMakeSelect_failsWhenCollectFails(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeSelectOne_success(t *testing.T) {
+func TestSelectOne_success(t *testing.T) {
 	mockConn := database.MockQueryConnection(database.MockRowsReturning(true, t), nil)
 
 	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
@@ -61,7 +61,7 @@ func TestMakeSelectOne_success(t *testing.T) {
 	assert.True(t, got)
 }
 
-func TestMakeSelectOne_failsWhenNoRowsFound(t *testing.T) {
+func TestSelectOne_failsWhenNoRowsFound(t *testing.T) {
 	mockConn := database.MockQueryConnection(database.MockEmptyRows(), nil)
 
 	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
@@ -74,7 +74,7 @@ func TestMakeSelectOne_failsWhenNoRowsFound(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeSelectOne_failsWhenQueryFails(t *testing.T) {
+func TestSelectOne_failsWhenQueryFails(t *testing.T) {
 	mockConn := database.MockQueryConnection(nil, pgx.ErrTxClosed)
 
 	selOne := database.MakeSelectOne[bool](mockConn, nil)
@@ -87,7 +87,7 @@ func TestMakeSelectOne_failsWhenQueryFails(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeInsert_success(t *testing.T) {
+func TestInsert_success(t *testing.T) {
 	mockConn := database.MockQueryRowConnection(database.MockRowReturning(42, t))
 
 	insert := database.MakeInsert[int](mockConn)
@@ -98,7 +98,7 @@ func TestMakeInsert_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestMakeInsert_failsWhenQueryFails(t *testing.T) {
+func TestInsert_failsWhenQueryFails(t *testing.T) {
 	mockConn := database.MockQueryRowConnection(database.MockRowFailing(pgx.ErrTxClosed))
 
 	insert := database.MakeInsert[int](mockConn)
@@ -111,7 +111,7 @@ func TestMakeInsert_failsWhenQueryFails(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeDelete_success(t *testing.T) {
+func TestDelete_success(t *testing.T) {
 	mockConn := database.MockExecConnection(nil)
 
 	del := database.MakeDelete(mockConn)
@@ -121,7 +121,7 @@ func TestMakeDelete_success(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestMakeDelete_failsWhenQueryFails(t *testing.T) {
+func TestDelete_failsWhenQueryFails(t *testing.T) {
 	mockConn := database.MockExecConnection(pgx.ErrTxClosed)
 
 	del := database.MakeDelete(mockConn)
@@ -134,7 +134,7 @@ func TestMakeDelete_failsWhenQueryFails(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeUpdate_success(t *testing.T) {
+func TestUpdate_success(t *testing.T) {
 	mockConn := database.MockExecConnection(nil)
 
 	upd := database.MakeUpdate(mockConn)
@@ -144,7 +144,7 @@ func TestMakeUpdate_success(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestMakeUpdate_failsWhenQueryFails(t *testing.T) {
+func TestUpdate_failsWhenQueryFails(t *testing.T) {
 	mockConn := database.MockExecConnection(pgx.ErrTxClosed)
 
 	upd := database.MakeUpdate(mockConn)
@@ -157,7 +157,7 @@ func TestMakeUpdate_failsWhenQueryFails(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeCollectRows_success(t *testing.T) {
+func TestCollectRows_success(t *testing.T) {
 	collect := database.MakeCollectRows(pgx.RowTo[string])
 
 	got, _ := collect(database.MockEmptyRows())
@@ -165,7 +165,7 @@ func TestMakeCollectRows_success(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-func TestMakeCollectRows_successWhenFnIsNil(t *testing.T) {
+func TestCollectRows_successWhenFnIsNil(t *testing.T) {
 	collect := database.MakeCollectRows[string](nil)
 
 	got, _ := collect(database.MockEmptyRows())
@@ -173,7 +173,7 @@ func TestMakeCollectRows_successWhenFnIsNil(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-func TestMakeExecFormatted_success(t *testing.T) {
+func TestExecFormatted_success(t *testing.T) {
 	mockSelectOneOp := database.MockSelectOne("CREATE ROLE svc LOGIN", nil)
 	mockUpdateOp := database.MockUpdate(nil)
 
@@ -184,7 +184,7 @@ func TestMakeExecFormatted_success(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestMakeExecFormatted_successWhenQueryReturnsNoRow(t *testing.T) {
+func TestExecFormatted_successWhenQueryReturnsNoRow(t *testing.T) {
 	mockSelectOneOp := database.MockSelectOne("", database.ErrNoRows)
 	mockUpdateOp := database.MockUpdate(errors.New("must not run"))
 
@@ -195,7 +195,7 @@ func TestMakeExecFormatted_successWhenQueryReturnsNoRow(t *testing.T) {
 	assert.NoError(t, got)
 }
 
-func TestMakeExecFormatted_failsWhenBuildingTheStatementFails(t *testing.T) {
+func TestExecFormatted_failsWhenBuildingTheStatementFails(t *testing.T) {
 	mockSelectOneOp := database.MockSelectOne("", database.ErrQuery)
 	mockUpdateOp := database.MockUpdate(nil)
 
@@ -209,7 +209,7 @@ func TestMakeExecFormatted_failsWhenBuildingTheStatementFails(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestMakeExecFormatted_failsWhenExecutingTheStatementFails(t *testing.T) {
+func TestExecFormatted_failsWhenExecutingTheStatementFails(t *testing.T) {
 	mockSelectOneOp := database.MockSelectOne("CREATE ROLE svc LOGIN", nil)
 	mockUpdateOp := database.MockUpdate(database.ErrQuery)
 
