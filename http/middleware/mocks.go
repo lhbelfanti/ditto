@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"testing"
 
 	"github.com/lhbelfanti/ditto/v2/log"
 )
@@ -40,10 +39,11 @@ func MockRequestIDLoggingHandler() http.Handler {
 	})
 }
 
-// MockUnreachableHandler returns a handler that fails the test when the middleware calls it.
-func MockUnreachableHandler(t *testing.T) http.Handler {
-	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Error("the middleware called the next handler")
+// MockCountingHandler returns a handler that counts its calls in *calls and answers 200.
+func MockCountingHandler(calls *int) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		*calls++
+		w.WriteHeader(http.StatusOK)
 	})
 }
 

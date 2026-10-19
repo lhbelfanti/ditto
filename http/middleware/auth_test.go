@@ -32,7 +32,8 @@ func TestAuth_success(t *testing.T) {
 }
 
 func TestAuth_failsWhenAuthorizationHeaderMissing(t *testing.T) {
-	mockNext := middleware.MockUnreachableHandler(t)
+	nextCalls := 0
+	mockNext := middleware.MockCountingHandler(&nextCalls)
 	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(0, nil)
 
 	auth := middleware.Auth(mockSelectUserIDByToken)
@@ -44,12 +45,15 @@ func TestAuth_failsWhenAuthorizationHeaderMissing(t *testing.T) {
 
 	want := `{"code":401,"message":"` + middleware.ErrMsgMissingAuthHeader + `"}` + "\n"
 	got := w.Body.String()
+	wantCalls := 0
 
 	assert.Equal(t, want, got)
+	assert.Equal(t, wantCalls, nextCalls)
 }
 
 func TestAuth_failsWhenSchemeIsNotBearer(t *testing.T) {
-	mockNext := middleware.MockUnreachableHandler(t)
+	nextCalls := 0
+	mockNext := middleware.MockCountingHandler(&nextCalls)
 	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(0, nil)
 
 	auth := middleware.Auth(mockSelectUserIDByToken)
@@ -62,12 +66,15 @@ func TestAuth_failsWhenSchemeIsNotBearer(t *testing.T) {
 
 	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
 	got := w.Body.String()
+	wantCalls := 0
 
 	assert.Equal(t, want, got)
+	assert.Equal(t, wantCalls, nextCalls)
 }
 
 func TestAuth_failsWhenAuthorizationHeaderIsMalformed(t *testing.T) {
-	mockNext := middleware.MockUnreachableHandler(t)
+	nextCalls := 0
+	mockNext := middleware.MockCountingHandler(&nextCalls)
 	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(0, nil)
 
 	auth := middleware.Auth(mockSelectUserIDByToken)
@@ -80,12 +87,15 @@ func TestAuth_failsWhenAuthorizationHeaderIsMalformed(t *testing.T) {
 
 	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
 	got := w.Body.String()
+	wantCalls := 0
 
 	assert.Equal(t, want, got)
+	assert.Equal(t, wantCalls, nextCalls)
 }
 
 func TestAuth_failsWhenTokenLookupFails(t *testing.T) {
-	mockNext := middleware.MockUnreachableHandler(t)
+	nextCalls := 0
+	mockNext := middleware.MockCountingHandler(&nextCalls)
 	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(0, errors.New("session not found"))
 
 	auth := middleware.Auth(mockSelectUserIDByToken)
@@ -98,8 +108,10 @@ func TestAuth_failsWhenTokenLookupFails(t *testing.T) {
 
 	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
 	got := w.Body.String()
+	wantCalls := 0
 
 	assert.Equal(t, want, got)
+	assert.Equal(t, wantCalls, nextCalls)
 }
 
 func TestUserIDFromContext_successWhenUserIDAbsent(t *testing.T) {

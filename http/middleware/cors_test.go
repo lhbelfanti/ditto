@@ -61,7 +61,8 @@ func TestCORS_successWhenOriginIsMissing(t *testing.T) {
 }
 
 func TestCORS_successWhenRequestIsPreflight(t *testing.T) {
-	mockNext := middleware.MockUnreachableHandler(t)
+	nextCalls := 0
+	mockNext := middleware.MockCountingHandler(&nextCalls)
 
 	cors := middleware.CORS()
 	handler := cors(mockNext)
@@ -72,8 +73,10 @@ func TestCORS_successWhenRequestIsPreflight(t *testing.T) {
 
 	want := http.StatusNoContent
 	got := w.Result().StatusCode
+	wantCalls := 0
 
 	assert.Equal(t, want, got)
+	assert.Equal(t, wantCalls, nextCalls)
 }
 
 func TestCORS_successWhenOriginIsConfigured(t *testing.T) {
