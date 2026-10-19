@@ -16,27 +16,28 @@ const UserIDKey contextKey = "userID"
 func Auth(selectUserIDByToken SelectUserIDByToken) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				response.Send(r.Context(), w, http.StatusUnauthorized, ErrMsgMissingAuthHeader, nil, ErrMissingAuthHeader)
+				response.Send(ctx, w, http.StatusUnauthorized, ErrMsgMissingAuthHeader, nil, ErrMissingAuthHeader)
 				return
 			}
 
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-				response.Send(r.Context(), w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, ErrInvalidToken)
+				response.Send(ctx, w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, ErrInvalidToken)
 				return
 			}
 
 			token := parts[1]
-			userID, err := selectUserIDByToken(r.Context(), token)
+			userID, err := selectUserIDByToken(ctx, token)
 			if err != nil {
-				response.Send(r.Context(), w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, fmt.Errorf("%w: %w", ErrInvalidToken, err))
+				response.Send(ctx, w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, fmt.Errorf("%w: %w", ErrInvalidToken, err))
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), UserIDKey, userID)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, UserIDKey, userID)))
 		})
 	}
 }
