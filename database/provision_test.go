@@ -70,9 +70,9 @@ func TestProvision_failsWhenExecFormattedFails(t *testing.T) {
 
 	provision := database.MakeProvision(mockExecFormatted, database.Target{Name: "svc_db", Role: "svc", Pass: "pw"})
 
-	got := provision(context.Background())
 	want := database.ErrFailedToCreateRole
 	wantCause := mockErr
+	got := provision(context.Background())
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

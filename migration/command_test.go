@@ -59,9 +59,9 @@ func TestDispatch_failsWhenStatusRunnerFails(t *testing.T) {
 
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
-	got := dispatch(context.Background(), []string{migration.CommandStatus})
 	want := migration.ErrFailedToRunStatus
 	wantCause := mockErr
+	got := dispatch(context.Background(), []string{migration.CommandStatus})
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -111,9 +111,9 @@ func TestStatusRunner_failsWhenStatusFails(t *testing.T) {
 
 	runStatus := migration.MakeStatusRunner(mockStatus, &bytes.Buffer{})
 
-	got := runStatus(context.Background())
 	want := migration.ErrFailedToGetStatus
 	wantCause := mockErr
+	got := runStatus(context.Background())
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

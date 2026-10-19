@@ -67,8 +67,8 @@ func TestBind_successWhenTheDTOHasNoFields(t *testing.T) {
 func TestBind_failsWhenTheDTOIsNotAStruct(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 
-	_, got := request.Bind[string](req)
 	want := request.ErrInvalidDTO
+	_, got := request.Bind[string](req)
 
 	assert.ErrorIs(t, got, want)
 }
@@ -77,8 +77,8 @@ func TestBind_failsWhenPathIsInvalid(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/accounts/", nil)
 	req.SetPathValue("username", "   ")
 
-	_, got := request.Bind[request.MockRequestDTO](req)
 	want := request.ErrInvalidPath
+	_, got := request.Bind[request.MockRequestDTO](req)
 
 	assert.ErrorIs(t, got, want)
 }
@@ -86,8 +86,8 @@ func TestBind_failsWhenPathIsInvalid(t *testing.T) {
 func TestBind_failsWhenQueryIsInvalid(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/events?confirm=maybe", nil)
 
-	_, got := request.Bind[request.MockOptionalQueryDTO](req)
 	want := request.ErrInvalidQuery
+	_, got := request.Bind[request.MockOptionalQueryDTO](req)
 
 	assert.ErrorIs(t, got, want)
 }
@@ -96,8 +96,8 @@ func TestBind_failsWhenBodyDoesNotDecode(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/accounts/Nebula?limit=20&from=2026-01-02T03:04:05Z&done=true", strings.NewReader(`not json`))
 	req.SetPathValue("username", "Nebula")
 
-	_, got := request.Bind[request.MockRequestDTO](req)
 	want := request.ErrInvalidBody
+	_, got := request.Bind[request.MockRequestDTO](req)
 
 	assert.ErrorIs(t, got, want)
 }
@@ -105,8 +105,8 @@ func TestBind_failsWhenBodyDoesNotDecode(t *testing.T) {
 func TestBind_failsWhenBodyIsNotValid(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/roles", strings.NewReader(`{}`))
 
-	_, got := request.Bind[request.MockInvalidBodyDTO](req)
 	want := request.ErrMockInvalidBody
+	_, got := request.Bind[request.MockInvalidBodyDTO](req)
 
 	assert.ErrorIs(t, got, want)
 }
@@ -114,8 +114,8 @@ func TestBind_failsWhenBodyIsNotValid(t *testing.T) {
 func TestBind_failsWhenBodyWithPointerReceiverIsNotValid(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/roles", strings.NewReader(`{}`))
 
-	_, got := request.Bind[request.MockInvalidPointerBodyDTO](req)
 	want := request.ErrMockInvalidBody
+	_, got := request.Bind[request.MockInvalidPointerBodyDTO](req)
 
 	assert.ErrorIs(t, got, want)
 }

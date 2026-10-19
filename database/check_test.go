@@ -29,8 +29,8 @@ func TestCheck_failsWhenPingFails(t *testing.T) {
 	check := database.MakeCheck(mockPing, time.Second)
 
 	want := database.ErrDatabaseUnavailable
-	got := check(context.Background())
 	wantCause := mockErr
+	got := check(context.Background())
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -42,8 +42,8 @@ func TestCheck_failsWhenPingExceedsTimeout(t *testing.T) {
 	check := database.MakeCheck(mockPing, 10*time.Millisecond)
 
 	want := database.ErrDatabaseUnavailable
-	got := check(context.Background())
 	wantCause := context.DeadlineExceeded
+	got := check(context.Background())
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

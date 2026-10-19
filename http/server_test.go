@@ -26,9 +26,9 @@ func TestGracefulShutdown_failsWhenServeFailsUnexpectedly(t *testing.T) {
 	mockServe := _http.MockServe(mockErr)
 	mockShutdown := _http.MockShutdown(nil)
 
-	got := _http.GracefulShutdown(context.Background(), mockServe, mockShutdown, time.Second)
 	want := _http.ErrFailedToServe
 	wantCause := mockErr
+	got := _http.GracefulShutdown(context.Background(), mockServe, mockShutdown, time.Second)
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -52,9 +52,9 @@ func TestGracefulShutdown_failsWhenShutdownFails(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	got := _http.GracefulShutdown(ctx, mockServe, mockShutdown, time.Second)
 	want := _http.ErrFailedToShutdown
 	wantCause := mockErr
+	got := _http.GracefulShutdown(ctx, mockServe, mockShutdown, time.Second)
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

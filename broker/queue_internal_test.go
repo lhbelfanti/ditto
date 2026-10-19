@@ -23,8 +23,8 @@ func TestDeclareQueue_failsWhenChannelRejectsDeclaration(t *testing.T) {
 	mockChannel := &MockChannel{QueueErr: mockErr}
 
 	want := ErrFailedToDeclareQueue
-	_, got := declareQueue(mockChannel, "work")
 	wantCause := mockErr
+	_, got := declareQueue(mockChannel, "work")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

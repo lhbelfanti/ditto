@@ -30,8 +30,8 @@ func TestSelect_failsWhenQueryFails(t *testing.T) {
 	sel := database.MakeSelect[string](mockConn, mockCollectRows)
 
 	want := database.ErrQuery
-	_, got := sel(context.Background(), "SELECT name FROM t")
 	wantCause := pgx.ErrTxClosed
+	_, got := sel(context.Background(), "SELECT name FROM t")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -44,8 +44,8 @@ func TestSelect_failsWhenCollectFails(t *testing.T) {
 	sel := database.MakeSelect[string](mockConn, mockCollectRows)
 
 	want := database.ErrCollect
-	_, got := sel(context.Background(), "SELECT name FROM t")
 	wantCause := pgx.ErrNoRows
+	_, got := sel(context.Background(), "SELECT name FROM t")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -67,8 +67,8 @@ func TestSelectOne_failsWhenNoRowsFound(t *testing.T) {
 	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
 
 	want := database.ErrNoRows
-	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 	wantCause := pgx.ErrNoRows
+	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -80,8 +80,8 @@ func TestSelectOne_failsWhenQueryFails(t *testing.T) {
 	selOne := database.MakeSelectOne[bool](mockConn, nil)
 
 	want := database.ErrQuery
-	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 	wantCause := pgx.ErrTxClosed
+	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -104,8 +104,8 @@ func TestInsert_failsWhenQueryFails(t *testing.T) {
 	insert := database.MakeInsert[int](mockConn)
 
 	want := database.ErrQuery
-	_, got := insert(context.Background(), "INSERT INTO t DEFAULT VALUES RETURNING id")
 	wantCause := pgx.ErrTxClosed
+	_, got := insert(context.Background(), "INSERT INTO t DEFAULT VALUES RETURNING id")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -127,8 +127,8 @@ func TestDelete_failsWhenQueryFails(t *testing.T) {
 	del := database.MakeDelete(mockConn)
 
 	want := database.ErrQuery
-	got := del(context.Background(), "DELETE FROM t WHERE id = $1", 1)
 	wantCause := pgx.ErrTxClosed
+	got := del(context.Background(), "DELETE FROM t WHERE id = $1", 1)
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -150,8 +150,8 @@ func TestUpdate_failsWhenQueryFails(t *testing.T) {
 	upd := database.MakeUpdate(mockConn)
 
 	want := database.ErrQuery
-	got := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
 	wantCause := pgx.ErrTxClosed
+	got := upd(context.Background(), "UPDATE t SET name = $1 WHERE id = $2", "x", 1)
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -202,8 +202,8 @@ func TestExecFormatted_failsWhenBuildingTheStatementFails(t *testing.T) {
 	execFormatted := database.MakeExecFormatted(mockSelectOneOp, mockUpdateOp)
 
 	want := database.ErrFailedToBuildStatement
-	got := execFormatted(context.Background(), "SELECT 1")
 	wantCause := database.ErrQuery
+	got := execFormatted(context.Background(), "SELECT 1")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -216,8 +216,8 @@ func TestExecFormatted_failsWhenExecutingTheStatementFails(t *testing.T) {
 	execFormatted := database.MakeExecFormatted(mockSelectOneOp, mockUpdateOp)
 
 	want := database.ErrFailedToExecuteStatement
-	got := execFormatted(context.Background(), "SELECT 1")
 	wantCause := database.ErrQuery
+	got := execFormatted(context.Background(), "SELECT 1")
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)

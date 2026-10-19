@@ -35,8 +35,8 @@ func TestApply_failsWhenExecutionFails(t *testing.T) {
 	_ = errors.As(err, &target)
 
 	want := (&migration.ApplyError{File: "001_second.sql", Code: "42601"}).Error()
-	got := target.Error()
 	wantCause := mockErr
+	got := target.Error()
 
 	assert.Equal(t, want, got)
 	assert.ErrorIs(t, err, wantCause)
@@ -91,9 +91,9 @@ func TestPendingFileFinder_failsWhenStatusFails(t *testing.T) {
 
 	findPendingFile := migration.MakePendingFileFinder(mockStatus)
 
-	_, got := findPendingFile(context.Background())
 	want := migration.ErrFailedToFindPendingFile
 	wantCause := mockErr
+	_, got := findPendingFile(context.Background())
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
@@ -105,8 +105,8 @@ func TestPendingFileFinder_failsWhenNoFileIsPending(t *testing.T) {
 
 	findPendingFile := migration.MakePendingFileFinder(mockStatus)
 
-	_, got := findPendingFile(context.Background())
 	want := migration.ErrNoPendingFile
+	_, got := findPendingFile(context.Background())
 
 	assert.ErrorIs(t, got, want)
 }
