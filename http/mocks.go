@@ -23,9 +23,10 @@ type (
 
 	// MockSequenceTransport replays a fixed sequence of MockHTTPResult values, one per request.
 	MockSequenceTransport struct {
-		mu      sync.Mutex
-		results []MockHTTPResult
-		next    int
+		mu       sync.Mutex
+		results  []MockHTTPResult
+		requests []*http.Request
+		next     int
 	}
 
 	// MockServerRequest records the last request a MockServer received.
@@ -41,14 +42,16 @@ type (
 )
 
 // MockSequenceRoundTripper returns a transport that answers each request with the next result, and fails once they run out.
-func MockSequenceRoundTripper(results ...MockHTTPResult) http.RoundTripper {
+func MockSequenceRoundTripper(results ...MockHTTPResult) *MockSequenceTransport {
 	return &MockSequenceTransport{results: results}
 }
 
 // RoundTrip answers with the next result of the sequence, or fails when the sequence is exhausted.
-func (m *MockSequenceTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
+func (m *MockSequenceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.requests = append(m.requests, req)
 
 	if m.next >= len(m.results) {
 		return nil, fmt.Errorf("mock HTTP response sequence exhausted after %d requests", m.next)
@@ -68,8 +71,16 @@ func (m *MockSequenceTransport) RoundTrip(_ *http.Request) (*http.Response, erro
 	}, nil
 }
 
-// NewRequest returns the response and error configured with On.
-func (m *MockHTTPClient) NewRequest(ctx context.Context, method, url string, body any) (Response, error) {
+// Requests returns the requests the transport received, in order, including the one that found the sequence exhausted.
+func (m *MockSequenceTransport) Requests() []*http.Request {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return append([]*http.Request(nil), m.requests...)
+}
+
+// NewRequest returns the response and error configured with On. It matches on the context, method, url and body; the options are not matched.
+func (m *MockHTTPClient) NewRequest(ctx context.Context, method, url string, body any, _ ...RequestOption) (Response, error) {
 	args := m.Called(ctx, method, url, body)
 	return args.Get(0).(Response), args.Error(1)
 }

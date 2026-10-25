@@ -49,3 +49,45 @@ func TestMockSequenceRoundTripper_failsWhenSequenceIsExhausted(t *testing.T) {
 
 	assert.ErrorIs(t, got, want)
 }
+
+func TestMockSequenceTransport_Requests_success(t *testing.T) {
+	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK}, _http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.NewClient(0)
+	client.HTTPClient.Transport = transport
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test/first", nil)
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test/second", nil)
+
+	urls := []string{}
+	for _, req := range transport.Requests() {
+		urls = append(urls, req.URL.String())
+	}
+
+	want := []string{"http://example.test/first", "http://example.test/second"}
+	got := urls
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockSequenceTransport_Requests_successWhenSequenceIsExhausted(t *testing.T) {
+	transport := _http.MockSequenceRoundTripper()
+	client := _http.NewClient(0)
+	client.HTTPClient.Transport = transport
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
+
+	want := 1
+	got := len(transport.Requests())
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockHTTPClient_NewRequest_successWhenCalledWithOptions(t *testing.T) {
+	mockClient := &_http.MockHTTPClient{}
+	mockClient.On("NewRequest", context.Background(), http.MethodGet, "http://example.test", nil).Return(_http.Response{Body: "ok"}, nil)
+
+	resp, _ := mockClient.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil, _http.WithHeader("Authorization", "Bearer token"))
+
+	want := "ok"
+	got := resp.Body
+
+	assert.Equal(t, want, got)
+}
