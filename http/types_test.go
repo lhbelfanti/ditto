@@ -93,6 +93,45 @@ func TestCustomClient_NewRequest_successWhenResponseHasRetryAfterHeader(t *testi
 	assert.Equal(t, want, got)
 }
 
+func TestCustomClient_NewRequest_successWhenOptionSetsHeader(t *testing.T) {
+	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.NewClient(0)
+	client.HTTPClient.Transport = transport
+
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil, _http.WithHeader("Authorization", "Bearer token"))
+
+	want := "Bearer token"
+	got := transport.Requests()[0].Header.Get("Authorization")
+
+	assert.Equal(t, want, got)
+}
+
+func TestCustomClient_NewRequest_successWhenOptionsAreAppliedInOrder(t *testing.T) {
+	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.NewClient(0)
+	client.HTTPClient.Transport = transport
+
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil, _http.WithHeader("X-Mode", "first"), _http.WithHeader("X-Mode", "second"))
+
+	want := "second"
+	got := transport.Requests()[0].Header.Get("X-Mode")
+
+	assert.Equal(t, want, got)
+}
+
+func TestCustomClient_NewRequest_successWhenBodyIsJSONAndOptionSetsHeader(t *testing.T) {
+	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.NewClient(0)
+	client.HTTPClient.Transport = transport
+
+	_, _ = client.NewRequest(context.Background(), http.MethodPost, "http://example.test", map[string]string{"a": "b"}, _http.WithHeader("Authorization", "Bearer token"))
+
+	want := "application/json"
+	got := transport.Requests()[0].Header.Get("Content-Type")
+
+	assert.Equal(t, want, got)
+}
+
 func TestCustomClient_NewRequest_failsWhenURLIsInvalid(t *testing.T) {
 	client := _http.NewClient(5 * time.Second)
 
