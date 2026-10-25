@@ -11,3 +11,10 @@ func NewClient(timeout time.Duration) *CustomClient {
 		HTTPClient: &http.Client{Timeout: timeout},
 	}
 }
+
+// WithHeader sets a header on the request, replacing any value it already has.
+func WithHeader(key, value string) RequestOption {
+	return func(req *http.Request) {
+		req.Header.Set(key, value)
+	}
+}

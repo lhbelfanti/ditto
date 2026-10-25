@@ -14,8 +14,11 @@ import (
 type (
 	// Client is an abstraction of the CustomClient methods
 	Client interface {
-		NewRequest(ctx context.Context, method, url string, body any) (Response, error)
+		NewRequest(ctx context.Context, method, url string, body any, opts ...RequestOption) (Response, error)
 	}
+
+	// RequestOption changes an outgoing request before it is sent.
+	RequestOption func(req *http.Request)
 
 	// CustomClient represent a custom http.CustomClient
 	CustomClient struct {
@@ -51,8 +54,8 @@ func (s *SystemRoutes) WithDatabasePing(dbPing DatabasePing) *SystemRoutes {
 	return s
 }
 
-// NewRequest sends a request with an optional JSON body and returns the response, with the body read and the headers exposed.
-func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body any) (Response, error) {
+// NewRequest sends a request with an optional JSON body and returns the response, with the body read and the headers exposed. Each option is applied to the request before it is sent.
+func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body any, opts ...RequestOption) (Response, error) {
 	var reqBody io.Reader
 	var hasJSONBody bool
 
@@ -81,6 +84,10 @@ func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body 
 
 	if hasJSONBody {
 		req.Header.Set("Content-Type", "application/json")
+	}
+
+	for _, opt := range opts {
+		opt(req)
 	}
 
 	resp, err := c.HTTPClient.Do(req)
