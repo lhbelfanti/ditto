@@ -93,6 +93,27 @@ func TestAuth_failsWhenAuthorizationHeaderIsMalformed(t *testing.T) {
 	assert.Equal(t, wantCalls, gotCalls)
 }
 
+func TestAuth_failsWhenBearerTokenIsEmpty(t *testing.T) {
+	gotCalls := 0
+	mockNext := middleware.MockCountingHandler(&gotCalls)
+	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(42, nil)
+
+	auth := middleware.Auth(mockSelectUserIDByToken)
+	handler := auth(mockNext)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer ")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
+	wantCalls := 0
+	got := w.Body.String()
+
+	assert.Equal(t, want, got)
+	assert.Equal(t, wantCalls, gotCalls)
+}
+
 func TestAuth_failsWhenTokenLookupFails(t *testing.T) {
 	gotCalls := 0
 	mockNext := middleware.MockCountingHandler(&gotCalls)

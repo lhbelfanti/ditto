@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/lhbelfanti/ditto/v2/http/response"
 )
@@ -24,20 +23,19 @@ func Auth(selectUserIDByToken SelectUserIDByToken) func(http.Handler) http.Handl
 				return
 			}
 
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			token, ok := bearerToken(authHeader)
+			if !ok {
 				response.Send(ctx, w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, ErrInvalidToken)
 				return
 			}
 
-			token := parts[1]
 			userID, err := selectUserIDByToken(ctx, token)
 			if err != nil {
 				response.Send(ctx, w, http.StatusUnauthorized, ErrMsgInvalidToken, nil, fmt.Errorf("%w: %w", ErrInvalidToken, err))
 				return
 			}
 
-			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, UserIDKey, userID)))
+			next.ServeHTTP(w, r.WithContext(ContextWithUserID(ctx, userID)))
 		})
 	}
 }
