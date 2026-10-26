@@ -2,8 +2,8 @@
 
 The `http` package covers six concerns for a service's HTTP layer: a standardized JSON response
 envelope (`response`), reading and checking a request (`request.Bind`), a thin synchronous client (`CustomClient`), ditto's own system routes
-(`RegisterSystemRoutes`), bounded graceful shutdown (`GracefulShutdown`), and three middlewares
-(`middleware.Auth`/`CORS`/`RequestID`).
+(`RegisterSystemRoutes`), bounded graceful shutdown (`GracefulShutdown`), and four middlewares
+(`middleware.Auth`/`SessionAuth`/`CORS`/`RequestID`).
 
 For client tests that need a response sequence (for example, 429 followed by 200), set
 `NewClient(0).HTTPClient.Transport` to `MockSequenceRoundTripper` with one `MockHTTPResult` per
@@ -136,6 +136,11 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 - **`Auth`** validates a `Bearer` token via an injected `SelectUserIDByToken` and injects the
   resulting user ID into the request context (`UserIDFromContext`). Failures answer through
   `response.Send`'s JSON envelope, the same shape every other handler in this package uses.
+- **`SessionAuth`** calls an injected `GetSessionByToken` for each protected request. The callback
+  returns a `Session` with a positive `UserID` and a `ReadOnly` flag. It rejects missing, malformed,
+  and invalid sessions with 401, and blocks writes from read-only sessions with 403. `GET`, `HEAD`,
+  and `OPTIONS` are allowed for read-only sessions. Services decide which routes bypass it and keep
+  their external session clients outside Ditto.
 
 ## Sentinel errors
 
@@ -147,6 +152,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
 | `request.ErrInvalidPath`/`ErrInvalidQuery`/`ErrInvalidBody`/`ErrMissingParam`/`ErrInvalidParam`/`ErrNotAnInt`/`ErrNotABool`/`ErrNotATime`/`ErrInvalidDTO` | `request.Bind` — bare: the handler sends `err.Error()`, which names the part and the param, so no message is reused |
 | `middleware.ErrMissingAuthHeader`/`middleware.ErrInvalidToken` | `Auth` — same pairing rule: `ErrMsgMissingAuthHeader` and `ErrMsgInvalidToken` are also the `response.Send` messages, so they are named constants. A failed token lookup is wrapped in `ErrInvalidToken`, so its cause reaches the log |
+| `middleware.ErrInvalidSession`/`middleware.ErrReadOnlySession` | `SessionAuth` — paired with response message constants. Session lookup errors are wrapped in `ErrInvalidSession` |
 
 A sentinel only gets a paired `ErrMsg*` constant when its exact message string is needed in more
 than one place — see `database/errors.go`'s `SafeError` doc for the same rule applied to a
