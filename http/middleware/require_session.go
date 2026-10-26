@@ -9,8 +9,8 @@ import (
 	"github.com/lhbelfanti/ditto/v2/log"
 )
 
-// SessionAuth validates a bearer token on each request, exposes its user ID, and blocks writes for read-only sessions.
-func SessionAuth(getSession GetSessionByToken) func(http.Handler) http.Handler {
+// RequireSession rejects a request that has no valid bearer session, puts the session's user ID in the context, and blocks writes from read-only sessions.
+func RequireSession(getSession GetSessionByToken) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
