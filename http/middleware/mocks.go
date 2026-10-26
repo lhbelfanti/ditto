@@ -12,6 +12,17 @@ func MockSelectUserIDByToken(userID int, err error) SelectUserIDByToken {
 	return func(context.Context, string) (int, error) { return userID, err }
 }
 
+// MockGetSessionByToken returns the given session and error and records each token when gotTokens is provided.
+func MockGetSessionByToken(session Session, err error, gotTokens *[]string) GetSessionByToken {
+	return func(_ context.Context, token string) (Session, error) {
+		if gotTokens != nil {
+			*gotTokens = append(*gotTokens, token)
+		}
+
+		return session, err
+	}
+}
+
 // MockOKHandler returns a handler that answers 200.
 func MockOKHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
