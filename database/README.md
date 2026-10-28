@@ -181,6 +181,13 @@ func TestDeleteAll_success(t *testing.T) {
 
 ---
 
+## Optional values
+
+An optional column is bound as SQL NULL when the caller sent nothing:
+
+- `database.OptionalText(value)` returns `nil` for an empty string, so the column stores NULL and not `''`.
+- `database.OptionalNumeric(value)` scans exact decimal text into a `pgtype.Numeric` that encodes as NULL when `value` is `nil`, so the stored number has the submitted digits and never goes through a float. Text that is not a number fails with `ErrInvalidNumeric`.
+
 ## Sentinel errors
 
 All `Make*` helpers return typed sentinel errors on failure:
@@ -190,6 +197,7 @@ All `Make*` helpers return typed sentinel errors on failure:
 | `database.ErrQuery` | `db.Query`, `db.QueryRow`, or `db.Exec` returned an error |
 | `database.ErrCollect` | `CollectRows` failed after a successful query |
 | `database.ErrFailedToScanRows` | `MakeCollectRows` could not scan the rows into `T` |
+| `database.ErrInvalidNumeric` | `OptionalNumeric` received text that is not a decimal number |
 | `database.ErrNoRows` | `SelectOne` found no matching row (`pgx.ErrNoRows`) |
 | `database.ErrAdminNotConfigured` | `OpenAdmin` found no `POSTGRES_ADMIN_USER`/`POSTGRES_ADMIN_PASS` |
 | `database.ErrFailedToCreateRole` | `MakeProvision` could not create the role |
