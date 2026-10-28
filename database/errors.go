@@ -9,6 +9,8 @@ var (
 
 	ErrFailedToScanRows = errors.New("database: failed to scan rows")
 
+	ErrInvalidNumeric = errors.New("database: value is not a valid numeric")
+
 	ErrDatabaseUnavailable = errors.New("database: unavailable")
 	ErrCantInitDatabase    = errors.New("database: can't initialize database")
 
