@@ -82,7 +82,6 @@ func TestWith_successWhenAChildIsDerived(t *testing.T) {
 func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
 	parent := log.With(context.Background(), log.Param("request_id", "abc"))
 	var wg sync.WaitGroup
-
 	for i := range 8 {
 		wg.Go(func() {
 			_ = log.With(parent, log.Param("worker", i))

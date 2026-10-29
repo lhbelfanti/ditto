@@ -23,7 +23,6 @@ func OptionalNumeric(value *string) (pgtype.Numeric, error) {
 	}
 
 	var numeric pgtype.Numeric
-
 	err := numeric.Scan(*value)
 	if err != nil {
 		return pgtype.Numeric{}, fmt.Errorf("%w: %w", ErrInvalidNumeric, err)
