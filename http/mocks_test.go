@@ -91,3 +91,33 @@ func TestMockHTTPClient_NewRequest_successWhenCalledWithOptions(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestMockSequenceClient_success(t *testing.T) {
+	client, _ := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"})
+
+	response, _ := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
+
+	want := "done"
+	got := response.Body
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockSequenceClient_successWhenReadingTheRecordedRequests(t *testing.T) {
+	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	_, _ = client.NewRequest(context.Background(), http.MethodGet, "http://example.test/path", nil, _http.WithHeader("Authorization", "Bearer token"))
+
+	want := "Bearer token"
+	got := transport.Requests()[0].Header.Get("Authorization")
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockSequenceClient_failsWhenSequenceIsExhausted(t *testing.T) {
+	client, _ := _http.MockSequenceClient()
+
+	want := _http.ErrFailedToExecuteRequest
+	_, got := client.NewRequest(context.Background(), http.MethodGet, "http://example.test", nil)
+
+	assert.ErrorIs(t, got, want)
+}
