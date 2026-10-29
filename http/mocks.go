@@ -46,6 +46,15 @@ func MockSequenceRoundTripper(results ...MockHTTPResult) *MockSequenceTransport 
 	return &MockSequenceTransport{results: results}
 }
 
+// MockSequenceClient returns a client whose requests are answered by results in sequence, and the transport that records them.
+func MockSequenceClient(results ...MockHTTPResult) (*CustomClient, *MockSequenceTransport) {
+	transport := MockSequenceRoundTripper(results...)
+	client := NewClient(0)
+	client.HTTPClient.Transport = transport
+
+	return client, transport
+}
+
 // RoundTrip answers with the next result of the sequence, or fails when the sequence is exhausted.
 func (m *MockSequenceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	m.mu.Lock()
