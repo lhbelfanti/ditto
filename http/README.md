@@ -5,9 +5,14 @@ envelope (`response`), reading and checking a request (`request.Bind`), a thin s
 (`RegisterSystemRoutes`), bounded graceful shutdown (`GracefulShutdown`), and four middlewares
 (`middleware.Auth`/`RequireSession`/`CORS`/`RequestID`).
 
-For client tests that need a response sequence (for example, 429 followed by 200), set
-`NewClient(0).HTTPClient.Transport` to `MockSequenceRoundTripper` with one `MockHTTPResult` per
-request. The transport returns an error if more requests are made than results provided.
+For client tests that need a response sequence (for example, 429 followed by 200), build the client
+with `MockSequenceClient`, passing one `MockHTTPResult` per request. It returns the client and the
+transport, whose `Requests()` gives the requests the client sent (method, URL, headers). The
+transport returns an error if more requests are made than results provided.
+
+```go
+client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK, Body: `{}`})
+```
 
 ## `request.Bind`
 
