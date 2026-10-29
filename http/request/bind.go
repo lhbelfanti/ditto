@@ -17,7 +17,6 @@ import (
 // It reads path, query and body in that order, each in field order, and returns the first error.
 func Bind[D any](r *http.Request) (D, error) {
 	var dto D
-
 	value := reflect.ValueOf(&dto).Elem()
 	if value.Kind() != reflect.Struct {
 		return dto, fmt.Errorf("%w: %s is not a struct", ErrInvalidDTO, value.Type())

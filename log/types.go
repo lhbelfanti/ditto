@@ -21,6 +21,7 @@ type (
 		fields map[string]any
 	}
 
+	// logCtxKey keys the log fields stored in a context.
 	logCtxKey struct{}
 
 	// embedCtxKey keys the set of context fields that NewFieldsError embeds into an error

@@ -21,7 +21,6 @@ func TestInit_failsWhenErrorIsPassed(t *testing.T) {
 	mockOutput := log.MockLogOutput(t)
 	initErr := errors.New("database: boom")
 	var recovered any
-
 	func() {
 		defer func() { recovered = recover() }()
 		_ = setup.Init("test", initErr)
@@ -43,7 +42,6 @@ func TestMust_failsWhenErrorIsPassed(t *testing.T) {
 	mockOutput := log.MockLogOutput(t)
 	initErr := errors.New("database: boom")
 	var recovered any
-
 	func() {
 		defer func() { recovered = recover() }()
 		setup.Must(initErr)

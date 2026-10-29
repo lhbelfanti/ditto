@@ -58,11 +58,9 @@ func (s *SystemRoutes) WithDatabasePing(dbPing DatabasePing) *SystemRoutes {
 func (c *CustomClient) NewRequest(ctx context.Context, method, url string, body any, opts ...RequestOption) (Response, error) {
 	var reqBody io.Reader
 	var hasJSONBody bool
-
 	if body != nil {
 		var jsonData []byte
 		var err error
-
 		switch v := body.(type) {
 		case []byte:
 			jsonData = v

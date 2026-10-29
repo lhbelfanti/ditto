@@ -47,13 +47,13 @@ type (
 	// Check proves database connectivity within a bounded deadline.
 	Check func(ctx context.Context) error
 
-	// Select[T] executes a query returning multiple rows.
+	// Select executes a query returning multiple rows.
 	Select[T any] func(ctx context.Context, query string, args ...any) ([]T, error)
 
-	// SelectOne[T] executes a query returning exactly one row.
+	// SelectOne executes a query returning exactly one row.
 	SelectOne[T any] func(ctx context.Context, query string, args ...any) (T, error)
 
-	// Insert[T] executes an INSERT with a RETURNING clause, scanning the scalar result into T.
+	// Insert executes an INSERT with a RETURNING clause, scanning the scalar result into T.
 	// Use T=int for RETURNING id.
 	Insert[T any] func(ctx context.Context, query string, args ...any) (T, error)
 

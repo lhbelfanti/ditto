@@ -80,7 +80,6 @@ func MakeInsert[T any](db Connection) Insert[T] {
 		err := db.QueryRow(ctx, query, args...).Scan(&result)
 		if err != nil {
 			var zero T
-
 			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 

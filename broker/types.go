@@ -22,6 +22,7 @@ type (
 	// Processor is a function that processes a message body.
 	Processor func(ctx context.Context, body []byte) error
 
+	// channel is the part of an AMQP channel the broker uses.
 	channel interface {
 		Qos(prefetchCount, prefetchSize int, global bool) error
 		Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp091.Table) (<-chan amqp091.Delivery, error)
@@ -51,6 +52,7 @@ type (
 		semaphore    chan struct{}
 	}
 
+	// dialResult is what a connection attempt returns: the connection or the error.
 	dialResult struct {
 		conn *amqp091.Connection
 		err  error

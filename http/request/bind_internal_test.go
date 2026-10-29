@@ -96,7 +96,6 @@ func TestParse_failsWhenParamIsInvalid(t *testing.T) {
 
 func TestSet_success(t *testing.T) {
 	var target string
-
 	_ = set(reflect.ValueOf(&target).Elem(), "Nebula")
 
 	want := "Nebula"
@@ -107,7 +106,6 @@ func TestSet_success(t *testing.T) {
 
 func TestSet_successWhenTargetIsAnInt(t *testing.T) {
 	var target int64
-
 	_ = set(reflect.ValueOf(&target).Elem(), "42")
 
 	want := int64(42)
@@ -118,7 +116,6 @@ func TestSet_successWhenTargetIsAnInt(t *testing.T) {
 
 func TestSet_successWhenTargetIsABool(t *testing.T) {
 	var target bool
-
 	_ = set(reflect.ValueOf(&target).Elem(), "true")
 
 	got := target
@@ -128,7 +125,6 @@ func TestSet_successWhenTargetIsABool(t *testing.T) {
 
 func TestSet_successWhenTargetIsATime(t *testing.T) {
 	var target time.Time
-
 	_ = set(reflect.ValueOf(&target).Elem(), "2026-01-02T03:04:05Z")
 
 	want := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)

@@ -5,6 +5,7 @@ import (
 )
 
 type (
+	// contextKey is the type of the keys this package stores in a request context.
 	contextKey string
 
 	// SelectUserIDByToken is a function that retrieves the user ID associated with a session token.

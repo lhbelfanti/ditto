@@ -24,7 +24,6 @@ func TestOptionalText_successWhenEmpty(t *testing.T) {
 
 func TestOptionalNumeric_success(t *testing.T) {
 	var want pgtype.Numeric
-
 	_ = want.Scan("64000.50")
 
 	got, _ := database.OptionalNumeric(new("64000.50"))
