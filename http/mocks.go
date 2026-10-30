@@ -88,8 +88,8 @@ func (m *MockSequenceTransport) Requests() []*http.Request {
 	return append([]*http.Request(nil), m.requests...)
 }
 
-// NewRequest returns the response and error configured with On. It matches on the context, method, url and body; the options are not matched.
-func (m *MockHTTPClient) NewRequest(ctx context.Context, method, url string, body any, _ ...RequestOption) (Response, error) {
+// Send returns the response and error configured with On. It matches on the context, method, url and body; the options are not matched.
+func (m *MockHTTPClient) Send(ctx context.Context, method, url string, body any, _ ...RequestOption) (Response, error) {
 	args := m.Called(ctx, method, url, body)
 	return args.Get(0).(Response), args.Error(1)
 }
