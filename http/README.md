@@ -5,6 +5,19 @@ envelope (`response`), reading and checking a request (`request.Bind`), a thin s
 (`RegisterSystemRoutes`), bounded graceful shutdown (`GracefulShutdown`), and four middlewares
 (`middleware.Auth`/`RequireSession`/`CORS`/`RequestID`).
 
+A call to another API builds a `Request` with the method and the endpoint, adds what it needs one
+line at a time, and sends it with `Call`:
+
+```go
+request := httpClient.NewRequest(http.MethodGet, url)
+request.WithHeader("Authorization", "Bearer "+token)
+request.WithQueryParam("pair", pair)
+response, err := request.Call(ctx)
+```
+
+`WithBody` sends a `[]byte` as it is and any other value as its JSON, with `Content-Type:
+application/json`. `WithQueryParam` adds to the query the endpoint already has.
+
 For client tests that need a response sequence (for example, 429 followed by 200), build the client
 with `MockSequenceClient`, passing one `MockHTTPResult` per request. It returns the client and the
 transport, whose `Requests()` gives the requests the client sent (method, URL, headers). The
@@ -151,7 +164,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 
 | Error | Where |
 |---|---|
-| `ErrFailedToMarshalBody`/`ErrFailedToCreateRequest`/`ErrFailedToExecuteRequest`/`ErrFailedToReadResponse` | `CustomClient.Send`, each with a single call site — bare, no paired message constant. The old names without the `Err` prefix stay as deprecated aliases |
+| `ErrFailedToMarshalBody`/`ErrFailedToCreateRequest`/`ErrFailedToExecuteRequest`/`ErrFailedToReadResponse` | `Request.Call`, each with a single call site — bare, no paired message constant. The old names without the `Err` prefix stay as deprecated aliases |
 | `ErrFailedToServe`/`ErrFailedToShutdown` | `GracefulShutdown`: the server failed (other than `http.ErrServerClosed`), or the graceful shutdown failed |
 | `ErrCantListen` | `Listen`, wrapping the `GracefulShutdown` error |
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |

@@ -8,8 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
-
-	"github.com/stretchr/testify/mock"
 )
 
 type (
@@ -33,11 +31,6 @@ type (
 	MockServerRequest struct {
 		ContentType string
 		Body        string
-	}
-
-	// MockHTTPClient mocks HTTP client.
-	MockHTTPClient struct {
-		mock.Mock
 	}
 )
 
@@ -86,12 +79,6 @@ func (m *MockSequenceTransport) Requests() []*http.Request {
 	defer m.mu.Unlock()
 
 	return append([]*http.Request(nil), m.requests...)
-}
-
-// Send returns the response and error configured with On. It matches on the context, method, url and body; the options are not matched.
-func (m *MockHTTPClient) Send(ctx context.Context, method, url string, body any, _ ...RequestOption) (Response, error) {
-	args := m.Called(ctx, method, url, body)
-	return args.Get(0).(Response), args.Error(1)
 }
 
 // MockDatabasePing builds a DatabasePing that always returns err.
