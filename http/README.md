@@ -151,7 +151,7 @@ mux.Handle("/", middleware.RequestID(middleware.CORS()(middleware.Auth(selectUse
 
 | Error | Where |
 |---|---|
-| `ErrFailedToMarshalBody`/`ErrFailedToCreateRequest`/`ErrFailedToExecuteRequest`/`ErrFailedToReadResponse` | `CustomClient.NewRequest`, each with a single call site — bare, no paired message constant. The old names without the `Err` prefix stay as deprecated aliases |
+| `ErrFailedToMarshalBody`/`ErrFailedToCreateRequest`/`ErrFailedToExecuteRequest`/`ErrFailedToReadResponse` | `CustomClient.Send`, each with a single call site — bare, no paired message constant. The old names without the `Err` prefix stay as deprecated aliases |
 | `ErrFailedToServe`/`ErrFailedToShutdown` | `GracefulShutdown`: the server failed (other than `http.ErrServerClosed`), or the graceful shutdown failed |
 | `ErrCantListen` | `Listen`, wrapping the `GracefulShutdown` error |
 | `ErrDatabaseUnavailable` | `WithDatabasePing`'s handler — paired with `ErrMsgDatabaseUnavailable`, since that string is reused both in `errors.New` and separately as `response.Send`'s `message` argument |
