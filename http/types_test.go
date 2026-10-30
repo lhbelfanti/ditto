@@ -13,12 +13,14 @@ import (
 	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
-func TestCustomClient_Send_successWhenBodyIsJSON(t *testing.T) {
+func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
 	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
+	request := client.NewRequest(http.MethodPost, mockServer.URL)
+	request.WithBody(map[string]string{"symbol": "BTC/USDT"})
 
-	_, _ = client.Send(context.Background(), http.MethodPost, mockServer.URL, map[string]string{"symbol": "BTC/USDT"})
+	_, _ = request.Call(context.Background())
 
 	want := _http.MockServerRequest{ContentType: "application/json", Body: `{"symbol":"BTC/USDT"}`}
 	got := *mockRequest
@@ -26,12 +28,12 @@ func TestCustomClient_Send_successWhenBodyIsJSON(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_successWhenResponseHasBody(t *testing.T) {
+func TestRequest_Call_successWhenResponseHasBody(t *testing.T) {
 	mockServer, _ := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
-	resp, _ := client.Send(context.Background(), http.MethodGet, mockServer.URL, nil)
+	resp, _ := client.NewRequest(http.MethodGet, mockServer.URL).Call(context.Background())
 
 	want := `{"ok":true}`
 	got := resp.Body
@@ -39,12 +41,12 @@ func TestCustomClient_Send_successWhenResponseHasBody(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_successWhenResponseHasStatus(t *testing.T) {
+func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
 	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
-	resp, _ := client.Send(context.Background(), http.MethodGet, mockServer.URL, nil)
+	resp, _ := client.NewRequest(http.MethodGet, mockServer.URL).Call(context.Background())
 
 	want := "200 OK"
 	got := resp.Status
@@ -52,12 +54,12 @@ func TestCustomClient_Send_successWhenResponseHasStatus(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_successWhenBodyIsNil(t *testing.T) {
+func TestRequest_Call_successWhenBodyIsNil(t *testing.T) {
 	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
-	_, _ = client.Send(context.Background(), http.MethodGet, mockServer.URL+"?symbol=BTCUSDT", nil)
+	_, _ = client.NewRequest(http.MethodGet, mockServer.URL+"?symbol=BTCUSDT").Call(context.Background())
 
 	want := _http.MockServerRequest{}
 	got := *mockRequest
@@ -65,13 +67,13 @@ func TestCustomClient_Send_successWhenBodyIsNil(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_successWhenResponseHasHeaders(t *testing.T) {
+func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 	header := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
 	mockServer, _ := _http.MockServer(http.StatusTooManyRequests, header, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
-	resp, _ := client.Send(context.Background(), http.MethodGet, mockServer.URL, nil)
+	resp, _ := client.NewRequest(http.MethodGet, mockServer.URL).Call(context.Background())
 
 	want := "42"
 	got := resp.Header.Get("X-MBX-USED-WEIGHT-1M")
@@ -79,13 +81,13 @@ func TestCustomClient_Send_successWhenResponseHasHeaders(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_successWhenResponseHasRetryAfterHeader(t *testing.T) {
+func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
 	header := http.Header{"Retry-After": {"5"}}
 	mockServer, _ := _http.MockServer(http.StatusTooManyRequests, header, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
-	resp, _ := client.Send(context.Background(), http.MethodGet, mockServer.URL, nil)
+	resp, _ := client.NewRequest(http.MethodGet, mockServer.URL).Call(context.Background())
 
 	want := http.StatusTooManyRequests
 	got := resp.StatusCode
@@ -93,12 +95,12 @@ func TestCustomClient_Send_successWhenResponseHasRetryAfterHeader(t *testing.T) 
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_successWhenOptionSetsHeader(t *testing.T) {
-	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK})
-	client := _http.NewClient(0)
-	client.HTTPClient.Transport = transport
+func TestRequest_WithHeader_success(t *testing.T) {
+	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	request := client.NewRequest(http.MethodGet, "http://example.test")
+	request.WithHeader("Authorization", "Bearer token")
 
-	_, _ = client.Send(context.Background(), http.MethodGet, "http://example.test", nil, _http.WithHeader("Authorization", "Bearer token"))
+	_, _ = request.Call(context.Background())
 
 	want := "Bearer token"
 	got := transport.Requests()[0].Header.Get("Authorization")
@@ -106,25 +108,54 @@ func TestCustomClient_Send_successWhenOptionSetsHeader(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_successWhenOptionsAreAppliedInOrder(t *testing.T) {
-	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK})
-	client := _http.NewClient(0)
-	client.HTTPClient.Transport = transport
+func TestRequest_WithHeader_successWhenTheHeaderIsSetTwice(t *testing.T) {
+	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	request := client.NewRequest(http.MethodGet, "http://example.test")
+	request.WithHeader("X-Mode", "first")
+	request.WithHeader("X-Mode", "second")
 
-	_, _ = client.Send(context.Background(), http.MethodGet, "http://example.test", nil, _http.WithHeader("X-Mode", "first"), _http.WithHeader("X-Mode", "second"))
+	_, _ = request.Call(context.Background())
 
-	want := "second"
-	got := transport.Requests()[0].Header.Get("X-Mode")
+	want := []string{"second"}
+	got := transport.Requests()[0].Header.Values("X-Mode")
 
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_successWhenBodyIsJSONAndOptionSetsHeader(t *testing.T) {
-	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK})
-	client := _http.NewClient(0)
-	client.HTTPClient.Transport = transport
+func TestRequest_WithQueryParam_success(t *testing.T) {
+	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	request := client.NewRequest(http.MethodGet, "http://example.test/candles")
+	request.WithQueryParam("pair", "BTC/USDT")
+	request.WithQueryParam("timeframe", "1h")
 
-	_, _ = client.Send(context.Background(), http.MethodPost, "http://example.test", map[string]string{"a": "b"}, _http.WithHeader("Authorization", "Bearer token"))
+	_, _ = request.Call(context.Background())
+
+	want := "http://example.test/candles?pair=BTC%2FUSDT&timeframe=1h"
+	got := transport.Requests()[0].URL.String()
+
+	assert.Equal(t, want, got)
+}
+
+func TestRequest_WithQueryParam_successWhenTheURLAlreadyHasAQuery(t *testing.T) {
+	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	request := client.NewRequest(http.MethodGet, "http://example.test/candles?pair=BTC")
+	request.WithQueryParam("pair", "ETH")
+
+	_, _ = request.Call(context.Background())
+
+	want := []string{"BTC", "ETH"}
+	got := transport.Requests()[0].URL.Query()["pair"]
+
+	assert.Equal(t, want, got)
+}
+
+func TestRequest_WithBody_success(t *testing.T) {
+	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	request := client.NewRequest(http.MethodPost, "http://example.test")
+	request.WithBody(map[string]string{"a": "b"})
+	request.WithHeader("Authorization", "Bearer token")
+
+	_, _ = request.Call(context.Background())
 
 	want := "application/json"
 	got := transport.Requests()[0].Header.Get("Content-Type")
@@ -132,16 +163,42 @@ func TestCustomClient_Send_successWhenBodyIsJSONAndOptionSetsHeader(t *testing.T
 	assert.Equal(t, want, got)
 }
 
-func TestCustomClient_Send_failsWhenURLIsInvalid(t *testing.T) {
+func TestRequest_WithBody_successWhenTheBodyIsBytes(t *testing.T) {
+	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, "")
+	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
+	request := client.NewRequest(http.MethodPost, mockServer.URL)
+	request.WithBody([]byte(`{"raw":true}`))
 
-	want := _http.ErrFailedToCreateRequest
-	_, got := client.Send(context.Background(), http.MethodGet, "://invalid-url", nil)
+	_, _ = request.Call(context.Background())
+
+	want := _http.MockServerRequest{ContentType: "application/json", Body: `{"raw":true}`}
+	got := *mockRequest
+
+	assert.Equal(t, want, got)
+}
+
+func TestRequest_Call_failsWhenTheBodyCannotBeMarshaled(t *testing.T) {
+	client, _ := _http.MockSequenceClient()
+	request := client.NewRequest(http.MethodPost, "http://example.test")
+	request.WithBody(make(chan int))
+
+	want := _http.ErrFailedToMarshalBody
+	_, got := request.Call(context.Background())
 
 	assert.ErrorIs(t, got, want)
 }
 
-func TestCustomClient_Send_failsWhenContextIsCanceled(t *testing.T) {
+func TestRequest_Call_failsWhenURLIsInvalid(t *testing.T) {
+	client := _http.NewClient(5 * time.Second)
+
+	want := _http.ErrFailedToCreateRequest
+	_, got := client.NewRequest(http.MethodGet, "://invalid-url").Call(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestRequest_Call_failsWhenContextIsCanceled(t *testing.T) {
 	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -150,7 +207,7 @@ func TestCustomClient_Send_failsWhenContextIsCanceled(t *testing.T) {
 
 	want := _http.ErrFailedToExecuteRequest
 	wantCause := context.Canceled
-	_, got := client.Send(ctx, http.MethodGet, mockServer.URL, nil)
+	_, got := client.NewRequest(http.MethodGet, mockServer.URL).Call(ctx)
 
 	assert.ErrorIs(t, got, want)
 	assert.ErrorIs(t, got, wantCause)
