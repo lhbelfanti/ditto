@@ -15,6 +15,7 @@ All text, code, documentation, and commit messages MUST be in English.
 ## 3. Code Conventions
 
 Before every commit, apply this ecosystem's Go conventions from
-[`lhbelfanti/skills`](https://github.com/lhbelfanti/skills), `code-conventions/go/`. Do not
-restate or copy those rules here — read them from that repo directly, so this file never drifts
-out of sync with them.
+[`lhbelfanti/skills`](https://github.com/lhbelfanti/skills), `code-conventions/go/`, and run
+that skill's linter (`code-conventions/go/linter`) over this repository. Do not restate or copy
+those rules here — read them from that repo directly, so this file never drifts out of sync with
+them.
