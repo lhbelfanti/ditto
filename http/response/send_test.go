@@ -47,7 +47,7 @@ func TestSend_successWhenCodeIsAnErrorWithACause(t *testing.T) {
 	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
 
 	want := []map[string]any{{"level": "error", "message": "request failed", "error": "cause"}}
-	got := log.MockLogEntries(mockOutput)
+	got := mockOutput.Entries()
 
 	assert.Equal(t, want, got)
 }
@@ -59,7 +59,7 @@ func TestSend_successWhenCodeIsAnErrorWithoutACause(t *testing.T) {
 	response.Send(context.Background(), w, http.StatusNotFound, "not found", nil, nil)
 
 	want := []map[string]any{{"level": "error", "message": "not found"}}
-	got := log.MockLogEntries(mockOutput)
+	got := mockOutput.Entries()
 
 	assert.Equal(t, want, got)
 }
@@ -71,7 +71,7 @@ func TestSend_successWhenCodeIsNotAnError(t *testing.T) {
 	response.Send(context.Background(), w, http.StatusOK, "done", nil, nil)
 
 	want := []map[string]any{{"level": "info", "message": "done"}}
-	got := log.MockLogEntries(mockOutput)
+	got := mockOutput.Entries()
 
 	assert.Equal(t, want, got)
 }

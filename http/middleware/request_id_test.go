@@ -68,7 +68,7 @@ func TestRequestID_successWhenNextLogs(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	want := []map[string]any{{"level": "info", "message": "test message", "request_id": "upstream-id-123"}}
-	got := log.MockLogEntries(mockOutput)
+	got := mockOutput.Entries()
 
 	assert.Equal(t, want, got)
 }

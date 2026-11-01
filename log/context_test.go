@@ -48,7 +48,7 @@ func TestWith_success(t *testing.T) {
 	log.Info(ctx, "hello")
 
 	want := []map[string]any{{"level": "info", "message": "hello", "key1": "value1", "key2": float64(123)}}
-	got := log.MockLogEntries(mockOutput)
+	got := mockOutput.Entries()
 
 	assert.Equal(t, want, got)
 }
@@ -61,7 +61,7 @@ func TestWith_successWhenContextAlreadyHasParams(t *testing.T) {
 	log.Info(ctx, "hello")
 
 	want := []map[string]any{{"level": "info", "message": "hello", "key1": "newValue", "key2": float64(123)}}
-	got := log.MockLogEntries(mockOutput)
+	got := mockOutput.Entries()
 
 	assert.Equal(t, want, got)
 }
@@ -74,7 +74,7 @@ func TestWith_successWhenAChildIsDerived(t *testing.T) {
 	log.Info(parent, "from the parent")
 
 	want := []map[string]any{{"level": "info", "message": "from the parent", "request_id": "abc"}}
-	got := log.MockLogEntries(mockOutput)
+	got := mockOutput.Entries()
 
 	assert.Equal(t, want, got)
 }
