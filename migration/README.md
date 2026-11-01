@@ -91,6 +91,7 @@ The example needs an import of `github.com/jackc/pgx/v5` for `pgx.RowTo`.
 | `ErrFailedToCheckTableExists` / `ErrFailedToSelectAppliedNames` | `Status`'s own read-only checks failed. |
 | `ErrFailedToBeginTransaction` / `ErrFailedToLockMigrations` | `MakeRunner` could not open a transaction or take the migration lock. |
 | `ErrFailedToCommitTrackingTable` / `ErrFailedToCommitFile` | The commit of the migrations table creation, or of one file's transaction, failed. |
+| `ErrFailedToCommitAppliedFile` | The commit that releases the lock after finding a file already applied failed. |
 | `ErrFailedToApply` | `Apply`'s own sentinel — always present on an `*ApplyError`, alongside the original runner cause via `errors.Is`/`errors.As`. |
 | `ErrUnknownCommand` | The `Dispatch` got anything other than no args, `apply`, or `status`. |
 | `ErrFailedToPrepare` / `ErrFailedToPrepareFile` / `ErrFailedToApplyFile` | `MakeRunner` could not prepare the tracking table, or the transaction of one file, or apply that file. |
