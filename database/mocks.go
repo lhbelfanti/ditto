@@ -415,3 +415,8 @@ func MockExecFormattedSequence(errs ...error) ExecFormatted {
 		return errs[call]
 	}
 }
+
+// MockNonFiniteNumerics returns the literals a NUMERIC column accepts that are not finite numbers.
+func MockNonFiniteNumerics() []string {
+	return []string{"NaN", "Infinity", "-Infinity"}
+}
