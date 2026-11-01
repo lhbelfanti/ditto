@@ -14,6 +14,24 @@ The `database` package provides a thin abstraction over `pgx/v5` for PostgreSQL.
 | `ExecFormatted` | Runs the SQL a query builds with `format()` (DDL with quoted identifiers) | `SelectOne[string]` + `Update` |
 | `CollectRows[T]` | Row scanner passed to `Select[T]` | `pgx.CollectRows` |
 
+## Decimal text
+
+`ParseNumeric(text)` reads decimal text the way a `NUMERIC` column does, through `pgtype.Numeric`,
+and also rejects `NaN`, `Infinity` and `-Infinity`. Use it to validate a decimal that arrives as text
+before it reaches the database, and to read its sign:
+
+```go
+numeric, err := database.ParseNumeric(string(quantity))
+if err != nil {
+    return ErrInvalidQuantity
+}
+
+isPositive := numeric.Int.Sign() > 0
+```
+
+The value still travels to the insert as text (a `string` or `*string`): PostgreSQL parses it into
+the `NUMERIC` column, so no conversion is needed.
+
 ## Connection settings
 
 `InitPostgres(ctx)` reads these variables and opens a new pool on every call, so call it once per process. `RequireEnv` validates them before any connection attempt.
@@ -191,6 +209,7 @@ All `Make*` helpers return typed sentinel errors on failure:
 | `database.ErrCollect` | `CollectRows` failed after a successful query |
 | `database.ErrFailedToScanRows` | `MakeCollectRows` could not scan the rows into `T` |
 | `database.ErrNoRows` | `SelectOne` found no matching row (`pgx.ErrNoRows`) |
+| `database.ErrInvalidNumeric` | `ParseNumeric` got text that is not a finite number |
 | `database.ErrAdminNotConfigured` | `OpenAdmin` found no `POSTGRES_ADMIN_USER`/`POSTGRES_ADMIN_PASS` |
 | `database.ErrFailedToCreateRole` | `MakeProvision` could not create the role |
 | `database.ErrFailedToSyncPassword` | `MakeProvision` could not set the role's password |
