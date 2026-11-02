@@ -14,7 +14,7 @@ import (
 
 func TestAuth_success(t *testing.T) {
 	var gotUserID int
-	mockNext := middleware.MockUserIDHandler(&gotUserID)
+	mockNext := middleware.CaptureUserIDHandler(&gotUserID)
 	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(42, nil)
 
 	auth := middleware.Auth(mockSelectUserIDByToken)

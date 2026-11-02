@@ -15,7 +15,7 @@ func TestOptions_WithMiddleware_successWhenCalledTwice(t *testing.T) {
 	mockSecond := app.MockMiddleware("second")
 
 	opts := app.Options{Mux: mockMux}.WithMiddleware(mockFirst).WithMiddleware(mockSecond)
-	service := app.MockRunningServiceWith(t, opts)
+	service := app.StartServiceWith(t, opts)
 
 	want := []string{"first", "second"}
 	got := service.Get("/a").Header.Values("X-Order")
@@ -30,7 +30,7 @@ func TestOptions_WithMiddleware_successWhenOriginalIsNotModified(t *testing.T) {
 
 	base := app.Options{Mux: mockMux}.WithMiddleware(mockBase)
 	_ = base.WithMiddleware(mockExtra)
-	service := app.MockRunningServiceWith(t, base)
+	service := app.StartServiceWith(t, base)
 
 	want := []string{"base"}
 	got := service.Get("/a").Header.Values("X-Order")

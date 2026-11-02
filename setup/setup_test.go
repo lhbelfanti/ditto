@@ -18,7 +18,8 @@ func TestInit_success(t *testing.T) {
 }
 
 func TestInit_failsWhenErrorIsPassed(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	initErr := errors.New("database: boom")
 	var recovered any
 	func() {
@@ -27,7 +28,7 @@ func TestInit_failsWhenErrorIsPassed(t *testing.T) {
 	}()
 
 	want := []any{initErr, []map[string]any{{"level": "error", "message": "failed to initialize a dependency", "error": "database: boom"}}}
-	got := []any{recovered, mockOutput.Entries()}
+	got := []any{recovered, output.Entries()}
 
 	assert.Equal(t, want, got)
 }
@@ -39,7 +40,8 @@ func TestMust_success(t *testing.T) {
 }
 
 func TestMust_failsWhenErrorIsPassed(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	initErr := errors.New("database: boom")
 	var recovered any
 	func() {
@@ -48,7 +50,7 @@ func TestMust_failsWhenErrorIsPassed(t *testing.T) {
 	}()
 
 	want := []any{initErr, []map[string]any{{"level": "error", "message": "failed to initialize a dependency", "error": "database: boom"}}}
-	got := []any{recovered, mockOutput.Entries()}
+	got := []any{recovered, output.Entries()}
 
 	assert.Equal(t, want, got)
 }

@@ -14,7 +14,7 @@ import (
 )
 
 func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
-	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
+	mockServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, `{"ok":true}`)
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 	request := client.NewRequest(http.MethodPost, mockServer.URL)
@@ -22,14 +22,14 @@ func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
 
 	_, _ = request.Call(context.Background())
 
-	want := _http.MockServerRequest{ContentType: "application/json", Body: `{"symbol":"BTC/USDT"}`}
-	got := *mockRequest
+	want := _http.CapturedRequest{ContentType: "application/json", Body: `{"symbol":"BTC/USDT"}`}
+	got := *capturedRequest
 
 	assert.Equal(t, want, got)
 }
 
 func TestRequest_Call_successWhenResponseHasBody(t *testing.T) {
-	mockServer, _ := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
+	mockServer, _ := _http.CaptureServer(http.StatusOK, nil, `{"ok":true}`)
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -42,7 +42,7 @@ func TestRequest_Call_successWhenResponseHasBody(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
-	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
+	mockServer, _ := _http.CaptureServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -55,21 +55,21 @@ func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenBodyIsNil(t *testing.T) {
-	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, "")
+	mockServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
 	_, _ = client.NewRequest(http.MethodGet, mockServer.URL+"?symbol=BTCUSDT").Call(context.Background())
 
-	want := _http.MockServerRequest{}
-	got := *mockRequest
+	want := _http.CapturedRequest{}
+	got := *capturedRequest
 
 	assert.Equal(t, want, got)
 }
 
 func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 	header := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
-	mockServer, _ := _http.MockServer(http.StatusTooManyRequests, header, "")
+	mockServer, _ := _http.CaptureServer(http.StatusTooManyRequests, header, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -83,7 +83,7 @@ func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 
 func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
 	header := http.Header{"Retry-After": {"5"}}
-	mockServer, _ := _http.MockServer(http.StatusTooManyRequests, header, "")
+	mockServer, _ := _http.CaptureServer(http.StatusTooManyRequests, header, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -96,7 +96,7 @@ func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
 }
 
 func TestRequest_WithHeader_success(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client, transport := _http.CaptureSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
 	request := client.NewRequest(http.MethodGet, "http://example.test")
 	request.WithHeader("Authorization", "Bearer token")
 
@@ -109,7 +109,7 @@ func TestRequest_WithHeader_success(t *testing.T) {
 }
 
 func TestRequest_WithHeader_successWhenTheHeaderIsSetTwice(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client, transport := _http.CaptureSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
 	request := client.NewRequest(http.MethodGet, "http://example.test")
 	request.WithHeader("X-Mode", "first")
 	request.WithHeader("X-Mode", "second")
@@ -123,7 +123,7 @@ func TestRequest_WithHeader_successWhenTheHeaderIsSetTwice(t *testing.T) {
 }
 
 func TestRequest_WithQueryParam_success(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client, transport := _http.CaptureSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
 	request := client.NewRequest(http.MethodGet, "http://example.test/candles")
 	request.WithQueryParam("pair", "BTC/USDT")
 	request.WithQueryParam("timeframe", "1h")
@@ -137,7 +137,7 @@ func TestRequest_WithQueryParam_success(t *testing.T) {
 }
 
 func TestRequest_WithQueryParam_successWhenTheURLAlreadyHasAQuery(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client, transport := _http.CaptureSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
 	request := client.NewRequest(http.MethodGet, "http://example.test/candles?pair=BTC")
 	request.WithQueryParam("pair", "ETH")
 
@@ -150,7 +150,7 @@ func TestRequest_WithQueryParam_successWhenTheURLAlreadyHasAQuery(t *testing.T) 
 }
 
 func TestRequest_WithBody_success(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client, transport := _http.CaptureSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
 	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody(map[string]string{"a": "b"})
 	request.WithHeader("Authorization", "Bearer token")
@@ -164,7 +164,7 @@ func TestRequest_WithBody_success(t *testing.T) {
 }
 
 func TestRequest_WithBody_successWhenTheBodyIsBytes(t *testing.T) {
-	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, "")
+	mockServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 	request := client.NewRequest(http.MethodPost, mockServer.URL)
@@ -172,14 +172,14 @@ func TestRequest_WithBody_successWhenTheBodyIsBytes(t *testing.T) {
 
 	_, _ = request.Call(context.Background())
 
-	want := _http.MockServerRequest{ContentType: "application/json", Body: `{"raw":true}`}
-	got := *mockRequest
+	want := _http.CapturedRequest{ContentType: "application/json", Body: `{"raw":true}`}
+	got := *capturedRequest
 
 	assert.Equal(t, want, got)
 }
 
 func TestRequest_Call_failsWhenTheBodyCannotBeMarshaled(t *testing.T) {
-	client, _ := _http.MockSequenceClient()
+	client, _ := _http.CaptureSequenceClient()
 	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody(make(chan int))
 
@@ -199,7 +199,7 @@ func TestRequest_Call_failsWhenURLIsInvalid(t *testing.T) {
 }
 
 func TestRequest_Call_failsWhenContextIsCanceled(t *testing.T) {
-	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
+	mockServer, _ := _http.CaptureServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

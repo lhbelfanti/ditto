@@ -10,9 +10,9 @@ import (
 	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
-func TestMockSequenceRoundTripper_success(t *testing.T) {
+func TestCaptureSequenceRoundTripper_success(t *testing.T) {
 	client := _http.NewClient(0)
-	client.HTTPClient.Transport = _http.MockSequenceRoundTripper(
+	client.HTTPClient.Transport = _http.CaptureSequenceRoundTripper(
 		_http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Body: "retry"},
 		_http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"},
 	)
@@ -26,9 +26,9 @@ func TestMockSequenceRoundTripper_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestMockSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
+func TestCaptureSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
 	client := _http.NewClient(0)
-	client.HTTPClient.Transport = _http.MockSequenceRoundTripper(
+	client.HTTPClient.Transport = _http.CaptureSequenceRoundTripper(
 		_http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": []string{"1"}}},
 	)
 
@@ -40,9 +40,9 @@ func TestMockSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestMockSequenceRoundTripper_failsWhenSequenceIsExhausted(t *testing.T) {
+func TestCaptureSequenceRoundTripper_failsWhenSequenceIsExhausted(t *testing.T) {
 	client := _http.NewClient(0)
-	client.HTTPClient.Transport = _http.MockSequenceRoundTripper()
+	client.HTTPClient.Transport = _http.CaptureSequenceRoundTripper()
 
 	want := _http.ErrFailedToExecuteRequest
 	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
@@ -50,8 +50,8 @@ func TestMockSequenceRoundTripper_failsWhenSequenceIsExhausted(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
-func TestMockSequenceTransport_Requests_success(t *testing.T) {
-	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK}, _http.MockHTTPResult{StatusCode: http.StatusOK})
+func TestCaptureTransport_Requests_success(t *testing.T) {
+	transport := _http.CaptureSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK}, _http.MockHTTPResult{StatusCode: http.StatusOK})
 	client := _http.NewClient(0)
 	client.HTTPClient.Transport = transport
 	_, _ = client.NewRequest(http.MethodGet, "http://example.test/first").Call(context.Background())
@@ -68,8 +68,8 @@ func TestMockSequenceTransport_Requests_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestMockSequenceTransport_Requests_successWhenSequenceIsExhausted(t *testing.T) {
-	transport := _http.MockSequenceRoundTripper()
+func TestCaptureTransport_Requests_successWhenSequenceIsExhausted(t *testing.T) {
+	transport := _http.CaptureSequenceRoundTripper()
 	client := _http.NewClient(0)
 	client.HTTPClient.Transport = transport
 	_, _ = client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
@@ -80,8 +80,8 @@ func TestMockSequenceTransport_Requests_successWhenSequenceIsExhausted(t *testin
 	assert.Equal(t, want, got)
 }
 
-func TestMockSequenceClient_success(t *testing.T) {
-	client, _ := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"})
+func TestCaptureSequenceClient_success(t *testing.T) {
+	client, _ := _http.CaptureSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"})
 
 	response, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
@@ -91,8 +91,8 @@ func TestMockSequenceClient_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestMockSequenceClient_successWhenReadingTheRecordedRequests(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+func TestCaptureSequenceClient_successWhenReadingTheRecordedRequests(t *testing.T) {
+	client, transport := _http.CaptureSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
 	request := client.NewRequest(http.MethodGet, "http://example.test/path")
 	request.WithHeader("Authorization", "Bearer token")
 	_, _ = request.Call(context.Background())
@@ -103,8 +103,8 @@ func TestMockSequenceClient_successWhenReadingTheRecordedRequests(t *testing.T) 
 	assert.Equal(t, want, got)
 }
 
-func TestMockSequenceClient_failsWhenSequenceIsExhausted(t *testing.T) {
-	client, _ := _http.MockSequenceClient()
+func TestCaptureSequenceClient_failsWhenSequenceIsExhausted(t *testing.T) {
+	client, _ := _http.CaptureSequenceClient()
 
 	want := _http.ErrFailedToExecuteRequest
 	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
