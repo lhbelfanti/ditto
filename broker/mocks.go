@@ -14,16 +14,22 @@ type (
 		EnqueueErr error
 	}
 
-	// CaptureChannel is an in-memory channel that records the QoS, subscription and published message, and returns the configured errors.
-	CaptureChannel struct {
-		QosErr       error
+	// MockChannel is an in-memory channel that returns the configured errors and messages, and records
+	// its calls in Capture when it is set.
+	MockChannel struct {
+		QosErr     error
+		QueueErr   error
+		PublishErr error
+		ConsumeErr error
+		Messages   <-chan amqp091.Delivery
+		Capture    *ChannelCapture
+	}
+
+	// ChannelCapture holds what a MockChannel was asked to do: the QoS, the subscriptions and the published message.
+	ChannelCapture struct {
 		QosCount     int
-		QueueErr     error
-		PublishErr   error
-		ConsumeErr   error
 		ConsumeCalls int
 		QosAtConsume int
-		Messages     <-chan amqp091.Delivery
 		Published    amqp091.Publishing
 	}
 
@@ -46,7 +52,7 @@ func MockEnqueue(err error) MessageBroker {
 }
 
 // MockRabbitMQBroker builds a RabbitMQBroker over channel without dialing RabbitMQ. A nil channel builds a producer-only broker.
-func MockRabbitMQBroker(channel *CaptureChannel, queueName string, consumer bool, messages <-chan amqp091.Delivery) *RabbitMQBroker {
+func MockRabbitMQBroker(channel *MockChannel, queueName string, consumer bool, messages <-chan amqp091.Delivery) *RabbitMQBroker {
 	b := &RabbitMQBroker{
 		queue:    amqp091.Queue{Name: queueName},
 		consumer: consumer,
@@ -70,21 +76,31 @@ func (m *MockBroker) InitMessageConsumer(_ int, _ Processor) error { return nil 
 // CloseConnection does nothing.
 func (m *MockBroker) CloseConnection() {}
 
+// capture returns Capture, or a throwaway one when it is not set.
+func (m *MockChannel) capture() *ChannelCapture {
+	if m.Capture == nil {
+		return &ChannelCapture{}
+	}
+
+	return m.Capture
+}
+
 // Qos records count as QosCount and returns QosErr.
-func (m *CaptureChannel) Qos(count, _ int, _ bool) error {
-	m.QosCount = count
+func (m *MockChannel) Qos(count, _ int, _ bool) error {
+	m.capture().QosCount = count
 	return m.QosErr
 }
 
 // Consume counts the call, records the QoS in effect as QosAtConsume, and returns Messages and ConsumeErr.
-func (m *CaptureChannel) Consume(_, _ string, _, _, _, _ bool, _ amqp091.Table) (<-chan amqp091.Delivery, error) {
-	m.ConsumeCalls++
-	m.QosAtConsume = m.QosCount
+func (m *MockChannel) Consume(_, _ string, _, _, _, _ bool, _ amqp091.Table) (<-chan amqp091.Delivery, error) {
+	capture := m.capture()
+	capture.ConsumeCalls++
+	capture.QosAtConsume = capture.QosCount
 	return m.Messages, m.ConsumeErr
 }
 
 // QueueDeclare returns a queue named name, or QueueErr when it is set.
-func (m *CaptureChannel) QueueDeclare(name string, _, _, _, _ bool, _ amqp091.Table) (amqp091.Queue, error) {
+func (m *MockChannel) QueueDeclare(name string, _, _, _, _ bool, _ amqp091.Table) (amqp091.Queue, error) {
 	if m.QueueErr != nil {
 		return amqp091.Queue{}, m.QueueErr
 	}
@@ -93,13 +109,18 @@ func (m *CaptureChannel) QueueDeclare(name string, _, _, _, _ bool, _ amqp091.Ta
 }
 
 // PublishWithContext records msg as Published and returns PublishErr.
-func (m *CaptureChannel) PublishWithContext(_ context.Context, _, _ string, _, _ bool, msg amqp091.Publishing) error {
-	m.Published = msg
+func (m *MockChannel) PublishWithContext(_ context.Context, _, _ string, _, _ bool, msg amqp091.Publishing) error {
+	m.capture().Published = msg
 	return m.PublishErr
 }
 
 // Close does nothing and returns nil.
-func (m *CaptureChannel) Close() error { return nil }
+func (m *MockChannel) Close() error { return nil }
+
+// MockAcknowledger returns an AckCapture for a delivery whose acknowledgements the test does not read.
+func MockAcknowledger() *AckCapture {
+	return CaptureAcks(1, 1)
+}
 
 // CaptureAcks returns a AckCapture with room for ackSize acknowledgements and nackSize rejections.
 func CaptureAcks(ackSize, nackSize int) *AckCapture {

@@ -35,12 +35,12 @@ func TestRabbitMQBroker_processDelivery_success(t *testing.T) {
 }
 
 func TestRabbitMQBroker_processDelivery_successWhenSemaphoreIsReleased(t *testing.T) {
-	captureAcks := CaptureAcks(1, 1)
+	mockAck := MockAcknowledger()
 	b := &RabbitMQBroker{processor: MockProcessor(nil), semaphore: make(chan struct{}, 1)}
 	b.semaphore <- struct{}{}
 	b.inFlight.Add(1)
 
-	b.processDelivery(amqp091.Delivery{DeliveryTag: 1, Acknowledger: captureAcks})
+	b.processDelivery(amqp091.Delivery{DeliveryTag: 1, Acknowledger: mockAck})
 
 	want := 0
 	got := len(b.semaphore)

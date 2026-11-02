@@ -14,11 +14,11 @@ import (
 
 func TestAuth_success(t *testing.T) {
 	var gotUserID int
-	mockNext := middleware.CaptureUserIDHandler(&gotUserID)
+	captureNext := middleware.CaptureUserIDHandler(&gotUserID)
 	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(42, nil)
 
 	auth := middleware.Auth(mockSelectUserIDByToken)
-	handler := auth(mockNext)
+	handler := auth(captureNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer a-valid-token")
 	w := httptest.NewRecorder()

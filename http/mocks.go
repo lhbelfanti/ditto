@@ -39,6 +39,13 @@ func CaptureSequenceRoundTripper(results ...MockHTTPResult) *CaptureTransport {
 	return &CaptureTransport{results: results}
 }
 
+// MockSequenceClient returns a client whose requests are answered by results in sequence.
+func MockSequenceClient(results ...MockHTTPResult) *CustomClient {
+	client, _ := CaptureSequenceClient(results...)
+
+	return client
+}
+
 // CaptureSequenceClient returns a client whose requests are answered by results in sequence, and the transport that records them.
 func CaptureSequenceClient(results ...MockHTTPResult) (*CustomClient, *CaptureTransport) {
 	transport := CaptureSequenceRoundTripper(results...)
@@ -111,6 +118,13 @@ func CaptureShutdown(err error, captured *context.Context) Shutdown {
 		*captured = ctx
 		return err
 	}
+}
+
+// MockServer starts a test server that answers with status, header and body. The caller closes it.
+func MockServer(status int, header http.Header, body string) *httptest.Server {
+	server, _ := CaptureServer(status, header, body)
+
+	return server
 }
 
 // CaptureServer starts a test server that records the request it receives and answers with status, header and body. The caller closes it.

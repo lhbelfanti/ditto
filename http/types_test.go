@@ -14,10 +14,10 @@ import (
 )
 
 func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
-	mockServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, `{"ok":true}`)
-	defer mockServer.Close()
+	captureServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, `{"ok":true}`)
+	defer captureServer.Close()
 	client := _http.NewClient(5 * time.Second)
-	request := client.NewRequest(http.MethodPost, mockServer.URL)
+	request := client.NewRequest(http.MethodPost, captureServer.URL)
 	request.WithBody(map[string]string{"symbol": "BTC/USDT"})
 
 	_, _ = request.Call(context.Background())
@@ -29,7 +29,7 @@ func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenResponseHasBody(t *testing.T) {
-	mockServer, _ := _http.CaptureServer(http.StatusOK, nil, `{"ok":true}`)
+	mockServer := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -42,7 +42,7 @@ func TestRequest_Call_successWhenResponseHasBody(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
-	mockServer, _ := _http.CaptureServer(http.StatusOK, nil, "")
+	mockServer := _http.MockServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -55,11 +55,11 @@ func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenBodyIsNil(t *testing.T) {
-	mockServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, "")
-	defer mockServer.Close()
+	captureServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, "")
+	defer captureServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
-	_, _ = client.NewRequest(http.MethodGet, mockServer.URL+"?symbol=BTCUSDT").Call(context.Background())
+	_, _ = client.NewRequest(http.MethodGet, captureServer.URL+"?symbol=BTCUSDT").Call(context.Background())
 
 	want := _http.CapturedRequest{}
 	got := *capturedRequest
@@ -69,7 +69,7 @@ func TestRequest_Call_successWhenBodyIsNil(t *testing.T) {
 
 func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 	header := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
-	mockServer, _ := _http.CaptureServer(http.StatusTooManyRequests, header, "")
+	mockServer := _http.MockServer(http.StatusTooManyRequests, header, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -83,7 +83,7 @@ func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 
 func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
 	header := http.Header{"Retry-After": {"5"}}
-	mockServer, _ := _http.CaptureServer(http.StatusTooManyRequests, header, "")
+	mockServer := _http.MockServer(http.StatusTooManyRequests, header, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -164,10 +164,10 @@ func TestRequest_WithBody_success(t *testing.T) {
 }
 
 func TestRequest_WithBody_successWhenTheBodyIsBytes(t *testing.T) {
-	mockServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, "")
-	defer mockServer.Close()
+	captureServer, capturedRequest := _http.CaptureServer(http.StatusOK, nil, "")
+	defer captureServer.Close()
 	client := _http.NewClient(5 * time.Second)
-	request := client.NewRequest(http.MethodPost, mockServer.URL)
+	request := client.NewRequest(http.MethodPost, captureServer.URL)
 	request.WithBody([]byte(`{"raw":true}`))
 
 	_, _ = request.Call(context.Background())
@@ -179,7 +179,7 @@ func TestRequest_WithBody_successWhenTheBodyIsBytes(t *testing.T) {
 }
 
 func TestRequest_Call_failsWhenTheBodyCannotBeMarshaled(t *testing.T) {
-	client, _ := _http.CaptureSequenceClient()
+	client := _http.MockSequenceClient()
 	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody(make(chan int))
 
@@ -199,7 +199,7 @@ func TestRequest_Call_failsWhenURLIsInvalid(t *testing.T) {
 }
 
 func TestRequest_Call_failsWhenContextIsCanceled(t *testing.T) {
-	mockServer, _ := _http.CaptureServer(http.StatusOK, nil, "")
+	mockServer := _http.MockServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
