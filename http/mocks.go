@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
+	"time"
 )
 
 type (
@@ -19,36 +21,35 @@ type (
 		Err        error
 	}
 
-	// CaptureTransport replays a fixed sequence of MockHTTPResult values, one per request.
-	CaptureTransport struct {
+	// MockSequenceTransport replays a fixed sequence of MockHTTPResult values, one per request.
+	MockSequenceTransport struct {
 		mu       sync.Mutex
 		results  []MockHTTPResult
 		requests []*http.Request
 		next     int
 	}
 
-	// CapturedRequest records the last request a MockServer received.
-	CapturedRequest struct {
-		ContentType string
-		Body        string
+	// MockExpectedRequest is the request a MockExpectingTransport expects: its URL, headers and body.
+	MockExpectedRequest struct {
+		URL    string
+		Header http.Header
+		Body   string
+	}
+
+	// MockExpectingTransport answers only the request it expects.
+	MockExpectingTransport struct {
+		expected MockExpectedRequest
 	}
 )
 
-// CaptureSequenceRoundTripper returns a transport that answers each request with the next result, and fails once they run out.
-func CaptureSequenceRoundTripper(results ...MockHTTPResult) *CaptureTransport {
-	return &CaptureTransport{results: results}
+// MockSequenceRoundTripper returns a transport that answers each request with the next result, and fails once they run out.
+func MockSequenceRoundTripper(results ...MockHTTPResult) *MockSequenceTransport {
+	return &MockSequenceTransport{results: results}
 }
 
-// MockSequenceClient returns a client whose requests are answered by results in sequence.
-func MockSequenceClient(results ...MockHTTPResult) *CustomClient {
-	client, _ := CaptureSequenceClient(results...)
-
-	return client
-}
-
-// CaptureSequenceClient returns a client whose requests are answered by results in sequence, and the transport that records them.
-func CaptureSequenceClient(results ...MockHTTPResult) (*CustomClient, *CaptureTransport) {
-	transport := CaptureSequenceRoundTripper(results...)
+// MockSequenceClient returns a client whose requests are answered by results in sequence, and the transport that records them.
+func MockSequenceClient(results ...MockHTTPResult) (*CustomClient, *MockSequenceTransport) {
+	transport := MockSequenceRoundTripper(results...)
 	client := NewClient(0)
 	client.HTTPClient.Transport = transport
 
@@ -56,7 +57,7 @@ func CaptureSequenceClient(results ...MockHTTPResult) (*CustomClient, *CaptureTr
 }
 
 // RoundTrip answers with the next result of the sequence, or fails when the sequence is exhausted.
-func (m *CaptureTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (m *MockSequenceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -81,7 +82,7 @@ func (m *CaptureTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 // Requests returns the requests the transport received, in order, including the one that found the sequence exhausted.
-func (m *CaptureTransport) Requests() []*http.Request {
+func (m *MockSequenceTransport) Requests() []*http.Request {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -111,29 +112,23 @@ func MockShutdown(err error) Shutdown {
 	return func(context.Context) error { return err }
 }
 
-// CaptureShutdown builds a Shutdown that returns err and records the ctx of its most
-// recent call into *captured.
-func CaptureShutdown(err error, captured *context.Context) Shutdown {
+// MockShutdownExpectingTimeout builds a Shutdown that returns nil when its context ends within a
+// second of timeout from now, and an error otherwise.
+func MockShutdownExpectingTimeout(timeout time.Duration) Shutdown {
 	return func(ctx context.Context) error {
-		*captured = ctx
-		return err
+		deadline, hasDeadline := ctx.Deadline()
+		remaining := time.Until(deadline)
+		if !hasDeadline || remaining > timeout || remaining < timeout-time.Second {
+			return fmt.Errorf("unexpected shutdown deadline: %s", deadline)
+		}
+
+		return nil
 	}
 }
 
 // MockServer starts a test server that answers with status, header and body. The caller closes it.
 func MockServer(status int, header http.Header, body string) *httptest.Server {
-	server, _ := CaptureServer(status, header, body)
-
-	return server
-}
-
-// CaptureServer starts a test server that records the request it receives and answers with status, header and body. The caller closes it.
-func CaptureServer(status int, header http.Header, body string) (*httptest.Server, *CapturedRequest) {
-	received := &CapturedRequest{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		received.ContentType = r.Header.Get("Content-Type")
-		requestBody, _ := io.ReadAll(r.Body)
-		received.Body = string(requestBody)
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		for key, values := range header {
 			for _, value := range values {
 				w.Header().Add(key, value)
@@ -143,5 +138,35 @@ func CaptureServer(status int, header http.Header, body string) (*httptest.Serve
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
 	}))
-	return server, received
+}
+
+// MockClientExpecting returns a client whose requests succeed when they are the expected one, and fail otherwise.
+func MockClientExpecting(expected MockExpectedRequest) *CustomClient {
+	client := NewClient(0)
+	client.HTTPClient.Transport = &MockExpectingTransport{expected: expected}
+
+	return client
+}
+
+// RoundTrip answers 200 when req is the expected request, and fails otherwise.
+func (m *MockExpectingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	body := []byte{}
+	if req.Body != nil {
+		body, _ = io.ReadAll(req.Body)
+	}
+
+	received := MockExpectedRequest{
+		URL:    req.URL.String(),
+		Header: req.Header,
+		Body:   string(body),
+	}
+	if !reflect.DeepEqual(m.expected, received) {
+		return nil, fmt.Errorf("unexpected request: %+v", received)
+	}
+
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       http.NoBody,
+		Header:     http.Header{},
+	}, nil
 }

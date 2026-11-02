@@ -42,11 +42,19 @@ func MockNoopHandler() http.Handler {
 	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 }
 
-// CaptureUserIDHandler returns a handler that stores the user ID from the request context in *gotUserID and answers 200.
-func CaptureUserIDHandler(gotUserID *int) http.Handler {
+// MockUserIDHandler returns a handler that answers 200 and stores the user ID from the request context in gotUserID.
+func MockUserIDHandler(gotUserID *int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		*gotUserID = UserIDFromContext(r.Context())
 		w.WriteHeader(http.StatusOK)
+	})
+}
+
+// MockUserIDResponseHandler returns a handler that answers 200 with the user ID from the request context as its body.
+func MockUserIDResponseHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprint(w, UserIDFromContext(r.Context()))
 	})
 }
 

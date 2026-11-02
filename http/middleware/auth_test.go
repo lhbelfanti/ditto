@@ -13,20 +13,19 @@ import (
 )
 
 func TestAuth_success(t *testing.T) {
-	var gotUserID int
-	captureNext := middleware.CaptureUserIDHandler(&gotUserID)
+	mockNext := middleware.MockUserIDResponseHandler()
 	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(42, nil)
 
 	auth := middleware.Auth(mockSelectUserIDByToken)
-	handler := auth(captureNext)
+	handler := auth(mockNext)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer a-valid-token")
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
 
-	want := 42
-	got := gotUserID
+	want := "42"
+	got := w.Body.String()
 
 	assert.Equal(t, want, got)
 }

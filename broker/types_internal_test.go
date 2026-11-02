@@ -34,8 +34,23 @@ func TestRabbitMQBroker_processDelivery_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestRabbitMQBroker_processDelivery_successWhenBodyIsProcessed(t *testing.T) {
+	mockAck := MockAcknowledger(1)
+	bodies := make(chan []byte, 1)
+	b := &RabbitMQBroker{processor: MockRecordingProcessor(bodies, nil), semaphore: make(chan struct{}, 1)}
+	b.semaphore <- struct{}{}
+	b.inFlight.Add(1)
+
+	b.processDelivery(amqp091.Delivery{DeliveryTag: 1, Acknowledger: mockAck, Body: []byte("hello")})
+
+	want := []byte("hello")
+	got := <-bodies
+
+	assert.Equal(t, want, got)
+}
+
 func TestRabbitMQBroker_processDelivery_successWhenSemaphoreIsReleased(t *testing.T) {
-	mockAck := MockAcknowledger()
+	mockAck := MockAcknowledger(1)
 	b := &RabbitMQBroker{processor: MockProcessor(nil), semaphore: make(chan struct{}, 1)}
 	b.semaphore <- struct{}{}
 	b.inFlight.Add(1)

@@ -12,17 +12,16 @@ import (
 )
 
 func TestRequireSession_success(t *testing.T) {
-	gotUserID := 0
 	mockGetSession := middleware.MockGetSessionByToken(middleware.Session{UserID: 42}, nil)
-	handler := middleware.RequireSession(mockGetSession)(middleware.CaptureUserIDHandler(&gotUserID))
+	handler := middleware.RequireSession(mockGetSession)(middleware.MockUserIDResponseHandler())
 	req := httptest.NewRequest(http.MethodGet, "/private", nil)
 	req.Header.Set("Authorization", "bearer valid-token")
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
 
-	want := 42
-	got := gotUserID
+	want := "42"
+	got := w.Body.String()
 
 	assert.Equal(t, want, got)
 }

@@ -21,72 +21,24 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenChannelClosesUnexpectedly(t
 	assert.ErrorIs(t, got, want)
 }
 
-func TestRabbitMQBroker_InitMessageConsumer_successWhenMessageIsAcknowledged(t *testing.T) {
-	captureAck := broker.CaptureAcks(1, 1)
-	mockMessages := broker.MockClosedMessages(amqp091.Delivery{DeliveryTag: 1, Acknowledger: captureAck, Body: []byte("hello")})
-	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, mockMessages)
-
-	_ = b.InitMessageConsumer(2, broker.MockProcessor(nil))
-	b.CloseConnection()
-
-	want := uint64(1)
-	got := <-captureAck.Acks
-
-	assert.Equal(t, want, got)
-}
-
-func TestRabbitMQBroker_InitMessageConsumer_successWhenMessageBodyIsProcessed(t *testing.T) {
-	mockAck := broker.MockAcknowledger()
-	bodies := make(chan []byte, 1)
-	mockMessages := broker.MockClosedMessages(amqp091.Delivery{DeliveryTag: 1, Acknowledger: mockAck, Body: []byte("hello")})
-	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, mockMessages)
-
-	_ = b.InitMessageConsumer(1, broker.MockRecordingProcessor(bodies, nil))
-	b.CloseConnection()
-
-	want := []byte("hello")
-	got := <-bodies
-
-	assert.Equal(t, want, got)
-}
-
 func TestRabbitMQBroker_InitMessageConsumer_successWhenConcurrencyIsSetAsQoS(t *testing.T) {
-	capture := &broker.ChannelCapture{}
-	mockChannel := &broker.MockChannel{Capture: capture}
+	mockChannel := &broker.MockChannel{ExpectedQos: 2}
 	b := broker.MockRabbitMQBroker(mockChannel, "work", true, broker.MockClosedMessages())
 
-	_ = b.InitMessageConsumer(2, broker.MockProcessor(nil))
+	want := broker.ErrConsumerChannelClosed
+	got := b.InitMessageConsumer(2, broker.MockProcessor(nil))
 
-	want := 2
-	got := capture.QosCount
-
-	assert.Equal(t, want, got)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestRabbitMQBroker_InitMessageConsumer_successWhenSubscriptionStartsAfterQoS(t *testing.T) {
-	capture := &broker.ChannelCapture{}
-	mockChannel := &broker.MockChannel{Messages: broker.MockClosedMessages(), Capture: capture}
+	mockChannel := &broker.MockChannel{Messages: broker.MockClosedMessages(), ExpectedQos: 3}
 	b := broker.MockRabbitMQBroker(mockChannel, "work", true, nil)
 
-	_ = b.InitMessageConsumer(3, broker.MockProcessor(nil))
+	want := broker.ErrConsumerChannelClosed
+	got := b.InitMessageConsumer(3, broker.MockProcessor(nil))
 
-	want := 3
-	got := capture.QosAtConsume
-
-	assert.Equal(t, want, got)
-}
-
-func TestRabbitMQBroker_InitMessageConsumer_successWhenQueueIsSubscribedOnce(t *testing.T) {
-	capture := &broker.ChannelCapture{}
-	mockChannel := &broker.MockChannel{Messages: broker.MockClosedMessages(), Capture: capture}
-	b := broker.MockRabbitMQBroker(mockChannel, "work", true, nil)
-
-	_ = b.InitMessageConsumer(1, broker.MockProcessor(nil))
-
-	want := 1
-	got := capture.ConsumeCalls
-
-	assert.Equal(t, want, got)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestRabbitMQBroker_InitMessageConsumer_failsWhenSubscriptionFails(t *testing.T) {
@@ -102,33 +54,20 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenSubscriptionFails(t *testin
 	assert.ErrorIs(t, got, wantCause)
 }
 
-func TestRabbitMQBroker_InitMessageConsumer_successWhenProcessorFails(t *testing.T) {
-	captureAck := broker.CaptureAcks(1, 1)
-	mockMessages := broker.MockClosedMessages(amqp091.Delivery{DeliveryTag: 2, Acknowledger: captureAck})
-	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, mockMessages)
-
-	_ = b.InitMessageConsumer(1, broker.MockProcessor(errors.New("processing failed")))
-	b.CloseConnection()
-
-	want := broker.Acks{Nacks: []uint64{2}}
-	got := captureAck.Recorded()
-
-	assert.Equal(t, want, got)
-}
-
 func TestRabbitMQBroker_InitMessageConsumer_successWhenTwoMessagesAndLimitIsOne(t *testing.T) {
-	captureAck := broker.CaptureAcks(2, 2)
+	mockAck := broker.MockAcknowledger(2)
 	mockMessages := broker.MockClosedMessages(
-		amqp091.Delivery{DeliveryTag: 1, Acknowledger: captureAck},
-		amqp091.Delivery{DeliveryTag: 2, Acknowledger: captureAck},
+		amqp091.Delivery{DeliveryTag: 1, Acknowledger: mockAck},
+		amqp091.Delivery{DeliveryTag: 2, Acknowledger: mockAck},
 	)
 	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, mockMessages)
 	started := make(chan struct{}, 2)
 	release := make(chan struct{})
 	done := make(chan struct{})
+	var got error
 	mockProcessor := broker.MockBlockingProcessor(started, release, nil)
 	go func() {
-		_ = b.InitMessageConsumer(1, mockProcessor)
+		got = b.InitMessageConsumer(1, mockProcessor)
 		close(done)
 	}()
 
@@ -153,10 +92,9 @@ func TestRabbitMQBroker_InitMessageConsumer_successWhenTwoMessagesAndLimitIsOne(
 
 	b.CloseConnection()
 
-	want := 2
-	got := len(captureAck.Acks)
+	want := broker.ErrConsumerChannelClosed
 
-	assert.Equal(t, want, got)
+	assert.ErrorIs(t, got, want)
 }
 
 func TestRabbitMQBroker_InitMessageConsumer_successWhenStoppedViaCloseConnection(t *testing.T) {
@@ -221,29 +159,12 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenBrokerIsProducer(t *testing
 }
 
 func TestRabbitMQBroker_EnqueueMessage_success(t *testing.T) {
-	capture := &broker.ChannelCapture{}
-	mockChannel := &broker.MockChannel{Capture: capture}
+	mockChannel := &broker.MockChannel{ExpectedPublishing: &amqp091.Publishing{ContentType: "application/json", Body: []byte(`{"job":1}`)}}
 	b := broker.MockRabbitMQBroker(mockChannel, "work", false, nil)
 
-	_ = b.EnqueueMessage(context.Background(), `{"job":1}`)
+	got := b.EnqueueMessage(context.Background(), `{"job":1}`)
 
-	want := []byte(`{"job":1}`)
-	got := capture.Published.Body
-
-	assert.Equal(t, want, got)
-}
-
-func TestRabbitMQBroker_EnqueueMessage_successWhenContentTypeIsJSON(t *testing.T) {
-	capture := &broker.ChannelCapture{}
-	mockChannel := &broker.MockChannel{Capture: capture}
-	b := broker.MockRabbitMQBroker(mockChannel, "work", false, nil)
-
-	_ = b.EnqueueMessage(context.Background(), `{"job":1}`)
-
-	want := "application/json"
-	got := capture.Published.ContentType
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRabbitMQBroker_EnqueueMessage_failsWhenPublishFails(t *testing.T) {

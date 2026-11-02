@@ -62,17 +62,12 @@ func TestGracefulShutdown_failsWhenShutdownFails(t *testing.T) {
 
 func TestGracefulShutdown_successWhenShutdownIsBoundedByTimeout(t *testing.T) {
 	mockServe := _http.MockServeBlocking()
-	var captured context.Context
-	captureShutdown := _http.CaptureShutdown(nil, &captured)
+	timeout := 5 * time.Second
+	mockShutdown := _http.MockShutdownExpectingTimeout(timeout)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	timeout := 5 * time.Second
-	start := time.Now()
 
-	_ = _http.GracefulShutdown(ctx, mockServe, captureShutdown, timeout)
+	got := _http.GracefulShutdown(ctx, mockServe, mockShutdown, timeout)
 
-	want := start.Add(timeout)
-	got, _ := captured.Deadline()
-
-	assert.WithinDuration(t, want, got, time.Second)
+	assert.NoError(t, got)
 }
