@@ -103,7 +103,7 @@ func applyFile(ctx context.Context, db database.Connection, file string) error {
 	if applied {
 		err = tx.Commit(ctx)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrFailedToCommitFile, err)
+			return fmt.Errorf("%w: %w", ErrFailedToCommitAppliedFile, err)
 		}
 
 		return nil

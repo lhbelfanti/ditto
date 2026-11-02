@@ -57,7 +57,8 @@ func TestRequestID_successWhenInboundHeaderPresent(t *testing.T) {
 }
 
 func TestRequestID_successWhenNextLogs(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	mockNext := middleware.MockRequestIDLoggingHandler()
 
 	handler := middleware.RequestID(mockNext)
@@ -68,7 +69,7 @@ func TestRequestID_successWhenNextLogs(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	want := []map[string]any{{"level": "info", "message": "test message", "request_id": "upstream-id-123"}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }

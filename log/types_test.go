@@ -41,3 +41,16 @@ func TestFieldsError_Unwrap_success(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestMemoryOutput_Entries_successWhenALineIsNotJSON(t *testing.T) {
+	output, restore := log.Capture()
+	t.Cleanup(restore)
+
+	_, _ = output.WriteString("not json\n")
+	log.Info(context.Background(), "hello")
+
+	want := []map[string]any{{"level": "info", "message": "hello"}}
+	got := output.Entries()
+
+	assert.Equal(t, want, got)
+}

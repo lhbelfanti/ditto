@@ -188,7 +188,7 @@ All `Make*` helpers return typed sentinel errors on failure:
 | Error | Meaning |
 |---|---|
 | `database.ErrQuery` | `db.Query`, `db.QueryRow`, or `db.Exec` returned an error |
-| `database.ErrCollect` | `CollectRows` failed after a successful query |
+| `database.ErrCollect` | `CollectRows`, or the row collection of `SelectOne`, failed after a successful query |
 | `database.ErrFailedToScanRows` | `MakeCollectRows` could not scan the rows into `T` |
 | `database.ErrNoRows` | `SelectOne` found no matching row (`pgx.ErrNoRows`) |
 | `database.ErrAdminNotConfigured` | `OpenAdmin` found no `POSTGRES_ADMIN_USER`/`POSTGRES_ADMIN_PASS` |

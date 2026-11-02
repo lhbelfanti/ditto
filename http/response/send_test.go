@@ -41,37 +41,40 @@ func TestSend_success(t *testing.T) {
 }
 
 func TestSend_successWhenCodeIsAnErrorWithACause(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	w := httptest.NewRecorder()
 
 	response.Send(context.Background(), w, http.StatusInternalServerError, "request failed", nil, errors.New("cause"))
 
 	want := []map[string]any{{"level": "error", "message": "request failed", "error": "cause"}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }
 
 func TestSend_successWhenCodeIsAnErrorWithoutACause(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	w := httptest.NewRecorder()
 
 	response.Send(context.Background(), w, http.StatusNotFound, "not found", nil, nil)
 
 	want := []map[string]any{{"level": "error", "message": "not found"}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }
 
 func TestSend_successWhenCodeIsNotAnError(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	w := httptest.NewRecorder()
 
 	response.Send(context.Background(), w, http.StatusOK, "done", nil, nil)
 
 	want := []map[string]any{{"level": "info", "message": "done"}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }

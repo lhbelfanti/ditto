@@ -87,14 +87,6 @@ func MockPgxRowBool(applied bool) *database.MockPgxRow {
 	return row
 }
 
-// MockApplyCapturing returns an Apply that sets *called and returns err.
-func MockApplyCapturing(err error, called *bool) Apply {
-	return func(context.Context) error {
-		*called = true
-		return err
-	}
-}
-
 // MockTx returns a transaction that answers the lock, table creation, file execution and tracking queries as cfg describes.
 func MockTx(cfg MockTxConfig) *database.MockPgxTx {
 	appliedRow := MockPgxRowBool(cfg.Applied)
@@ -203,10 +195,9 @@ func MockTableInDatabase(t *testing.T, pool *pgxpool.Pool, table string) bool {
 	return exists
 }
 
-// MockStatusRunner returns a StatusRunner that sets *called and returns err.
-func MockStatusRunner(err error, called *bool) StatusRunner {
+// MockStatusRunner returns a StatusRunner that always returns err.
+func MockStatusRunner(err error) StatusRunner {
 	return func(context.Context) error {
-		*called = true
 		return err
 	}
 }

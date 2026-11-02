@@ -42,39 +42,42 @@ func TestBaseParam_successWhenValueIsKept(t *testing.T) {
 }
 
 func TestWith_success(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	ctx := log.With(context.Background(), log.Param("key1", "value1"), log.Param("key2", 123))
 
 	log.Info(ctx, "hello")
 
 	want := []map[string]any{{"level": "info", "message": "hello", "key1": "value1", "key2": float64(123)}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }
 
 func TestWith_successWhenContextAlreadyHasParams(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	ctx := log.With(context.Background(), log.Param("key1", "value1"), log.Param("key2", 123))
 	ctx = log.With(ctx, log.Param("key1", "newValue"))
 
 	log.Info(ctx, "hello")
 
 	want := []map[string]any{{"level": "info", "message": "hello", "key1": "newValue", "key2": float64(123)}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }
 
 func TestWith_successWhenAChildIsDerived(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	parent := log.With(context.Background(), log.Param("request_id", "abc"))
 	_ = log.With(parent, log.Param("worker", 1))
 
 	log.Info(parent, "from the parent")
 
 	want := []map[string]any{{"level": "info", "message": "from the parent", "request_id": "abc"}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }
@@ -90,11 +93,12 @@ func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
 
 	wg.Wait()
 
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	log.Info(parent, "from the parent")
 
 	entry := map[string]any{}
-	_ = json.Unmarshal(mockOutput.Bytes(), &entry)
+	_ = json.Unmarshal(output.Bytes(), &entry)
 
 	got := entry["worker"]
 

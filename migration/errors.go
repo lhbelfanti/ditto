@@ -15,6 +15,7 @@ var (
 	ErrFailedToLockMigrations      = errors.New("migration: failed to take the migration lock")
 	ErrFailedToCommitTrackingTable = errors.New("migration: failed to commit the migrations table creation")
 	ErrFailedToCommitFile          = errors.New("migration: failed to commit a migration file")
+	ErrFailedToCommitAppliedFile   = errors.New("migration: failed to commit the check of an applied migration file")
 	ErrUnknownCommand              = errors.New("migration: unknown command: use apply or status")
 	ErrFailedToPrepare             = errors.New("migration: failed to prepare the migrations table")
 	ErrFailedToApplyFile           = errors.New("migration: failed to apply a migration file")

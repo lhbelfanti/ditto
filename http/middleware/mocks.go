@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/lhbelfanti/ditto/v2/log"
@@ -12,14 +13,20 @@ func MockSelectUserIDByToken(userID int, err error) SelectUserIDByToken {
 	return func(context.Context, string) (int, error) { return userID, err }
 }
 
-// MockGetSessionByToken returns the given session and error and records each token when gotTokens is provided.
-func MockGetSessionByToken(session Session, err error, gotTokens *[]string) GetSessionByToken {
-	return func(_ context.Context, token string) (Session, error) {
-		if gotTokens != nil {
-			*gotTokens = append(*gotTokens, token)
+// MockGetSessionByToken returns a GetSessionByToken that always returns session and err.
+func MockGetSessionByToken(session Session, err error) GetSessionByToken {
+	return func(context.Context, string) (Session, error) { return session, err }
+}
+
+// MockGetSessionByTokenExpecting returns a GetSessionByToken that returns session when it receives
+// token, and an error otherwise.
+func MockGetSessionByTokenExpecting(token string, session Session) GetSessionByToken {
+	return func(_ context.Context, received string) (Session, error) {
+		if received != token {
+			return Session{}, fmt.Errorf("unexpected token: %q", received)
 		}
 
-		return session, err
+		return session, nil
 	}
 }
 
@@ -35,11 +42,19 @@ func MockNoopHandler() http.Handler {
 	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 }
 
-// MockUserIDHandler returns a handler that stores the user ID from the request context in *gotUserID and answers 200.
+// MockUserIDHandler returns a handler that answers 200 and stores the user ID from the request context in gotUserID.
 func MockUserIDHandler(gotUserID *int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		*gotUserID = UserIDFromContext(r.Context())
 		w.WriteHeader(http.StatusOK)
+	})
+}
+
+// MockUserIDResponseHandler returns a handler that answers 200 with the user ID from the request context as its body.
+func MockUserIDResponseHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprint(w, UserIDFromContext(r.Context()))
 	})
 }
 
