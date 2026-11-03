@@ -13,8 +13,7 @@ import (
 )
 
 func TestAuth_success(t *testing.T) {
-	var gotUserID int
-	mockNext := middleware.MockUserIDHandler(&gotUserID)
+	mockNext := middleware.MockUserIDResponseHandler()
 	mockSelectUserIDByToken := middleware.MockSelectUserIDByToken(42, nil)
 
 	auth := middleware.Auth(mockSelectUserIDByToken)
@@ -25,8 +24,8 @@ func TestAuth_success(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := 42
-	got := gotUserID
+	want := "42"
+	got := w.Body.String()
 
 	assert.Equal(t, want, got)
 }

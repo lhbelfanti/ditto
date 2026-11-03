@@ -124,7 +124,7 @@ func TestApplyFile_failsWhenCommittingAnAppliedFileFails(t *testing.T) {
 	mockTx := MockTx(MockTxConfig{Applied: true, CommitErr: errors.New("commit failed")})
 	mockDB := MockConnection(mockTx, nil)
 
-	want := ErrFailedToCommitFile
+	want := ErrFailedToCommitAppliedFile
 	got := applyFile(context.Background(), mockDB, "001_a.sql")
 
 	assert.ErrorIs(t, got, want)

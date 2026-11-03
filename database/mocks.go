@@ -382,6 +382,15 @@ func MockEmptyRows() *MockPgxRows {
 	return rows
 }
 
+// MockFailingRows returns rows that end with err before a row is read.
+func MockFailingRows(err error) *MockPgxRows {
+	rows := &MockPgxRows{}
+	rows.On("Next").Return(false)
+	rows.On("Close").Return()
+	rows.On("Err").Return(err)
+	return rows
+}
+
 // MockRowReturning returns a row whose Scan writes value.
 func MockRowReturning(value any, t *testing.T) *MockPgxRow {
 	row := &MockPgxRow{}

@@ -66,7 +66,7 @@ func MakeSelectOne[T any](db Connection, fn pgx.RowToFunc[T]) SelectOne[T] {
 				return zero, fmt.Errorf("%w: %w", ErrNoRows, err)
 			}
 
-			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
+			return zero, fmt.Errorf("%w: %w", ErrCollect, err)
 		}
 
 		return result, nil

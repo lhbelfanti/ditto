@@ -36,3 +36,18 @@ The fields the logging point adds itself, such as the request ID the middleware 
 the error already, so embedding them would repeat them. Add those with `BaseParam`, which
 `NewFieldsError` leaves out. `NewFieldsError` returns `err` unchanged when the context carries no
 field to embed, and nil when `err` is nil.
+
+## Reading what the logger writes
+
+`NewCustomLogger` sends the logger to any `io.Writer`. `Capture` sends it to a `MemoryOutput` at
+trace level and returns it with the function that restores the default logger. `Entries` returns
+what was written as one map per line, without the time:
+
+```go
+output, restore := log.Capture()
+t.Cleanup(restore)
+
+log.Info(ctx, "hello")
+
+got := output.Entries() // [{"level": "info", "message": "hello"}]
+```

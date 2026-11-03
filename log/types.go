@@ -1,11 +1,18 @@
 package log
 
 import (
+	"bytes"
+	"encoding/json"
 	"sort"
 	"strings"
 )
 
 type (
+	// MemoryOutput is a logger output that keeps what the logger writes in memory.
+	MemoryOutput struct {
+		bytes.Buffer
+	}
+
 	// field represent a key-value tuple that will be added to the context
 	field struct {
 		Key   string
@@ -27,6 +34,24 @@ type (
 	// embedCtxKey keys the set of context fields that NewFieldsError embeds into an error
 	embedCtxKey struct{}
 )
+
+// Entries returns the entries the logger wrote, one per line, without their time.
+func (output *MemoryOutput) Entries() []map[string]any {
+	lines := strings.Split(strings.TrimSpace(output.String()), "\n")
+	entries := make([]map[string]any, 0, len(lines))
+	for _, line := range lines {
+		entry := map[string]any{}
+		err := json.Unmarshal([]byte(line), &entry)
+		if err != nil {
+			continue
+		}
+
+		delete(entry, "time")
+		entries = append(entries, entry)
+	}
+
+	return entries
+}
 
 // Error renders the cause followed by the fields in alphabetical order, e.g. `can't fetch [symbol=BTC/USDT timeframe=1h]`.
 func (e *FieldsError) Error() string {

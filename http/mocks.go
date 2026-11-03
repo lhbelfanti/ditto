@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
+	"time"
 )
 
 type (
@@ -27,10 +29,16 @@ type (
 		next     int
 	}
 
-	// MockServerRequest records the last request a MockServer received.
-	MockServerRequest struct {
-		ContentType string
-		Body        string
+	// MockExpectedRequest is the request a MockExpectingTransport expects: its URL, headers and body.
+	MockExpectedRequest struct {
+		URL    string
+		Header http.Header
+		Body   string
+	}
+
+	// MockExpectingTransport answers only the request it expects.
+	MockExpectingTransport struct {
+		expected MockExpectedRequest
 	}
 )
 
@@ -104,22 +112,23 @@ func MockShutdown(err error) Shutdown {
 	return func(context.Context) error { return err }
 }
 
-// MockCapturingShutdown builds a Shutdown that returns err and records the ctx of its most
-// recent call into *captured.
-func MockCapturingShutdown(err error, captured *context.Context) Shutdown {
+// MockShutdownExpectingTimeout builds a Shutdown that returns nil when its context ends within a
+// second of timeout from now, and an error otherwise.
+func MockShutdownExpectingTimeout(timeout time.Duration) Shutdown {
 	return func(ctx context.Context) error {
-		*captured = ctx
-		return err
+		deadline, hasDeadline := ctx.Deadline()
+		remaining := time.Until(deadline)
+		if !hasDeadline || remaining > timeout || remaining < timeout-time.Second {
+			return fmt.Errorf("unexpected shutdown deadline: %s", deadline)
+		}
+
+		return nil
 	}
 }
 
-// MockServer starts a test server that records the request it receives and answers with status, header and body. The caller closes it.
-func MockServer(status int, header http.Header, body string) (*httptest.Server, *MockServerRequest) {
-	received := &MockServerRequest{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		received.ContentType = r.Header.Get("Content-Type")
-		requestBody, _ := io.ReadAll(r.Body)
-		received.Body = string(requestBody)
+// MockServer starts a test server that answers with status, header and body. The caller closes it.
+func MockServer(status int, header http.Header, body string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		for key, values := range header {
 			for _, value := range values {
 				w.Header().Add(key, value)
@@ -129,5 +138,35 @@ func MockServer(status int, header http.Header, body string) (*httptest.Server, 
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
 	}))
-	return server, received
+}
+
+// MockClientExpecting returns a client whose requests succeed when they are the expected one, and fail otherwise.
+func MockClientExpecting(expected MockExpectedRequest) *CustomClient {
+	client := NewClient(0)
+	client.HTTPClient.Transport = &MockExpectingTransport{expected: expected}
+
+	return client
+}
+
+// RoundTrip answers 200 when req is the expected request, and fails otherwise.
+func (m *MockExpectingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	body := []byte{}
+	if req.Body != nil {
+		body, _ = io.ReadAll(req.Body)
+	}
+
+	received := MockExpectedRequest{
+		URL:    req.URL.String(),
+		Header: req.Header,
+		Body:   string(body),
+	}
+	if !reflect.DeepEqual(m.expected, received) {
+		return nil, fmt.Errorf("unexpected request: %+v", received)
+	}
+
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       http.NoBody,
+		Header:     http.Header{},
+	}, nil
 }

@@ -87,6 +87,19 @@ func TestSelectOne_failsWhenQueryFails(t *testing.T) {
 	assert.ErrorIs(t, got, wantCause)
 }
 
+func TestSelectOne_failsWhenCollectFails(t *testing.T) {
+	mockConn := database.MockQueryConnection(database.MockFailingRows(pgx.ErrTxClosed), nil)
+
+	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
+
+	want := database.ErrCollect
+	wantCause := pgx.ErrTxClosed
+	_, got := selOne(context.Background(), "SELECT applied FROM migrations WHERE name = $1", "000_setup.sql")
+
+	assert.ErrorIs(t, got, want)
+	assert.ErrorIs(t, got, wantCause)
+}
+
 func TestInsert_success(t *testing.T) {
 	mockConn := database.MockQueryRowConnection(database.MockRowReturning(42, t))
 

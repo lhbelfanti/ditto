@@ -19,6 +19,15 @@ func NewCustomLogger(writer io.Writer, logLevel zerolog.Level) {
 	logger = zerolog.New(writer).With().Timestamp().Logger().Level(logLevel)
 }
 
+// Capture redirects the package logger to a MemoryOutput at trace level and returns it with the
+// function that restores the default logger.
+func Capture() (*MemoryOutput, func()) {
+	output := &MemoryOutput{}
+	NewCustomLogger(output, zerolog.TraceLevel)
+
+	return output, func() { NewCustomLogger(os.Stdout, zerolog.DebugLevel) }
+}
+
 // Trace starts a new message with trace level
 func Trace(ctx context.Context, msg string) {
 	logWithLevel(ctx, zerolog.TraceLevel, msg)

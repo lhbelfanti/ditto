@@ -2,7 +2,6 @@ package log_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -42,39 +41,40 @@ func TestBaseParam_successWhenValueIsKept(t *testing.T) {
 }
 
 func TestWith_success(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	ctx := log.With(context.Background(), log.Param("key1", "value1"), log.Param("key2", 123))
 
 	log.Info(ctx, "hello")
 
 	want := []map[string]any{{"level": "info", "message": "hello", "key1": "value1", "key2": float64(123)}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }
 
 func TestWith_successWhenContextAlreadyHasParams(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	output, restore := log.Capture()
+	t.Cleanup(restore)
 	ctx := log.With(context.Background(), log.Param("key1", "value1"), log.Param("key2", 123))
 	ctx = log.With(ctx, log.Param("key1", "newValue"))
 
 	log.Info(ctx, "hello")
 
 	want := []map[string]any{{"level": "info", "message": "hello", "key1": "newValue", "key2": float64(123)}}
-	got := log.MockLogEntries(mockOutput)
+	got := output.Entries()
 
 	assert.Equal(t, want, got)
 }
 
 func TestWith_successWhenAChildIsDerived(t *testing.T) {
-	mockOutput := log.MockLogOutput(t)
+	err := errors.New("boom")
 	parent := log.With(context.Background(), log.Param("request_id", "abc"))
-	_ = log.With(parent, log.Param("worker", 1))
 
-	log.Info(parent, "from the parent")
+	child := log.With(parent, log.Param("worker", 1))
 
-	want := []map[string]any{{"level": "info", "message": "from the parent", "request_id": "abc"}}
-	got := log.MockLogEntries(mockOutput)
+	want := []string{"boom [request_id=abc]", "boom [request_id=abc worker=1]"}
+	got := []string{log.NewFieldsError(parent, err).Error(), log.NewFieldsError(child, err).Error()}
 
 	assert.Equal(t, want, got)
 }
@@ -90,15 +90,10 @@ func TestWith_successWhenDerivedConcurrentlyFromTheSameParent(t *testing.T) {
 
 	wg.Wait()
 
-	mockOutput := log.MockLogOutput(t)
-	log.Info(parent, "from the parent")
+	want := "boom [request_id=abc]"
+	got := log.NewFieldsError(parent, errors.New("boom")).Error()
 
-	entry := map[string]any{}
-	_ = json.Unmarshal(mockOutput.Bytes(), &entry)
-
-	got := entry["worker"]
-
-	assert.Nil(t, got)
+	assert.Equal(t, want, got)
 }
 
 func TestNewFieldsError_successWhenContextCarriesFields(t *testing.T) {

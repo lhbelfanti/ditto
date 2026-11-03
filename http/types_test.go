@@ -14,22 +14,21 @@ import (
 )
 
 func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
-	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
-	request := client.NewRequest(http.MethodPost, mockServer.URL)
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{
+		URL:    "http://example.test",
+		Header: http.Header{"Content-Type": {"application/json"}},
+		Body:   `{"symbol":"BTC/USDT"}`,
+	})
+	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody(map[string]string{"symbol": "BTC/USDT"})
 
-	_, _ = request.Call(context.Background())
+	_, got := request.Call(context.Background())
 
-	want := _http.MockServerRequest{ContentType: "application/json", Body: `{"symbol":"BTC/USDT"}`}
-	got := *mockRequest
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRequest_Call_successWhenResponseHasBody(t *testing.T) {
-	mockServer, _ := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
+	mockServer := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -42,7 +41,7 @@ func TestRequest_Call_successWhenResponseHasBody(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
-	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
+	mockServer := _http.MockServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -55,21 +54,16 @@ func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenBodyIsNil(t *testing.T) {
-	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, "")
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test?symbol=BTCUSDT", Header: http.Header{}})
 
-	_, _ = client.NewRequest(http.MethodGet, mockServer.URL+"?symbol=BTCUSDT").Call(context.Background())
+	_, got := client.NewRequest(http.MethodGet, "http://example.test?symbol=BTCUSDT").Call(context.Background())
 
-	want := _http.MockServerRequest{}
-	got := *mockRequest
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 	header := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
-	mockServer, _ := _http.MockServer(http.StatusTooManyRequests, header, "")
+	mockServer := _http.MockServer(http.StatusTooManyRequests, header, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -83,7 +77,7 @@ func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 
 func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
 	header := http.Header{"Retry-After": {"5"}}
-	mockServer, _ := _http.MockServer(http.StatusTooManyRequests, header, "")
+	mockServer := _http.MockServer(http.StatusTooManyRequests, header, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -96,86 +90,74 @@ func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
 }
 
 func TestRequest_WithHeader_success(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{"Authorization": {"Bearer token"}}})
 	request := client.NewRequest(http.MethodGet, "http://example.test")
 	request.WithHeader("Authorization", "Bearer token")
 
-	_, _ = request.Call(context.Background())
+	_, got := request.Call(context.Background())
 
-	want := "Bearer token"
-	got := transport.Requests()[0].Header.Get("Authorization")
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRequest_WithHeader_successWhenTheHeaderIsSetTwice(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{"X-Mode": {"second"}}})
 	request := client.NewRequest(http.MethodGet, "http://example.test")
 	request.WithHeader("X-Mode", "first")
 	request.WithHeader("X-Mode", "second")
 
-	_, _ = request.Call(context.Background())
+	_, got := request.Call(context.Background())
 
-	want := []string{"second"}
-	got := transport.Requests()[0].Header.Values("X-Mode")
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRequest_WithQueryParam_success(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test/candles?pair=BTC%2FUSDT&timeframe=1h", Header: http.Header{}})
 	request := client.NewRequest(http.MethodGet, "http://example.test/candles")
 	request.WithQueryParam("pair", "BTC/USDT")
 	request.WithQueryParam("timeframe", "1h")
 
-	_, _ = request.Call(context.Background())
+	_, got := request.Call(context.Background())
 
-	want := "http://example.test/candles?pair=BTC%2FUSDT&timeframe=1h"
-	got := transport.Requests()[0].URL.String()
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRequest_WithQueryParam_successWhenTheURLAlreadyHasAQuery(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test/candles?pair=BTC&pair=ETH", Header: http.Header{}})
 	request := client.NewRequest(http.MethodGet, "http://example.test/candles?pair=BTC")
 	request.WithQueryParam("pair", "ETH")
 
-	_, _ = request.Call(context.Background())
+	_, got := request.Call(context.Background())
 
-	want := []string{"BTC", "ETH"}
-	got := transport.Requests()[0].URL.Query()["pair"]
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRequest_WithBody_success(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{
+		URL:    "http://example.test",
+		Header: http.Header{"Authorization": {"Bearer token"}, "Content-Type": {"application/json"}},
+		Body:   `{"a":"b"}`,
+	})
 	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody(map[string]string{"a": "b"})
 	request.WithHeader("Authorization", "Bearer token")
 
-	_, _ = request.Call(context.Background())
+	_, got := request.Call(context.Background())
 
-	want := "application/json"
-	got := transport.Requests()[0].Header.Get("Content-Type")
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRequest_WithBody_successWhenTheBodyIsBytes(t *testing.T) {
-	mockServer, mockRequest := _http.MockServer(http.StatusOK, nil, "")
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
-	request := client.NewRequest(http.MethodPost, mockServer.URL)
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{
+		URL:    "http://example.test",
+		Header: http.Header{"Content-Type": {"application/json"}},
+		Body:   `{"raw":true}`,
+	})
+	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody([]byte(`{"raw":true}`))
 
-	_, _ = request.Call(context.Background())
+	_, got := request.Call(context.Background())
 
-	want := _http.MockServerRequest{ContentType: "application/json", Body: `{"raw":true}`}
-	got := *mockRequest
-
-	assert.Equal(t, want, got)
+	assert.NoError(t, got)
 }
 
 func TestRequest_Call_failsWhenTheBodyCannotBeMarshaled(t *testing.T) {
@@ -199,7 +181,7 @@ func TestRequest_Call_failsWhenURLIsInvalid(t *testing.T) {
 }
 
 func TestRequest_Call_failsWhenContextIsCanceled(t *testing.T) {
-	mockServer, _ := _http.MockServer(http.StatusOK, nil, "")
+	mockServer := _http.MockServer(http.StatusOK, nil, "")
 	defer mockServer.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

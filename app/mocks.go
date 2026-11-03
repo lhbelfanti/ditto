@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// MockService is a Run started in the background by MockRunningService, reachable at BaseURL.
-type MockService struct {
+// RunningService is a Run started in the background by StartService, reachable at BaseURL.
+type RunningService struct {
 	BaseURL string
 	done    chan error
 	client  *http.Client
@@ -39,20 +39,20 @@ func MockMiddleware(name string) Middleware {
 	}
 }
 
-// MockRunningService starts Run on a free port with a teapot route and two ordered middleware.
-func MockRunningService(t *testing.T) *MockService {
+// StartService starts Run on a free port with a teapot route and two ordered middleware.
+func StartService(t *testing.T) *RunningService {
 	t.Helper()
 	opts := Options{Mux: MockMux("GET /items/v1", http.StatusTeapot)}.
 		WithMiddleware(MockMiddleware("outer")).
 		WithMiddleware(MockMiddleware("inner"))
-	return MockRunningServiceWith(t, opts)
+	return StartServiceWith(t, opts)
 }
 
-// MockRunningServiceWith starts Run with opts, without a database, on a free port. Run installs its signal handler
+// StartServiceWith starts Run with opts, without a database, on a free port. Run installs its signal handler
 // before it starts listening, so Stop sending SIGINT to this process exercises the real graceful
 // shutdown path. The free port is released before Run binds it, so another socket can take it in between: Run then
 // fails with EADDRINUSE and the service starts again on a new port.
-func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
+func StartServiceWith(t *testing.T, opts Options) *RunningService {
 	t.Helper()
 	const attempts int = 3
 	opts.Name, opts.PortEnv, opts.NoDatabase = "svc", "APP_MOCK_PORT", true
@@ -74,7 +74,7 @@ func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
 			attemptOpts.Mux.Handle("/", opts.Mux)
 		}
 
-		service := &MockService{
+		service := &RunningService{
 			BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port),
 			done:    make(chan error, 1),
 			client:  &http.Client{Transport: &http.Transport{DisableKeepAlives: true}},
@@ -94,7 +94,7 @@ func MockRunningServiceWith(t *testing.T, opts Options) *MockService {
 }
 
 // waitUntilStarted polls the service until it answers, and returns Run's error if Run returns first.
-func (m *MockService) waitUntilStarted(t *testing.T) error {
+func (m *RunningService) waitUntilStarted(t *testing.T) error {
 	t.Helper()
 	deadline := time.After(10 * time.Second)
 	for {
@@ -117,7 +117,7 @@ func (m *MockService) waitUntilStarted(t *testing.T) error {
 }
 
 // Get requests path on the service and returns the response with its body drained, or an empty response if the request fails.
-func (m *MockService) Get(path string) *http.Response {
+func (m *RunningService) Get(path string) *http.Response {
 	resp, err := m.client.Get(m.BaseURL + path)
 	if err != nil {
 		return &http.Response{}
@@ -129,7 +129,7 @@ func (m *MockService) Get(path string) *http.Response {
 }
 
 // Stop sends SIGINT to this process and returns the error Run returned after its graceful shutdown. Calling it again returns nil.
-func (m *MockService) Stop() error {
+func (m *RunningService) Stop() error {
 	if m.stopped {
 		return nil
 	}

@@ -9,20 +9,20 @@ import (
 func NewProducer(ctx context.Context, url, queueName string) (*RabbitMQBroker, error) {
 	conn, err := dial(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrCantCreateProducer, err)
+		return nil, fmt.Errorf("%w: %w", ErrCantConnectProducer, err)
 	}
 
 	ch, err := openChannel(conn)
 	if err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("%w: %w", ErrCantCreateProducer, err)
+		return nil, fmt.Errorf("%w: %w", ErrCantOpenProducerChannel, err)
 	}
 
 	q, err := declareQueue(ch, queueName)
 	if err != nil {
 		ch.Close()
 		conn.Close()
-		return nil, fmt.Errorf("%w: %w", ErrCantCreateProducer, err)
+		return nil, fmt.Errorf("%w: %w", ErrCantDeclareProducerQueue, err)
 	}
 
 	return &RabbitMQBroker{

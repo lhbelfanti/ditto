@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -110,4 +111,39 @@ func TestMockSequenceClient_failsWhenSequenceIsExhausted(t *testing.T) {
 	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
 	assert.ErrorIs(t, got, want)
+}
+
+func TestMockClientExpecting_success(t *testing.T) {
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{}})
+
+	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
+
+	assert.NoError(t, got)
+}
+
+func TestMockClientExpecting_failsWhenRequestIsUnexpected(t *testing.T) {
+	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test/other", Header: http.Header{}})
+
+	want := _http.ErrFailedToExecuteRequest
+	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
+func TestMockShutdownExpectingTimeout_failsWhenContextHasNoDeadline(t *testing.T) {
+	mockShutdown := _http.MockShutdownExpectingTimeout(time.Second)
+
+	got := mockShutdown(context.Background())
+
+	assert.Error(t, got)
+}
+
+func TestMockShutdownExpectingTimeout_failsWhenTimeoutIsUnexpected(t *testing.T) {
+	mockShutdown := _http.MockShutdownExpectingTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	got := mockShutdown(ctx)
+
+	assert.Error(t, got)
 }

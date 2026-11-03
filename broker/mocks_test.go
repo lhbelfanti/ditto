@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/broker"
@@ -39,4 +40,28 @@ func TestMockBroker_InitMessageConsumer_success(t *testing.T) {
 	got := mockBroker.InitMessageConsumer(1, nil)
 
 	assert.NoError(t, got)
+}
+
+func TestMockChannel_Qos_failsWhenCountIsUnexpected(t *testing.T) {
+	mockChannel := &broker.MockChannel{ExpectedQos: 2}
+
+	got := mockChannel.Qos(3, 0, false)
+
+	assert.Error(t, got)
+}
+
+func TestMockChannel_Consume_failsWhenExpectedQosIsNotInEffect(t *testing.T) {
+	mockChannel := &broker.MockChannel{ExpectedQos: 2}
+
+	_, got := mockChannel.Consume("work", "", false, false, false, false, nil)
+
+	assert.Error(t, got)
+}
+
+func TestMockChannel_PublishWithContext_failsWhenMessageIsUnexpected(t *testing.T) {
+	mockChannel := &broker.MockChannel{ExpectedPublishing: &amqp091.Publishing{Body: []byte("expected")}}
+
+	got := mockChannel.PublishWithContext(context.Background(), "", "work", false, false, amqp091.Publishing{Body: []byte("other")})
+
+	assert.Error(t, got)
 }

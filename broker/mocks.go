@@ -2,7 +2,9 @@ package broker
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/rabbitmq/amqp091-go"
@@ -14,29 +16,23 @@ type (
 		EnqueueErr error
 	}
 
-	// MockChannel is an in-memory channel that records the QoS, subscription and published message, and returns the configured errors.
+	// MockChannel is an in-memory channel that returns the configured errors and messages. When
+	// ExpectedQos or ExpectedPublishing are set, a call that does not match them returns an error.
 	MockChannel struct {
-		QosErr       error
-		QosCount     int
-		QueueErr     error
-		PublishErr   error
-		ConsumeErr   error
-		ConsumeCalls int
-		QosAtConsume int
-		Messages     <-chan amqp091.Delivery
-		Published    amqp091.Publishing
+		QosErr             error
+		QueueErr           error
+		PublishErr         error
+		ConsumeErr         error
+		Messages           <-chan amqp091.Delivery
+		ExpectedQos        int
+		ExpectedPublishing *amqp091.Publishing
+		qos                int
 	}
 
-	// MockAckRecorder is an amqp091.Acknowledger that records the delivery tags it acknowledges and rejects.
-	MockAckRecorder struct {
+	// AckCapture is an amqp091.Acknowledger that records the delivery tags it acknowledges and rejects.
+	AckCapture struct {
 		Acks  chan uint64
 		Nacks chan uint64
-	}
-
-	// MockAcks holds the delivery tags a MockAckRecorder acknowledged and rejected.
-	MockAcks struct {
-		Acks  []uint64
-		Nacks []uint64
 	}
 )
 
@@ -70,16 +66,22 @@ func (m *MockBroker) InitMessageConsumer(_ int, _ Processor) error { return nil 
 // CloseConnection does nothing.
 func (m *MockBroker) CloseConnection() {}
 
-// Qos records count as QosCount and returns QosErr.
+// Qos returns an error when count is not ExpectedQos, and QosErr otherwise.
 func (m *MockChannel) Qos(count, _ int, _ bool) error {
-	m.QosCount = count
+	m.qos = count
+	if m.ExpectedQos != 0 && count != m.ExpectedQos {
+		return fmt.Errorf("unexpected QoS: %d", count)
+	}
+
 	return m.QosErr
 }
 
-// Consume counts the call, records the QoS in effect as QosAtConsume, and returns Messages and ConsumeErr.
+// Consume returns an error when ExpectedQos is not in effect yet, and Messages and ConsumeErr otherwise.
 func (m *MockChannel) Consume(_, _ string, _, _, _, _ bool, _ amqp091.Table) (<-chan amqp091.Delivery, error) {
-	m.ConsumeCalls++
-	m.QosAtConsume = m.QosCount
+	if m.qos != m.ExpectedQos && m.ExpectedQos != 0 {
+		return nil, fmt.Errorf("subscribed with QoS %d", m.qos)
+	}
+
 	return m.Messages, m.ConsumeErr
 }
 
@@ -92,53 +94,47 @@ func (m *MockChannel) QueueDeclare(name string, _, _, _, _ bool, _ amqp091.Table
 	return amqp091.Queue{Name: name}, nil
 }
 
-// PublishWithContext records msg as Published and returns PublishErr.
+// PublishWithContext returns an error when msg is not ExpectedPublishing, and PublishErr otherwise.
 func (m *MockChannel) PublishWithContext(_ context.Context, _, _ string, _, _ bool, msg amqp091.Publishing) error {
-	m.Published = msg
+	if m.ExpectedPublishing != nil && !reflect.DeepEqual(*m.ExpectedPublishing, msg) {
+		return fmt.Errorf("unexpected message: %+v", msg)
+	}
+
 	return m.PublishErr
 }
 
 // Close does nothing and returns nil.
 func (m *MockChannel) Close() error { return nil }
 
-// MockAcknowledger returns a MockAckRecorder with room for ackSize acknowledgements and nackSize rejections.
-func MockAcknowledger(ackSize, nackSize int) *MockAckRecorder {
-	return &MockAckRecorder{
+// MockAcknowledger returns an AckCapture for deliveries whose acknowledgements the test does not read.
+func MockAcknowledger(deliveries int) *AckCapture {
+	return CaptureAcks(deliveries, deliveries)
+}
+
+// CaptureAcks returns a AckCapture with room for ackSize acknowledgements and nackSize rejections.
+func CaptureAcks(ackSize, nackSize int) *AckCapture {
+	return &AckCapture{
 		Acks:  make(chan uint64, ackSize),
 		Nacks: make(chan uint64, nackSize),
 	}
 }
 
 // Ack records tag in Acks.
-func (m *MockAckRecorder) Ack(tag uint64, _ bool) error {
+func (m *AckCapture) Ack(tag uint64, _ bool) error {
 	m.Acks <- tag
 	return nil
 }
 
 // Nack records tag in Nacks.
-func (m *MockAckRecorder) Nack(tag uint64, _, _ bool) error {
+func (m *AckCapture) Nack(tag uint64, _, _ bool) error {
 	m.Nacks <- tag
 	return nil
 }
 
 // Reject records tag in Nacks.
-func (m *MockAckRecorder) Reject(tag uint64, _ bool) error {
+func (m *AckCapture) Reject(tag uint64, _ bool) error {
 	m.Nacks <- tag
 	return nil
-}
-
-// Recorded drains the tags acknowledged and rejected so far.
-func (m *MockAckRecorder) Recorded() MockAcks {
-	recorded := MockAcks{}
-	for len(m.Acks) > 0 {
-		recorded.Acks = append(recorded.Acks, <-m.Acks)
-	}
-
-	for len(m.Nacks) > 0 {
-		recorded.Nacks = append(recorded.Nacks, <-m.Nacks)
-	}
-
-	return recorded
 }
 
 // MockProcessor returns a Processor that always returns err.

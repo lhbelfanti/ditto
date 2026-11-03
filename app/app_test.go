@@ -33,7 +33,7 @@ func TestRun_failsWhenDatabaseEnvIsIncomplete(t *testing.T) {
 }
 
 func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {
-	service := app.MockRunningService(t)
+	service := app.StartService(t)
 
 	got := service.Stop()
 
@@ -41,7 +41,7 @@ func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {
 }
 
 func TestRun_successWhenLivenessRouteIsMounted(t *testing.T) {
-	service := app.MockRunningService(t)
+	service := app.StartService(t)
 
 	want := http.StatusOK
 	got := service.Get("/ping/v1").StatusCode
@@ -50,7 +50,7 @@ func TestRun_successWhenLivenessRouteIsMounted(t *testing.T) {
 }
 
 func TestRun_successWhenServiceRoutesAreMounted(t *testing.T) {
-	service := app.MockRunningService(t)
+	service := app.StartService(t)
 
 	want := http.StatusTeapot
 	got := service.Get("/items/v1").StatusCode
@@ -59,7 +59,7 @@ func TestRun_successWhenServiceRoutesAreMounted(t *testing.T) {
 }
 
 func TestRun_successWhenTwoMiddlewareAreAdded(t *testing.T) {
-	service := app.MockRunningService(t)
+	service := app.StartService(t)
 
 	want := []string{"outer", "inner"}
 	got := service.Get("/items/v1").Header.Values("X-Order")
@@ -68,7 +68,7 @@ func TestRun_successWhenTwoMiddlewareAreAdded(t *testing.T) {
 }
 
 func TestRun_successWhenDatabaseIsDisabled(t *testing.T) {
-	service := app.MockRunningService(t)
+	service := app.StartService(t)
 
 	want := http.StatusNotFound
 	got := service.Get("/database/ping/v1").StatusCode
