@@ -24,7 +24,7 @@ func TestInit_failsWhenErrorIsPassed(t *testing.T) {
 	var recovered any
 	func() {
 		defer func() { recovered = recover() }()
-		_ = setup.Init("test", initErr)
+		setup.Init("test", initErr)
 	}()
 
 	want := []any{initErr, []map[string]any{{"level": "error", "message": "failed to initialize a dependency", "error": "database: boom"}}}
