@@ -104,7 +104,7 @@ func InitDatabaseWithMigrationFolder(ctx context.Context, dir string) (*database
 }
 
 // Run opens the database unless opts.Database is set or opts.NoDatabase says the service has none,
-// then serves opts.Mux with the system routes mounted and the middleware applied, until SIGINT or
+// then serves the system routes and opts.Mux with the middleware applied, until SIGINT or
 // SIGTERM, then shuts down gracefully. It returns an error for any failure before the server starts,
 // and nil after a clean shutdown.
 func Run(opts Options) error {
@@ -138,7 +138,9 @@ func Run(opts Options) error {
 		mux = http.NewServeMux()
 	}
 
-	_http.MountSystemRoutes(mux, ping)
+	root := http.NewServeMux()
+	_http.MountSystemRoutes(root, ping)
+	root.Handle("/", opts.decorateRoutes(mux))
 
 	addr := fmt.Sprintf(":%d", port)
 	signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -146,7 +148,7 @@ func Run(opts Options) error {
 
 	log.Info(log.With(ctx, log.Param("service", opts.Name), log.Param("addr", addr)), "starting the service")
 
-	err = _http.Listen(signalCtx, addr, opts.decorate(mux), timeouts.Shutdown)
+	err = _http.Listen(signalCtx, addr, opts.decorate(root), timeouts.Shutdown)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrCantServe, err)
 	}
