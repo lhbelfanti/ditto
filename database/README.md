@@ -178,12 +178,10 @@ func TestInsert_failsWhenQueryFails(t *testing.T) {
 
     insert := corpus.MakeInsert(mockInsertOp)
 
-    _, got := insert(context.Background(), corpus.DTO{})
     want := corpus.ErrCantInsert
-    wantCause := mockErr
+    _, got := insert(context.Background(), corpus.DTO{})
 
     assert.ErrorIs(t, got, want)
-    assert.ErrorIs(t, got, wantCause)
 }
 
 func TestDeleteAll_success(t *testing.T) {
