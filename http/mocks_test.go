@@ -131,7 +131,9 @@ func TestMockClientExpecting_failsWhenRequestIsUnexpected(t *testing.T) {
 }
 
 func TestMockClientAnswering_success(t *testing.T) {
-	client := _http.MockClientAnswering(_http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{}}, _http.MockHTTPResult{StatusCode: http.StatusUnauthorized, Body: `{"code":401}`})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{}}
+	mockResult := _http.MockHTTPResult{StatusCode: http.StatusUnauthorized, Body: `{"code":401}`}
+	client := _http.MockClientAnswering(mockExpectedRequest, mockResult)
 
 	want := _http.Response{Body: `{"code":401}`, Status: "401 Unauthorized", StatusCode: http.StatusUnauthorized}
 	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
@@ -140,7 +142,9 @@ func TestMockClientAnswering_success(t *testing.T) {
 }
 
 func TestMockClientAnswering_failsWhenRequestIsUnexpected(t *testing.T) {
-	client := _http.MockClientAnswering(_http.MockExpectedRequest{URL: "http://example.test/other", Header: http.Header{}}, _http.MockHTTPResult{StatusCode: http.StatusOK})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test/other", Header: http.Header{}}
+	mockResult := _http.MockHTTPResult{StatusCode: http.StatusOK}
+	client := _http.MockClientAnswering(mockExpectedRequest, mockResult)
 
 	want := _http.ErrFailedToExecuteRequest
 	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
