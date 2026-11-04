@@ -33,10 +33,9 @@ asserts only the returned value. `MockClientExpecting` is the same client answer
 empty body.
 
 ```go
-client := _http.MockClientAnswering(
-    _http.MockExpectedRequest{URL: "http://neptune.test/sessions/current/v1", Header: http.Header{"Authorization": {"Bearer token"}}},
-    _http.MockHTTPResult{StatusCode: http.StatusOK, Body: `{"code":200}`},
-)
+mockExpectedRequest := _http.MockExpectedRequest{URL: "http://neptune.test/sessions/current/v1", Header: http.Header{"Authorization": {"Bearer token"}}}
+mockResult := _http.MockHTTPResult{StatusCode: http.StatusOK, Body: `{"code":200}`}
+client := _http.MockClientAnswering(mockExpectedRequest, mockResult)
 ```
 
 ## `request.Bind`
