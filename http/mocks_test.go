@@ -130,6 +130,24 @@ func TestMockClientExpecting_failsWhenRequestIsUnexpected(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
+func TestMockClientAnswering_success(t *testing.T) {
+	client := _http.MockClientAnswering(_http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{}}, _http.MockHTTPResult{StatusCode: http.StatusUnauthorized, Body: `{"code":401}`})
+
+	want := _http.Response{Body: `{"code":401}`, Status: "401 Unauthorized", StatusCode: http.StatusUnauthorized}
+	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockClientAnswering_failsWhenRequestIsUnexpected(t *testing.T) {
+	client := _http.MockClientAnswering(_http.MockExpectedRequest{URL: "http://example.test/other", Header: http.Header{}}, _http.MockHTTPResult{StatusCode: http.StatusOK})
+
+	want := _http.ErrFailedToExecuteRequest
+	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
+
+	assert.ErrorIs(t, got, want)
+}
+
 func TestMockShutdownExpectingTimeout_failsWhenContextHasNoDeadline(t *testing.T) {
 	mockShutdown := _http.MockShutdownExpectingTimeout(time.Second)
 
