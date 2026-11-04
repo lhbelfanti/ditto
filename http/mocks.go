@@ -39,9 +39,10 @@ type (
 		Body   string
 	}
 
-	// MockExpectingTransport answers only the request it expects.
+	// MockExpectingTransport answers only the request it expects, with its result.
 	MockExpectingTransport struct {
 		expected MockExpectedRequest
+		result   MockHTTPResult
 	}
 )
 
@@ -148,13 +149,18 @@ func MockServer(status int, header http.Header, body string) *httptest.Server {
 
 // MockClientExpecting returns a client whose requests succeed when they are the expected one, and fail otherwise.
 func MockClientExpecting(expected MockExpectedRequest) *CustomClient {
+	return MockClientAnswering(expected, MockHTTPResult{StatusCode: http.StatusOK})
+}
+
+// MockClientAnswering returns a client that answers the expected request with result, and fails any other request.
+func MockClientAnswering(expected MockExpectedRequest, result MockHTTPResult) *CustomClient {
 	client := NewClient(0)
-	client.HTTPClient.Transport = &MockExpectingTransport{expected: expected}
+	client.HTTPClient.Transport = &MockExpectingTransport{expected: expected, result: result}
 
 	return client
 }
 
-// RoundTrip answers 200 when req is the expected request, and fails otherwise.
+// RoundTrip answers with the result when req is the expected request, and fails otherwise.
 func (m *MockExpectingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	body := []byte{}
 	if req.Body != nil {
@@ -171,8 +177,9 @@ func (m *MockExpectingTransport) RoundTrip(req *http.Request) (*http.Response, e
 	}
 
 	return &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       http.NoBody,
-		Header:     http.Header{},
+		Status:     fmt.Sprintf("%d %s", m.result.StatusCode, http.StatusText(m.result.StatusCode)),
+		StatusCode: m.result.StatusCode,
+		Body:       io.NopCloser(strings.NewReader(m.result.Body)),
+		Header:     m.result.Header,
 	}, nil
 }
