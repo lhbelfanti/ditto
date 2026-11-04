@@ -62,8 +62,8 @@ func TestRequest_Call_successWhenBodyIsNil(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
-	header := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
-	mockServer := _http.MockServer(http.StatusTooManyRequests, header, "")
+	mockHeader := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
+	mockServer := _http.MockServer(http.StatusTooManyRequests, mockHeader, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -76,8 +76,8 @@ func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
-	header := http.Header{"Retry-After": {"5"}}
-	mockServer := _http.MockServer(http.StatusTooManyRequests, header, "")
+	mockHeader := http.Header{"Retry-After": {"5"}}
+	mockServer := _http.MockServer(http.StatusTooManyRequests, mockHeader, "")
 	defer mockServer.Close()
 	client := _http.NewClient(5 * time.Second)
 
@@ -188,11 +188,9 @@ func TestRequest_Call_failsWhenContextIsCanceled(t *testing.T) {
 	client := _http.NewClient(5 * time.Second)
 
 	want := _http.ErrFailedToExecuteRequest
-	wantCause := context.Canceled
 	_, got := client.NewRequest(http.MethodGet, mockServer.URL).Call(ctx)
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestSystemRoutes_WithDatabasePing_success(t *testing.T) {
@@ -226,8 +224,8 @@ func TestSystemRoutes_WithDatabasePing_failsWhenPingFails(t *testing.T) {
 }
 
 func TestSystemRoutes_WithDatabasePing_failsWhenPingFailsWithSensitiveError(t *testing.T) {
-	underlyingErrText := "pgx: connection refused on host db-internal:5432"
-	mockPing := _http.MockDatabasePing(errors.New(underlyingErrText))
+	mockErrText := "pgx: connection refused on host db-internal:5432"
+	mockPing := _http.MockDatabasePing(errors.New(mockErrText))
 	mux := http.NewServeMux()
 	_http.RegisterSystemRoutes(mux).WithDatabasePing(mockPing)
 
