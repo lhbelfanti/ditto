@@ -73,7 +73,8 @@ func TestApply_failsWhenDiagnosticSnapshotFails(t *testing.T) {
 }
 
 func TestPendingFileFinder_success(t *testing.T) {
-	mockStatus := migration.MockStatus(migration.MockRecords(), nil)
+	mockRecords := migration.MockRecords()
+	mockStatus := migration.MockStatus(mockRecords, nil)
 
 	findPendingFile := migration.MakePendingFileFinder(mockStatus)
 

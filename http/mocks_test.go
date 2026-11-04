@@ -13,9 +13,11 @@ import (
 
 func TestMockSequenceRoundTripper_success(t *testing.T) {
 	client := _http.NewClient(0)
+	mockFirstHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Body: "retry"}
+	mockSecondHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"}
 	client.HTTPClient.Transport = _http.MockSequenceRoundTripper(
-		_http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Body: "retry"},
-		_http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"},
+		mockFirstHTTPResult,
+		mockSecondHTTPResult,
 	)
 	_, _ = client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
@@ -29,8 +31,9 @@ func TestMockSequenceRoundTripper_success(t *testing.T) {
 
 func TestMockSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
 	client := _http.NewClient(0)
+	mockHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": []string{"1"}}}
 	client.HTTPClient.Transport = _http.MockSequenceRoundTripper(
-		_http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": []string{"1"}}},
+		mockHTTPResult,
 	)
 
 	first, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
@@ -52,7 +55,9 @@ func TestMockSequenceRoundTripper_failsWhenSequenceIsExhausted(t *testing.T) {
 }
 
 func TestMockSequenceTransport_Requests_success(t *testing.T) {
-	transport := _http.MockSequenceRoundTripper(_http.MockHTTPResult{StatusCode: http.StatusOK}, _http.MockHTTPResult{StatusCode: http.StatusOK})
+	mockFirstHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusOK}
+	mockSecondHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusOK}
+	transport := _http.MockSequenceRoundTripper(mockFirstHTTPResult, mockSecondHTTPResult)
 	client := _http.NewClient(0)
 	client.HTTPClient.Transport = transport
 	_, _ = client.NewRequest(http.MethodGet, "http://example.test/first").Call(context.Background())
@@ -82,7 +87,8 @@ func TestMockSequenceTransport_Requests_successWhenSequenceIsExhausted(t *testin
 }
 
 func TestMockSequenceClient_success(t *testing.T) {
-	client, _ := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"})
+	mockHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"}
+	client, _ := _http.MockSequenceClient(mockHTTPResult)
 
 	response, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
@@ -93,7 +99,8 @@ func TestMockSequenceClient_success(t *testing.T) {
 }
 
 func TestMockSequenceClient_successWhenReadingTheRecordedRequests(t *testing.T) {
-	client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK})
+	mockHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusOK}
+	client, transport := _http.MockSequenceClient(mockHTTPResult)
 	request := client.NewRequest(http.MethodGet, "http://example.test/path")
 	request.WithHeader("Authorization", "Bearer token")
 	_, _ = request.Call(context.Background())
@@ -114,7 +121,8 @@ func TestMockSequenceClient_failsWhenSequenceIsExhausted(t *testing.T) {
 }
 
 func TestMockClientExpecting_success(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{}})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 
 	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
@@ -122,7 +130,8 @@ func TestMockClientExpecting_success(t *testing.T) {
 }
 
 func TestMockClientExpecting_failsWhenRequestIsUnexpected(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test/other", Header: http.Header{}})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test/other", Header: http.Header{}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 
 	want := _http.ErrFailedToExecuteRequest
 	_, got := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())

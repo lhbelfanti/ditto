@@ -58,12 +58,13 @@ func TestCheck_failsWhenPingErrorCarriesCredentials(t *testing.T) {
 }
 
 func TestRequireEnv_success(t *testing.T) {
-	mockLookup := env.MockLookup(map[string]string{
+	mockEnv := map[string]string{
 		"POSTGRES_DB_PORT": "5432",
 		"POSTGRES_DB_NAME": "nebula_earth",
 		"POSTGRES_DB_USER": "nebula_earth_user",
 		"POSTGRES_DB_PASS": "correct-horse-battery-staple",
-	})
+	}
+	mockLookup := env.MockLookup(mockEnv)
 
 	got := database.RequireEnv(mockLookup)
 
@@ -100,12 +101,13 @@ func TestRequireEnv_failsWhenRequiredKeyIsMissing(t *testing.T) {
 }
 
 func TestRequireEnv_failsWhenPortIsMalformed(t *testing.T) {
-	mockLookup := env.MockLookup(map[string]string{
+	mockEnv := map[string]string{
 		"POSTGRES_DB_PORT": "not-a-port",
 		"POSTGRES_DB_NAME": "nebula_earth",
 		"POSTGRES_DB_USER": "nebula_earth_user",
 		"POSTGRES_DB_PASS": "correct-horse-battery-staple",
-	})
+	}
+	mockLookup := env.MockLookup(mockEnv)
 
 	got := database.RequireEnv(mockLookup)
 

@@ -85,7 +85,8 @@ func TestDispatch_failsWhenTooManyArguments(t *testing.T) {
 }
 
 func TestStatusRunner_success(t *testing.T) {
-	mockStatus := migration.MockStatus(migration.MockRecords(), nil)
+	mockRecords := migration.MockRecords()
+	mockStatus := migration.MockStatus(mockRecords, nil)
 	out := &bytes.Buffer{}
 
 	runStatus := migration.MakeStatusRunner(mockStatus, out)

@@ -14,11 +14,12 @@ import (
 )
 
 func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{
+	mockExpectedRequest := _http.MockExpectedRequest{
 		URL:    "http://example.test",
 		Header: http.Header{"Content-Type": {"application/json"}},
 		Body:   `{"symbol":"BTC/USDT"}`,
-	})
+	}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody(map[string]string{"symbol": "BTC/USDT"})
 
@@ -54,7 +55,8 @@ func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenBodyIsNil(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test?symbol=BTCUSDT", Header: http.Header{}})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test?symbol=BTCUSDT", Header: http.Header{}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 
 	_, got := client.NewRequest(http.MethodGet, "http://example.test?symbol=BTCUSDT").Call(context.Background())
 
@@ -90,7 +92,8 @@ func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
 }
 
 func TestRequest_WithHeader_success(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{"Authorization": {"Bearer token"}}})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{"Authorization": {"Bearer token"}}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodGet, "http://example.test")
 	request.WithHeader("Authorization", "Bearer token")
 
@@ -100,7 +103,8 @@ func TestRequest_WithHeader_success(t *testing.T) {
 }
 
 func TestRequest_WithHeader_successWhenTheHeaderIsSetTwice(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{"X-Mode": {"second"}}})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{"X-Mode": {"second"}}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodGet, "http://example.test")
 	request.WithHeader("X-Mode", "first")
 	request.WithHeader("X-Mode", "second")
@@ -111,7 +115,8 @@ func TestRequest_WithHeader_successWhenTheHeaderIsSetTwice(t *testing.T) {
 }
 
 func TestRequest_WithQueryParam_success(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test/candles?pair=BTC%2FUSDT&timeframe=1h", Header: http.Header{}})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test/candles?pair=BTC%2FUSDT&timeframe=1h", Header: http.Header{}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodGet, "http://example.test/candles")
 	request.WithQueryParam("pair", "BTC/USDT")
 	request.WithQueryParam("timeframe", "1h")
@@ -122,7 +127,8 @@ func TestRequest_WithQueryParam_success(t *testing.T) {
 }
 
 func TestRequest_WithQueryParam_successWhenTheURLAlreadyHasAQuery(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{URL: "http://example.test/candles?pair=BTC&pair=ETH", Header: http.Header{}})
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test/candles?pair=BTC&pair=ETH", Header: http.Header{}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodGet, "http://example.test/candles?pair=BTC")
 	request.WithQueryParam("pair", "ETH")
 
@@ -132,11 +138,12 @@ func TestRequest_WithQueryParam_successWhenTheURLAlreadyHasAQuery(t *testing.T) 
 }
 
 func TestRequest_WithBody_success(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{
+	mockExpectedRequest := _http.MockExpectedRequest{
 		URL:    "http://example.test",
 		Header: http.Header{"Authorization": {"Bearer token"}, "Content-Type": {"application/json"}},
 		Body:   `{"a":"b"}`,
-	})
+	}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody(map[string]string{"a": "b"})
 	request.WithHeader("Authorization", "Bearer token")
@@ -147,11 +154,12 @@ func TestRequest_WithBody_success(t *testing.T) {
 }
 
 func TestRequest_WithBody_successWhenTheBodyIsBytes(t *testing.T) {
-	client := _http.MockClientExpecting(_http.MockExpectedRequest{
+	mockExpectedRequest := _http.MockExpectedRequest{
 		URL:    "http://example.test",
 		Header: http.Header{"Content-Type": {"application/json"}},
 		Body:   `{"raw":true}`,
-	})
+	}
+	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodPost, "http://example.test")
 	request.WithBody([]byte(`{"raw":true}`))
 

@@ -12,7 +12,8 @@ import (
 )
 
 func TestRequireSession_success(t *testing.T) {
-	mockGetSession := middleware.MockGetSessionByToken(middleware.Session{UserID: 42}, nil)
+	mockSession := middleware.Session{UserID: 42}
+	mockGetSession := middleware.MockGetSessionByToken(mockSession, nil)
 	handler := middleware.RequireSession(mockGetSession)(middleware.MockUserIDResponseHandler())
 	req := httptest.NewRequest(http.MethodGet, "/private", nil)
 	req.Header.Set("Authorization", "bearer valid-token")
@@ -27,7 +28,8 @@ func TestRequireSession_success(t *testing.T) {
 }
 
 func TestRequireSession_successWhenCalledTwice(t *testing.T) {
-	mockGetSession := middleware.MockGetSessionByTokenExpecting("valid-token", middleware.Session{UserID: 42})
+	mockSession := middleware.Session{UserID: 42}
+	mockGetSession := middleware.MockGetSessionByTokenExpecting("valid-token", mockSession)
 	handler := middleware.RequireSession(mockGetSession)(middleware.MockOKHandler())
 	req := httptest.NewRequest(http.MethodGet, "/private", nil)
 	req.Header.Set("Authorization", "Bearer valid-token")
@@ -45,7 +47,8 @@ func TestRequireSession_successWhenCalledTwice(t *testing.T) {
 
 func TestRequireSession_failsWhenAuthorizationHeaderMissing(t *testing.T) {
 	gotCalls := 0
-	mockGetSession := middleware.MockGetSessionByToken(middleware.Session{UserID: 42}, nil)
+	mockSession := middleware.Session{UserID: 42}
+	mockGetSession := middleware.MockGetSessionByToken(mockSession, nil)
 	handler := middleware.RequireSession(mockGetSession)(middleware.MockCountingHandler(&gotCalls))
 	req := httptest.NewRequest(http.MethodGet, "/private", nil)
 	w := httptest.NewRecorder()
@@ -63,7 +66,8 @@ func TestRequireSession_failsWhenAuthorizationHeaderMissing(t *testing.T) {
 func TestRequireSession_failsWhenBearerTokenMalformed(t *testing.T) {
 	for _, header := range []string{"Basic token", "Bearer", "Bearer ", "Bearer a token", "Bearer a\ttoken"} {
 		gotCalls := 0
-		mockGetSession := middleware.MockGetSessionByToken(middleware.Session{UserID: 42}, nil)
+		mockSession := middleware.Session{UserID: 42}
+		mockGetSession := middleware.MockGetSessionByToken(mockSession, nil)
 		handler := middleware.RequireSession(mockGetSession)(middleware.MockCountingHandler(&gotCalls))
 		req := httptest.NewRequest(http.MethodGet, "/private", nil)
 		req.Header.Set("Authorization", header)
@@ -101,7 +105,8 @@ func TestRequireSession_failsWhenSessionLookupFails(t *testing.T) {
 func TestRequireSession_failsWhenSessionHasNoUser(t *testing.T) {
 	for _, userID := range []int{0, -1} {
 		gotCalls := 0
-		mockGetSession := middleware.MockGetSessionByToken(middleware.Session{UserID: userID}, nil)
+		mockSession := middleware.Session{UserID: userID}
+		mockGetSession := middleware.MockGetSessionByToken(mockSession, nil)
 		handler := middleware.RequireSession(mockGetSession)(middleware.MockCountingHandler(&gotCalls))
 		req := httptest.NewRequest(http.MethodGet, "/private", nil)
 		req.Header.Set("Authorization", "Bearer valid-token")
@@ -121,7 +126,8 @@ func TestRequireSession_failsWhenSessionHasNoUser(t *testing.T) {
 func TestRequireSession_failsWhenReadOnlySessionWrites(t *testing.T) {
 	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
 		gotCalls := 0
-		mockGetSession := middleware.MockGetSessionByToken(middleware.Session{UserID: 42, ReadOnly: true}, nil)
+		mockSession := middleware.Session{UserID: 42, ReadOnly: true}
+		mockGetSession := middleware.MockGetSessionByToken(mockSession, nil)
 		handler := middleware.RequireSession(mockGetSession)(middleware.MockCountingHandler(&gotCalls))
 		req := httptest.NewRequest(method, "/private", nil)
 		req.Header.Set("Authorization", "Bearer valid-token")
@@ -141,7 +147,8 @@ func TestRequireSession_failsWhenReadOnlySessionWrites(t *testing.T) {
 func TestRequireSession_successWhenReadOnlySessionReads(t *testing.T) {
 	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
 		gotCalls := 0
-		mockGetSession := middleware.MockGetSessionByToken(middleware.Session{UserID: 42, ReadOnly: true}, nil)
+		mockSession := middleware.Session{UserID: 42, ReadOnly: true}
+		mockGetSession := middleware.MockGetSessionByToken(mockSession, nil)
 		handler := middleware.RequireSession(mockGetSession)(middleware.MockCountingHandler(&gotCalls))
 		req := httptest.NewRequest(method, "/private", nil)
 		req.Header.Set("Authorization", "Bearer valid-token")
@@ -160,7 +167,8 @@ func TestRequireSession_successWhenReadOnlySessionReads(t *testing.T) {
 
 func TestRequireSession_successWhenSessionCanWrite(t *testing.T) {
 	gotCalls := 0
-	mockGetSession := middleware.MockGetSessionByToken(middleware.Session{UserID: 42}, nil)
+	mockSession := middleware.Session{UserID: 42}
+	mockGetSession := middleware.MockGetSessionByToken(mockSession, nil)
 	handler := middleware.RequireSession(mockGetSession)(middleware.MockCountingHandler(&gotCalls))
 	req := httptest.NewRequest(http.MethodPost, "/private", nil)
 	req.Header.Set("Authorization", "Bearer valid-token")
