@@ -197,6 +197,29 @@ func TestDeleteAll_success(t *testing.T) {
 }
 ```
 
+When the arguments an operation receives matter, use its `Mock*Expecting` variant. It answers with testify by the arguments: the expected ones return the configured result, and any other returns the zero value (`nil` for `Select`). `MockDeleteExpecting` and `MockUpdateExpecting` return `ErrUnexpectedArguments` for any other arguments. The test then checks only what the function under test returns:
+
+```go
+func TestInsert_successWhenArgumentsArePassedToDatabase(t *testing.T) {
+    mockInsertOp := database.MockInsertExpecting([]any{"BTC", new("Binance")}, 1)
+
+    insert := corpus.MakeInsert(mockInsertOp)
+
+    want := 1
+    got, _ := insert(context.Background(), corpus.DTO{Asset: "BTC", Platform: new("Binance")})
+
+    assert.Equal(t, want, got)
+}
+```
+
+| Mock | Returns for the expected arguments | Returns for any other arguments |
+|---|---|---|
+| `MockSelectExpecting(arguments, slice)` | `slice` | `nil` |
+| `MockSelectOneExpecting(arguments, val)` | `val` | the zero value of `T` |
+| `MockInsertExpecting(arguments, val)` | `val` | the zero value of `T` |
+| `MockDeleteExpecting(arguments)` | `nil` | `ErrUnexpectedArguments` |
+| `MockUpdateExpecting(arguments)` | `nil` | `ErrUnexpectedArguments` |
+
 ---
 
 ## Sentinel errors
@@ -210,6 +233,7 @@ All `Make*` helpers return typed sentinel errors on failure:
 | `database.ErrFailedToScanRows` | `MakeCollectRows` could not scan the rows into `T` |
 | `database.ErrNoRows` | `SelectOne` found no matching row (`pgx.ErrNoRows`) |
 | `database.ErrInvalidNumeric` | `ParseNumeric` got text that is not a finite number |
+| `database.ErrUnexpectedArguments` | `MockDeleteExpecting` or `MockUpdateExpecting` received arguments other than the expected ones |
 | `database.ErrAdminNotConfigured` | `OpenAdmin` found no `POSTGRES_ADMIN_USER`/`POSTGRES_ADMIN_PASS` |
 | `database.ErrFailedToCreateRole` | `MakeProvision` could not create the role |
 | `database.ErrFailedToSyncPassword` | `MakeProvision` could not set the role's password |
