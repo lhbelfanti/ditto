@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -193,9 +194,7 @@ func MockScan(mockPgxRow *MockPgxRow, values []any, t *testing.T) {
 	mockPgxRow.On("Scan", mock.Anything).Return(nil).Run(
 		func(args mock.Arguments) {
 			dest := args.Get(0).([]any)
-			if len(dest) != len(values) {
-				t.Errorf("Expected %d destination arguments but got %d", len(values), len(dest))
-			}
+			assert.Len(t, dest, len(values))
 
 			for i, val := range values {
 				parseScanValue(val, dest[i], t)
@@ -387,16 +386,11 @@ func MockPing(err error) Ping {
 	}
 }
 
-// MockBlockingPing returns a Ping that blocks until ctx is done, then returns ctx's error, or err
-// if ctx carries none.
-func MockBlockingPing(err error) Ping {
+// MockBlockingPing returns a Ping that blocks until ctx is done, then returns ctx's error.
+func MockBlockingPing() Ping {
 	return func(ctx context.Context) error {
 		<-ctx.Done()
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-
-		return err
+		return ctx.Err()
 	}
 }
 
@@ -476,20 +470,11 @@ func MockExecFormatted(err error) ExecFormatted {
 	}
 }
 
-// MockExecFormattedSequence returns an ExecFormatted whose successive calls return errs in order, and nil once they run out.
+// MockExecFormattedSequence returns an ExecFormatted whose successive calls return errs in order.
 func MockExecFormattedSequence(errs ...error) ExecFormatted {
 	call := 0
 	return func(context.Context, string, ...any) error {
 		defer func() { call++ }()
-		if call >= len(errs) {
-			return nil
-		}
-
 		return errs[call]
 	}
-}
-
-// MockNonFiniteNumerics returns the literals a NUMERIC column accepts that are not finite numbers.
-func MockNonFiniteNumerics() []string {
-	return []string{"NaN", "Infinity", "-Infinity"}
 }

@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 type (
@@ -115,14 +118,17 @@ func MockShutdown(err error) Shutdown {
 // MockShutdownExpectingTimeout builds a Shutdown that returns nil when its context ends within a
 // second of timeout from now, and an error otherwise.
 func MockShutdownExpectingTimeout(timeout time.Duration) Shutdown {
-	return func(ctx context.Context) error {
+	expectedDeadline := mock.MatchedBy(func(ctx context.Context) bool {
 		deadline, hasDeadline := ctx.Deadline()
 		remaining := time.Until(deadline)
-		if !hasDeadline || remaining > timeout || remaining < timeout-time.Second {
-			return fmt.Errorf("unexpected shutdown deadline: %s", deadline)
-		}
+		return hasDeadline && remaining <= timeout && remaining >= timeout-time.Second
+	})
+	shutdown := &mock.Mock{}
+	shutdown.On("Shutdown", expectedDeadline).Return(nil)
+	shutdown.On("Shutdown", mock.Anything).Return(errors.New("http: the mock received an unexpected shutdown deadline"))
 
-		return nil
+	return func(ctx context.Context) error {
+		return shutdown.MethodCalled("Shutdown", ctx).Error(0)
 	}
 }
 

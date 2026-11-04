@@ -2,8 +2,11 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/stretchr/testify/mock"
 
 	"github.com/lhbelfanti/ditto/v2/log"
 )
@@ -21,12 +24,13 @@ func MockGetSessionByToken(session Session, err error) GetSessionByToken {
 // MockGetSessionByTokenExpecting returns a GetSessionByToken that returns session when it receives
 // token, and an error otherwise.
 func MockGetSessionByTokenExpecting(token string, session Session) GetSessionByToken {
-	return func(_ context.Context, received string) (Session, error) {
-		if received != token {
-			return Session{}, fmt.Errorf("unexpected token: %q", received)
-		}
+	getSession := &mock.Mock{}
+	getSession.On("GetSessionByToken", token).Return(session, nil)
+	getSession.On("GetSessionByToken", mock.Anything).Return(Session{}, errors.New("middleware: the mock received an unexpected token"))
 
-		return session, nil
+	return func(_ context.Context, received string) (Session, error) {
+		args := getSession.MethodCalled("GetSessionByToken", received)
+		return args.Get(0).(Session), args.Error(1)
 	}
 }
 
