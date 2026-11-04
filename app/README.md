@@ -67,20 +67,32 @@ before returning.
 |---|---|
 | `Name` | Appears in the startup log line, e.g. `Nebula Saturn`. |
 | `PortEnv` | Variable holding the internal listen port. Defaults to `APP_INTERNAL_PORT`. |
-| `Mux` | The service's endpoints. `Run` mounts its system routes on it, and creates an empty one when nil. |
+| `Mux` | The service's endpoints. `Run` serves its system routes next to it, and creates an empty one when nil. |
 | `Database` | The pool from `InitDatabase`. When nil, `Run` opens the database itself. Either way `Run` mounts `GET /database/ping/v1`. Closing a pool passed here is up to the caller. |
 | `NoDatabase` | For a service without a database: nothing is opened and no ping route is mounted. |
 | `Timeouts` | Bounds the ping route and shutdown. Zero fields use their defaults. |
 | `WithMiddleware(m)` | Adds a middleware around the whole handler. The first one added is the outermost. |
+| `WithRouteMiddleware(m)` | Adds a middleware around the service's routes only. The system routes skip it, and a path no route matches goes through it. It runs after every `WithMiddleware` entry. |
 
-`WithMiddleware` returns a copy, so an `Options` value can be shared and extended safely.
+Both return a copy, so an `Options` value can be shared and extended safely.
+
+`WithRouteMiddleware` is how a service requires a session on every route it adds, including the
+ones added later, while the health checks stay public:
+
+```go
+options := app.Options{Name: "Nebula Saturn", Mux: mux, Database: pg}.
+	WithMiddleware(middleware.RequestID).
+	WithMiddleware(middleware.CORS()).
+	WithRouteMiddleware(middleware.RequireSession(getSessionByToken))
+```
 
 ## What `Run` does, in order
 
 1. Points the logger at stdout, at `info` level.
 2. Reads the port from `PortEnv`.
 3. Opens the database and applies migrations if `Database` is nil and `NoDatabase` is not set.
-4. Mounts `GET /ping/v1` on `Mux`, and `GET /database/ping/v1` when there is a database.
+4. Mounts `GET /ping/v1`, and `GET /database/ping/v1` when there is a database, in front of `Mux`
+   wrapped in every `WithRouteMiddleware` entry.
 5. Serves HTTP until `SIGINT` or `SIGTERM`, then shuts down gracefully within 5 seconds.
 
 Every failure before step 5 is returned, not logged-and-exited, so the caller decides how to exit.
