@@ -27,6 +27,18 @@ transport returns an error if more requests are made than results provided.
 client, transport := _http.MockSequenceClient(_http.MockHTTPResult{StatusCode: http.StatusOK, Body: `{}`})
 ```
 
+To check that the client sends the right URL, headers and body, build it with `MockClientAnswering`.
+It answers the expected request with the given result and fails any other request, so the test
+asserts only the returned value. `MockClientExpecting` is the same client answering 200 with an
+empty body.
+
+```go
+client := _http.MockClientAnswering(
+    _http.MockExpectedRequest{URL: "http://neptune.test/sessions/current/v1", Header: http.Header{"Authorization": {"Bearer token"}}},
+    _http.MockHTTPResult{StatusCode: http.StatusOK, Body: `{"code":200}`},
+)
+```
+
 ## `request.Bind`
 
 ```go
