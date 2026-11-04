@@ -54,9 +54,11 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenSubscriptionFails(t *testin
 
 func TestRabbitMQBroker_InitMessageConsumer_successWhenTwoMessagesAndLimitIsOne(t *testing.T) {
 	mockAck := broker.MockAcknowledger(2)
+	mockFirstDelivery := amqp091.Delivery{DeliveryTag: 1, Acknowledger: mockAck}
+	mockSecondDelivery := amqp091.Delivery{DeliveryTag: 2, Acknowledger: mockAck}
 	mockMessages := broker.MockClosedMessages(
-		amqp091.Delivery{DeliveryTag: 1, Acknowledger: mockAck},
-		amqp091.Delivery{DeliveryTag: 2, Acknowledger: mockAck},
+		mockFirstDelivery,
+		mockSecondDelivery,
 	)
 	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, mockMessages)
 	started := make(chan struct{}, 2)

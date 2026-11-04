@@ -30,7 +30,8 @@ func TestBeginLocked_failsWhenBeginFails(t *testing.T) {
 }
 
 func TestBeginLocked_failsWhenLockFails(t *testing.T) {
-	mockTx := MockTx(MockTxConfig{LockErr: errors.New("lock failed")})
+	mockTxConfig := MockTxConfig{LockErr: errors.New("lock failed")}
+	mockTx := MockTx(mockTxConfig)
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToLockMigrations
@@ -40,7 +41,8 @@ func TestBeginLocked_failsWhenLockFails(t *testing.T) {
 }
 
 func TestBeginLocked_failsWhenCreateTableFails(t *testing.T) {
-	mockTx := MockTx(MockTxConfig{CreateTableErr: errors.New("create failed")})
+	mockTxConfig := MockTxConfig{CreateTableErr: errors.New("create failed")}
+	mockTx := MockTx(mockTxConfig)
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToCreateTable
@@ -61,7 +63,8 @@ func TestApplyFile_success(t *testing.T) {
 
 func TestApplyFile_successWhenFileIsAlreadyApplied(t *testing.T) {
 	mockFile := MockMigrationFile(t, "CREATE TABLE a();")
-	mockTx := MockTx(MockTxConfig{Applied: true})
+	mockTxConfig := MockTxConfig{Applied: true}
+	mockTx := MockTx(mockTxConfig)
 	mockDB := MockConnection(mockTx, nil)
 
 	got := applyFile(context.Background(), mockDB, mockFile)
@@ -79,7 +82,8 @@ func TestApplyFile_failsWhenBeginFails(t *testing.T) {
 }
 
 func TestApplyFile_failsWhenAppliedCheckFails(t *testing.T) {
-	mockTx := MockTx(MockTxConfig{AppliedErr: errors.New("scan failed")})
+	mockTxConfig := MockTxConfig{AppliedErr: errors.New("scan failed")}
+	mockTx := MockTx(mockTxConfig)
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToCheckApplied
@@ -100,7 +104,8 @@ func TestApplyFile_failsWhenFileCannotBeRead(t *testing.T) {
 
 func TestApplyFile_failsWhenFileExecutionFails(t *testing.T) {
 	mockFile := MockMigrationFile(t, "SELECT broken;")
-	mockTx := MockTx(MockTxConfig{FileSQL: "SELECT broken;", FileErr: errors.New("syntax error")})
+	mockTxConfig := MockTxConfig{FileSQL: "SELECT broken;", FileErr: errors.New("syntax error")}
+	mockTx := MockTx(mockTxConfig)
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToExecute
@@ -111,7 +116,8 @@ func TestApplyFile_failsWhenFileExecutionFails(t *testing.T) {
 
 func TestApplyFile_failsWhenTrackingInsertFails(t *testing.T) {
 	mockFile := MockMigrationFile(t, "CREATE TABLE a();")
-	mockTx := MockTx(MockTxConfig{InsertErr: errors.New("insert failed")})
+	mockTxConfig := MockTxConfig{InsertErr: errors.New("insert failed")}
+	mockTx := MockTx(mockTxConfig)
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToInsertApplied
@@ -121,7 +127,8 @@ func TestApplyFile_failsWhenTrackingInsertFails(t *testing.T) {
 }
 
 func TestApplyFile_failsWhenCommittingAnAppliedFileFails(t *testing.T) {
-	mockTx := MockTx(MockTxConfig{Applied: true, CommitErr: errors.New("commit failed")})
+	mockTxConfig := MockTxConfig{Applied: true, CommitErr: errors.New("commit failed")}
+	mockTx := MockTx(mockTxConfig)
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToCommitAppliedFile
@@ -132,7 +139,8 @@ func TestApplyFile_failsWhenCommittingAnAppliedFileFails(t *testing.T) {
 
 func TestApplyFile_failsWhenCommittingTheFileFails(t *testing.T) {
 	mockFile := MockMigrationFile(t, "SELECT 1;")
-	mockTx := MockTx(MockTxConfig{CommitErr: errors.New("commit failed")})
+	mockTxConfig := MockTxConfig{CommitErr: errors.New("commit failed")}
+	mockTx := MockTx(mockTxConfig)
 	mockDB := MockConnection(mockTx, nil)
 
 	want := ErrFailedToCommitFile

@@ -9,7 +9,8 @@ import (
 )
 
 func TestRequireValue_successWhenValueHasSurroundingSpaces(t *testing.T) {
-	mockLookup := env.MockLookup(map[string]string{"KEY": "  value  "})
+	mockEnv := map[string]string{"KEY": "  value  "}
+	mockLookup := env.MockLookup(mockEnv)
 
 	want := "value"
 	got, _ := env.RequireValue(mockLookup, "KEY")
@@ -27,7 +28,8 @@ func TestRequireValue_failsWhenMissing(t *testing.T) {
 }
 
 func TestRequireValue_failsWhenBlank(t *testing.T) {
-	mockLookup := env.MockLookup(map[string]string{"KEY": "   "})
+	mockEnv := map[string]string{"KEY": "   "}
+	mockLookup := env.MockLookup(mockEnv)
 
 	want := &env.KeyError{Key: "KEY", Err: env.ErrMissingKey}
 	_, got := env.RequireValue(mockLookup, "KEY")
@@ -36,7 +38,8 @@ func TestRequireValue_failsWhenBlank(t *testing.T) {
 }
 
 func TestRequirePort_success(t *testing.T) {
-	mockLookup := env.MockLookup(map[string]string{"PORT": "4000"})
+	mockEnv := map[string]string{"PORT": "4000"}
+	mockLookup := env.MockLookup(mockEnv)
 
 	want := 4000
 	got, _ := env.RequirePort(mockLookup, "PORT")
@@ -56,7 +59,8 @@ func TestRequirePort_successWhenPortIsAtTheBoundaries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockLookup := env.MockLookup(map[string]string{"PORT": tt.value})
+			mockEnv := map[string]string{"PORT": tt.value}
+			mockLookup := env.MockLookup(mockEnv)
 
 			got, _ := env.RequirePort(mockLookup, "PORT")
 
@@ -78,7 +82,8 @@ func TestRequirePort_failsWhenInvalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockLookup := env.MockLookup(map[string]string{"PORT": tt.value})
+			mockEnv := map[string]string{"PORT": tt.value}
+			mockLookup := env.MockLookup(mockEnv)
 
 			want := &env.KeyError{Key: "PORT", Err: env.ErrInvalidPort}
 			_, got := env.RequirePort(mockLookup, "PORT")

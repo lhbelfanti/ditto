@@ -10,7 +10,9 @@ import (
 )
 
 func TestMockSelectExpecting_success(t *testing.T) {
-	mockSelectOp := database.MockSelectExpecting([]any{"BTC", new("Binance")}, []int{1, 2})
+	mockArguments := []any{"BTC", new("Binance")}
+	mockSlice := []int{1, 2}
+	mockSelectOp := database.MockSelectExpecting(mockArguments, mockSlice)
 
 	want := []int{1, 2}
 	got, _ := mockSelectOp(context.Background(), "", "BTC", new("Binance"))
@@ -19,7 +21,9 @@ func TestMockSelectExpecting_success(t *testing.T) {
 }
 
 func TestMockSelectExpecting_successWhenArgumentsDiffer(t *testing.T) {
-	mockSelectOp := database.MockSelectExpecting([]any{"BTC"}, []int{1, 2})
+	mockArguments := []any{"BTC"}
+	mockSlice := []int{1, 2}
+	mockSelectOp := database.MockSelectExpecting(mockArguments, mockSlice)
 
 	got, _ := mockSelectOp(context.Background(), "", "ETH")
 
@@ -27,7 +31,8 @@ func TestMockSelectExpecting_successWhenArgumentsDiffer(t *testing.T) {
 }
 
 func TestMockSelectOneExpecting_success(t *testing.T) {
-	mockSelectOneOp := database.MockSelectOneExpecting([]any{"BTC", new("Binance")}, 1)
+	mockArguments := []any{"BTC", new("Binance")}
+	mockSelectOneOp := database.MockSelectOneExpecting(mockArguments, 1)
 
 	want := 1
 	got, _ := mockSelectOneOp(context.Background(), "", "BTC", new("Binance"))
@@ -36,7 +41,8 @@ func TestMockSelectOneExpecting_success(t *testing.T) {
 }
 
 func TestMockSelectOneExpecting_successWhenArgumentsDiffer(t *testing.T) {
-	mockSelectOneOp := database.MockSelectOneExpecting([]any{"BTC"}, new(1))
+	mockArguments := []any{"BTC"}
+	mockSelectOneOp := database.MockSelectOneExpecting(mockArguments, new(1))
 
 	got, _ := mockSelectOneOp(context.Background(), "", "ETH")
 
@@ -44,7 +50,8 @@ func TestMockSelectOneExpecting_successWhenArgumentsDiffer(t *testing.T) {
 }
 
 func TestMockInsertExpecting_success(t *testing.T) {
-	mockInsertOp := database.MockInsertExpecting([]any{"BTC", new("Binance")}, 1)
+	mockArguments := []any{"BTC", new("Binance")}
+	mockInsertOp := database.MockInsertExpecting(mockArguments, 1)
 
 	want := 1
 	got, _ := mockInsertOp(context.Background(), "", "BTC", new("Binance"))
@@ -53,7 +60,8 @@ func TestMockInsertExpecting_success(t *testing.T) {
 }
 
 func TestMockInsertExpecting_successWhenArgumentsDiffer(t *testing.T) {
-	mockInsertOp := database.MockInsertExpecting([]any{"BTC"}, 1)
+	mockArguments := []any{"BTC"}
+	mockInsertOp := database.MockInsertExpecting(mockArguments, 1)
 
 	want := 0
 	got, _ := mockInsertOp(context.Background(), "", "ETH")
@@ -62,7 +70,8 @@ func TestMockInsertExpecting_successWhenArgumentsDiffer(t *testing.T) {
 }
 
 func TestMockDeleteExpecting_success(t *testing.T) {
-	mockDeleteOp := database.MockDeleteExpecting([]any{1})
+	mockArguments := []any{1}
+	mockDeleteOp := database.MockDeleteExpecting(mockArguments)
 
 	got := mockDeleteOp(context.Background(), "", 1)
 
@@ -70,7 +79,8 @@ func TestMockDeleteExpecting_success(t *testing.T) {
 }
 
 func TestMockDeleteExpecting_failsWhenArgumentsDiffer(t *testing.T) {
-	mockDeleteOp := database.MockDeleteExpecting([]any{1})
+	mockArguments := []any{1}
+	mockDeleteOp := database.MockDeleteExpecting(mockArguments)
 
 	want := database.ErrUnexpectedArguments
 	got := mockDeleteOp(context.Background(), "", 2)
@@ -79,7 +89,8 @@ func TestMockDeleteExpecting_failsWhenArgumentsDiffer(t *testing.T) {
 }
 
 func TestMockUpdateExpecting_success(t *testing.T) {
-	mockUpdateOp := database.MockUpdateExpecting([]any{"BTC", 1})
+	mockArguments := []any{"BTC", 1}
+	mockUpdateOp := database.MockUpdateExpecting(mockArguments)
 
 	got := mockUpdateOp(context.Background(), "", "BTC", 1)
 
@@ -87,7 +98,8 @@ func TestMockUpdateExpecting_success(t *testing.T) {
 }
 
 func TestMockUpdateExpecting_failsWhenArgumentsDiffer(t *testing.T) {
-	mockUpdateOp := database.MockUpdateExpecting([]any{"BTC", 1})
+	mockArguments := []any{"BTC", 1}
+	mockUpdateOp := database.MockUpdateExpecting(mockArguments)
 
 	want := database.ErrUnexpectedArguments
 	got := mockUpdateOp(context.Background(), "", "BTC")

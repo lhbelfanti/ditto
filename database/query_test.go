@@ -13,7 +13,8 @@ import (
 
 func TestSelect_success(t *testing.T) {
 	mockConn := database.MockQueryConnection(&database.MockPgxRows{}, nil)
-	mockCollectRows := database.MockCollectRows([]string{"a", "b"}, nil)
+	mockColumns := []string{"a", "b"}
+	mockCollectRows := database.MockCollectRows(mockColumns, nil)
 
 	sel := database.MakeSelect[string](mockConn, mockCollectRows)
 

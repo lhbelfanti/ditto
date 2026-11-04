@@ -10,7 +10,8 @@ import (
 )
 
 func TestMockGetSessionByTokenExpecting_success(t *testing.T) {
-	mockGetSession := middleware.MockGetSessionByTokenExpecting("valid-token", middleware.Session{UserID: 42})
+	mockSession := middleware.Session{UserID: 42}
+	mockGetSession := middleware.MockGetSessionByTokenExpecting("valid-token", mockSession)
 
 	want := middleware.Session{UserID: 42}
 	got, _ := mockGetSession(context.Background(), "valid-token")
@@ -19,7 +20,8 @@ func TestMockGetSessionByTokenExpecting_success(t *testing.T) {
 }
 
 func TestMockGetSessionByTokenExpecting_failsWhenTokenIsUnexpected(t *testing.T) {
-	mockGetSession := middleware.MockGetSessionByTokenExpecting("valid-token", middleware.Session{UserID: 42})
+	mockSession := middleware.Session{UserID: 42}
+	mockGetSession := middleware.MockGetSessionByTokenExpecting("valid-token", mockSession)
 
 	_, got := mockGetSession(context.Background(), "other-token")
 
