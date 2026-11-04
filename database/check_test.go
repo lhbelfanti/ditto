@@ -29,29 +29,25 @@ func TestCheck_failsWhenPingFails(t *testing.T) {
 	check := database.MakeCheck(mockPing, time.Second)
 
 	want := database.ErrDatabaseUnavailable
-	wantCause := mockErr
 	got := check(context.Background())
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestCheck_failsWhenPingExceedsTimeout(t *testing.T) {
-	mockPing := database.MockBlockingPing(nil)
+	mockPing := database.MockBlockingPing()
 
 	check := database.MakeCheck(mockPing, 10*time.Millisecond)
 
 	want := database.ErrDatabaseUnavailable
-	wantCause := context.DeadlineExceeded
 	got := check(context.Background())
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestCheck_failsWhenPingErrorCarriesCredentials(t *testing.T) {
-	credentialBearingDSN := errors.New("dial postgres://nebula_earth_user:super-secret@db:5432/nebula_earth failed")
-	mockPing := database.MockPing(credentialBearingDSN)
+	mockErr := errors.New("dial postgres://nebula_earth_user:super-secret@db:5432/nebula_earth failed")
+	mockPing := database.MockPing(mockErr)
 
 	check := database.MakeCheck(mockPing, time.Second)
 

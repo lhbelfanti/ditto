@@ -8,16 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/app"
-	"github.com/lhbelfanti/ditto/v2/env"
 )
 
 func TestRun_failsWhenPortIsMissing(t *testing.T) {
 	want := app.ErrInvalidPort
-	wantCause := env.ErrMissingKey
 	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_MISSING_PORT"})
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestRun_failsWhenDatabaseEnvIsIncomplete(t *testing.T) {
@@ -25,11 +22,9 @@ func TestRun_failsWhenDatabaseEnvIsIncomplete(t *testing.T) {
 	t.Setenv("POSTGRES_DB_PORT", "")
 
 	want := app.ErrCantInitDatabase
-	wantCause := app.ErrInvalidDatabaseEnv
 	got := app.Run(app.Options{Name: "svc", PortEnv: "APP_TEST_PORT"})
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {

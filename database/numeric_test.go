@@ -25,7 +25,7 @@ func TestParseNumeric_failsWhenTextIsNotANumber(t *testing.T) {
 }
 
 func TestParseNumeric_failsWhenNumericIsNotFinite(t *testing.T) {
-	for _, text := range database.MockNonFiniteNumerics() {
+	for _, text := range []string{"NaN", "Infinity", "-Infinity"} {
 		t.Run(text, func(t *testing.T) {
 			want := database.ErrInvalidNumeric
 			_, got := database.ParseNumeric(text)

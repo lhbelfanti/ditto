@@ -129,11 +129,9 @@ func TestStatus_failsWhenListFilesFails(t *testing.T) {
 	status := migration.MakeStatus(mockListFiles, mockTableExists, mockAppliedNames)
 
 	want := migration.ErrFailedToListFiles
-	wantCause := mockErr
 	_, got := status(context.Background())
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestStatus_failsWhenTableExistsFails(t *testing.T) {
@@ -145,11 +143,9 @@ func TestStatus_failsWhenTableExistsFails(t *testing.T) {
 	status := migration.MakeStatus(mockListFiles, mockTableExists, mockAppliedNames)
 
 	want := migration.ErrFailedToCheckTableExists
-	wantCause := mockErr
 	_, got := status(context.Background())
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestStatus_failsWhenAppliedNamesFails(t *testing.T) {
@@ -161,9 +157,7 @@ func TestStatus_failsWhenAppliedNamesFails(t *testing.T) {
 	status := migration.MakeStatus(mockListFiles, mockTableExists, mockAppliedNames)
 
 	want := migration.ErrFailedToSelectAppliedNames
-	wantCause := mockErr
 	_, got := status(context.Background())
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }

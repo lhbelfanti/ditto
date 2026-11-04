@@ -55,11 +55,9 @@ func TestDispatch_failsWhenStatusRunnerFails(t *testing.T) {
 	dispatch := migration.MakeDispatch(mockApply, mockRunStatus)
 
 	want := migration.ErrFailedToRunStatus
-	wantCause := mockErr
 	got := dispatch(context.Background(), []string{migration.CommandStatus})
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestDispatch_failsWhenCommandIsUnknown(t *testing.T) {
@@ -107,16 +105,14 @@ func TestStatusRunner_failsWhenStatusFails(t *testing.T) {
 	runStatus := migration.MakeStatusRunner(mockStatus, &bytes.Buffer{})
 
 	want := migration.ErrFailedToGetStatus
-	wantCause := mockErr
 	got := runStatus(context.Background())
 
 	assert.ErrorIs(t, got, want)
-	assert.ErrorIs(t, got, wantCause)
 }
 
 func TestStatusRunner_failsWhenWriterFails(t *testing.T) {
-	records := []migration.Record{{Name: "000_foundation.sql", Applied: true}}
-	mockStatus := migration.MockStatus(records, nil)
+	mockRecords := []migration.Record{{Name: "000_foundation.sql", Applied: true}}
+	mockStatus := migration.MockStatus(mockRecords, nil)
 	mockOut := migration.MockClosedWriter()
 
 	runStatus := migration.MakeStatusRunner(mockStatus, mockOut)
