@@ -13,7 +13,8 @@ import (
 )
 
 func TestRabbitMQBroker_InitMessageConsumer_failsWhenChannelClosesUnexpectedly(t *testing.T) {
-	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, broker.MockClosedMessages())
+	mockMessages := broker.MockClosedMessages()
+	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, mockMessages)
 
 	want := broker.ErrConsumerChannelClosed
 	got := b.InitMessageConsumer(1, broker.MockProcessor(nil))
@@ -23,7 +24,8 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenChannelClosesUnexpectedly(t
 
 func TestRabbitMQBroker_InitMessageConsumer_successWhenConcurrencyIsSetAsQoS(t *testing.T) {
 	mockChannel := &broker.MockChannel{ExpectedQos: 2}
-	b := broker.MockRabbitMQBroker(mockChannel, "work", true, broker.MockClosedMessages())
+	mockMessages := broker.MockClosedMessages()
+	b := broker.MockRabbitMQBroker(mockChannel, "work", true, mockMessages)
 
 	want := broker.ErrConsumerChannelClosed
 	got := b.InitMessageConsumer(2, broker.MockProcessor(nil))
@@ -119,7 +121,8 @@ func TestRabbitMQBroker_InitMessageConsumer_successWhenStoppedViaCloseConnection
 func TestRabbitMQBroker_InitMessageConsumer_failsWhenQoSUnavailable(t *testing.T) {
 	mockErr := errors.New("qos unavailable")
 	mockChannel := &broker.MockChannel{QosErr: mockErr}
-	b := broker.MockRabbitMQBroker(mockChannel, "work", true, broker.MockClosedMessages(amqp091.Delivery{}))
+	mockMessages := broker.MockClosedMessages(amqp091.Delivery{})
+	b := broker.MockRabbitMQBroker(mockChannel, "work", true, mockMessages)
 
 	want := broker.ErrFailedToSetQoS
 	got := b.InitMessageConsumer(1, broker.MockProcessor(nil))

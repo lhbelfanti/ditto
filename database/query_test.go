@@ -49,7 +49,8 @@ func TestSelect_failsWhenCollectFails(t *testing.T) {
 }
 
 func TestSelectOne_success(t *testing.T) {
-	mockConn := database.MockQueryConnection(database.MockRowsReturning(true, t), nil)
+	mockRows := database.MockRowsReturning(true, t)
+	mockConn := database.MockQueryConnection(mockRows, nil)
 
 	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
 
@@ -59,7 +60,8 @@ func TestSelectOne_success(t *testing.T) {
 }
 
 func TestSelectOne_failsWhenNoRowsFound(t *testing.T) {
-	mockConn := database.MockQueryConnection(database.MockEmptyRows(), nil)
+	mockRows := database.MockEmptyRows()
+	mockConn := database.MockQueryConnection(mockRows, nil)
 
 	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
 
@@ -81,7 +83,8 @@ func TestSelectOne_failsWhenQueryFails(t *testing.T) {
 }
 
 func TestSelectOne_failsWhenCollectFails(t *testing.T) {
-	mockConn := database.MockQueryConnection(database.MockFailingRows(pgx.ErrTxClosed), nil)
+	mockRows := database.MockFailingRows(pgx.ErrTxClosed)
+	mockConn := database.MockQueryConnection(mockRows, nil)
 
 	selOne := database.MakeSelectOne[bool](mockConn, pgx.RowTo[bool])
 
@@ -92,7 +95,8 @@ func TestSelectOne_failsWhenCollectFails(t *testing.T) {
 }
 
 func TestInsert_success(t *testing.T) {
-	mockConn := database.MockQueryRowConnection(database.MockRowReturning(42, t))
+	mockRow := database.MockRowReturning(42, t)
+	mockConn := database.MockQueryRowConnection(mockRow)
 
 	insert := database.MakeInsert[int](mockConn)
 
@@ -103,7 +107,8 @@ func TestInsert_success(t *testing.T) {
 }
 
 func TestInsert_failsWhenQueryFails(t *testing.T) {
-	mockConn := database.MockQueryRowConnection(database.MockRowFailing(pgx.ErrTxClosed))
+	mockRow := database.MockRowFailing(pgx.ErrTxClosed)
+	mockConn := database.MockQueryRowConnection(mockRow)
 
 	insert := database.MakeInsert[int](mockConn)
 
