@@ -37,3 +37,56 @@ func TestOptions_WithMiddleware_successWhenOriginalIsNotModified(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestOptions_WithRouteMiddleware_success(t *testing.T) {
+	mockMux := app.MockMux("GET /a", http.StatusOK)
+	mockRoute := app.MockMiddleware("route")
+
+	opts := app.Options{Mux: mockMux}.WithRouteMiddleware(mockRoute)
+	service := app.StartServiceWith(t, opts)
+
+	want := []string{"route"}
+	got := service.Get("/a").Header.Values("X-Order")
+
+	assert.Equal(t, want, got)
+}
+
+func TestOptions_WithRouteMiddleware_successWhenNoRouteMatches(t *testing.T) {
+	mockMux := app.MockMux("GET /a", http.StatusOK)
+	mockRoute := app.MockMiddleware("route")
+
+	opts := app.Options{Mux: mockMux}.WithRouteMiddleware(mockRoute)
+	service := app.StartServiceWith(t, opts)
+
+	want := []string{"route"}
+	got := service.Get("/missing").Header.Values("X-Order")
+
+	assert.Equal(t, want, got)
+}
+
+func TestOptions_WithRouteMiddleware_successWhenRouteIsASystemRoute(t *testing.T) {
+	mockMux := app.MockMux("GET /a", http.StatusOK)
+	mockRoute := app.MockMiddleware("route")
+
+	opts := app.Options{Mux: mockMux}.WithRouteMiddleware(mockRoute)
+	service := app.StartServiceWith(t, opts)
+
+	want := []string(nil)
+	got := service.Get("/ping/v1").Header.Values("X-Order")
+
+	assert.Equal(t, want, got)
+}
+
+func TestOptions_WithRouteMiddleware_successWhenWithMiddlewareIsAlsoAdded(t *testing.T) {
+	mockMux := app.MockMux("GET /a", http.StatusOK)
+	mockRoute := app.MockMiddleware("route")
+	mockWhole := app.MockMiddleware("whole")
+
+	opts := app.Options{Mux: mockMux}.WithRouteMiddleware(mockRoute).WithMiddleware(mockWhole)
+	service := app.StartServiceWith(t, opts)
+
+	want := []string{"whole", "route"}
+	got := service.Get("/a").Header.Values("X-Order")
+
+	assert.Equal(t, want, got)
+}

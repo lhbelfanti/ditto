@@ -17,6 +17,7 @@ type (
 		NoDatabase bool
 		Timeouts   Timeouts
 		middleware []Middleware
+		routes     []Middleware
 	}
 
 	// Timeouts bounds the startup database check, the database ping route, and graceful shutdown.
@@ -44,6 +45,14 @@ func (o Options) WithMiddleware(m Middleware) Options {
 	return o
 }
 
+// WithRouteMiddleware returns a copy of o that also decorates the service's routes with m, but not
+// the system routes. A path no route matches still goes through m. The first one added is the
+// outermost, and every WithMiddleware entry runs before it.
+func (o Options) WithRouteMiddleware(m Middleware) Options {
+	o.routes = append(append([]Middleware(nil), o.routes...), m)
+	return o
+}
+
 // orDefaults returns o with an empty PortEnv replaced by its default.
 func (o Options) orDefaults() Options {
 	if o.PortEnv == "" {
@@ -57,6 +66,15 @@ func (o Options) orDefaults() Options {
 func (o Options) decorate(h http.Handler) http.Handler {
 	for i := len(o.middleware) - 1; i >= 0; i-- {
 		h = o.middleware[i](h)
+	}
+
+	return h
+}
+
+// decorateRoutes wraps h with every WithRouteMiddleware entry, the first one outermost.
+func (o Options) decorateRoutes(h http.Handler) http.Handler {
+	for i := len(o.routes) - 1; i >= 0; i-- {
+		h = o.routes[i](h)
 	}
 
 	return h

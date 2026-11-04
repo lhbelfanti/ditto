@@ -67,19 +67,12 @@ func StartServiceWith(t *testing.T, opts Options) *RunningService {
 		_ = listener.Close()
 		t.Setenv("APP_MOCK_PORT", strconv.Itoa(port))
 
-		// Run mounts its system routes on the mux it gets, so each attempt gets a new one in front of the caller's.
-		attemptOpts := opts
-		attemptOpts.Mux = http.NewServeMux()
-		if opts.Mux != nil {
-			attemptOpts.Mux.Handle("/", opts.Mux)
-		}
-
 		service := &RunningService{
 			BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port),
 			done:    make(chan error, 1),
 			client:  &http.Client{Transport: &http.Transport{DisableKeepAlives: true}},
 		}
-		go func() { service.done <- Run(attemptOpts) }()
+		go func() { service.done <- Run(opts) }()
 		t.Cleanup(func() { _ = service.Stop() })
 
 		runErr := service.waitUntilStarted(t)
