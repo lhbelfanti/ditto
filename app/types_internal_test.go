@@ -37,6 +37,21 @@ func TestOptions_orDefaults_successWhenValuesAreSet(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestOptions_decorateRoutes_success(t *testing.T) {
+	mockFirst := MockMiddleware("first")
+	mockSecond := MockMiddleware("second")
+	opts := Options{}.WithRouteMiddleware(mockFirst).WithRouteMiddleware(mockSecond)
+	handler := opts.decorateRoutes(http.NewServeMux())
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	want := []string{"first", "second"}
+	got := w.Header().Values("X-Order")
+
+	assert.Equal(t, want, got)
+}
+
 func TestOptions_decorate_success(t *testing.T) {
 	mockFirst := MockMiddleware("first")
 	mockSecond := MockMiddleware("second")
