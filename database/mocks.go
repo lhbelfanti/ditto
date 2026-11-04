@@ -28,6 +28,11 @@ type (
 		mock.Mock
 	}
 
+	// MockQuery answers the calls of the Mock*Expecting operations by the arguments they receive.
+	MockQuery struct {
+		mock.Mock
+	}
+
 	// MockPgxTx mock implementation of pgx.Tx
 	MockPgxTx struct {
 		mock.Mock
@@ -313,6 +318,65 @@ func MockDelete(err error) Delete {
 func MockUpdate(err error) Update {
 	return func(ctx context.Context, query string, args ...any) error {
 		return err
+	}
+}
+
+// MockSelectExpecting returns a Select[T] that returns slice for arguments, and nil for any other arguments.
+func MockSelectExpecting[T any](arguments []any, slice []T) Select[T] {
+	query := &MockQuery{}
+	query.On("Select", arguments).Return(slice)
+	query.On("Select", mock.Anything).Return([]T(nil))
+
+	return func(_ context.Context, _ string, args ...any) ([]T, error) {
+		return query.MethodCalled("Select", args).Get(0).([]T), nil
+	}
+}
+
+// MockSelectOneExpecting returns a SelectOne[T] that returns val for arguments, and the zero value of T for any
+// other arguments.
+func MockSelectOneExpecting[T any](arguments []any, val T) SelectOne[T] {
+	query := &MockQuery{}
+	query.On("SelectOne", arguments).Return(val)
+	query.On("SelectOne", mock.Anything).Return(*new(T))
+
+	return func(_ context.Context, _ string, args ...any) (T, error) {
+		return query.MethodCalled("SelectOne", args).Get(0).(T), nil
+	}
+}
+
+// MockInsertExpecting returns an Insert[T] that returns val for arguments, and the zero value of T for any other
+// arguments.
+func MockInsertExpecting[T any](arguments []any, val T) Insert[T] {
+	query := &MockQuery{}
+	query.On("Insert", arguments).Return(val)
+	query.On("Insert", mock.Anything).Return(*new(T))
+
+	return func(_ context.Context, _ string, args ...any) (T, error) {
+		return query.MethodCalled("Insert", args).Get(0).(T), nil
+	}
+}
+
+// MockDeleteExpecting returns a Delete that succeeds for arguments, and returns ErrUnexpectedArguments for any
+// other arguments.
+func MockDeleteExpecting(arguments []any) Delete {
+	query := &MockQuery{}
+	query.On("Delete", arguments).Return(nil)
+	query.On("Delete", mock.Anything).Return(ErrUnexpectedArguments)
+
+	return func(_ context.Context, _ string, args ...any) error {
+		return query.MethodCalled("Delete", args).Error(0)
+	}
+}
+
+// MockUpdateExpecting returns an Update that succeeds for arguments, and returns ErrUnexpectedArguments for any
+// other arguments.
+func MockUpdateExpecting(arguments []any) Update {
+	query := &MockQuery{}
+	query.On("Update", arguments).Return(nil)
+	query.On("Update", mock.Anything).Return(ErrUnexpectedArguments)
+
+	return func(_ context.Context, _ string, args ...any) error {
+		return query.MethodCalled("Update", args).Error(0)
 	}
 }
 

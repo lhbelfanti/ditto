@@ -11,6 +11,8 @@ var (
 
 	ErrInvalidNumeric = errors.New("database: invalid numeric")
 
+	ErrUnexpectedArguments = errors.New("database: the mock received unexpected arguments")
+
 	ErrDatabaseUnavailable = errors.New("database: unavailable")
 	ErrCantInitDatabase    = errors.New("database: can't initialize database")
 
