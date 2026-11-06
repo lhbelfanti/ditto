@@ -37,6 +37,35 @@ func TestRequireValue_failsWhenBlank(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestRequireSecret_successWhenValueHasSurroundingSpaces(t *testing.T) {
+	mockEnv := map[string]string{"KEY": "  value  "}
+	mockLookup := env.MockLookup(mockEnv)
+
+	want := "  value  "
+	got, _ := env.RequireSecret(mockLookup, "KEY")
+
+	assert.Equal(t, want, got)
+}
+
+func TestRequireSecret_failsWhenMissing(t *testing.T) {
+	mockLookup := env.MockLookup(map[string]string{})
+
+	want := &env.KeyError{Key: "KEY", Err: env.ErrMissingKey}
+	_, got := env.RequireSecret(mockLookup, "KEY")
+
+	assert.Equal(t, want, got)
+}
+
+func TestRequireSecret_failsWhenBlank(t *testing.T) {
+	mockEnv := map[string]string{"KEY": "   "}
+	mockLookup := env.MockLookup(mockEnv)
+
+	want := &env.KeyError{Key: "KEY", Err: env.ErrMissingKey}
+	_, got := env.RequireSecret(mockLookup, "KEY")
+
+	assert.Equal(t, want, got)
+}
+
 func TestRequirePort_success(t *testing.T) {
 	mockEnv := map[string]string{"PORT": "4000"}
 	mockLookup := env.MockLookup(mockEnv)
