@@ -16,6 +16,17 @@ func RequireValue(lookup Lookup, key string) (string, error) {
 	return trimmed, nil
 }
 
+// RequireSecret returns the value of key as it is set, without trimming its spaces, or a *KeyError
+// wrapping ErrMissingKey when it is missing or blank.
+func RequireSecret(lookup Lookup, key string) (string, error) {
+	value, ok := lookup(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return "", &KeyError{Key: key, Err: ErrMissingKey}
+	}
+
+	return value, nil
+}
+
 // RequirePort returns key's value parsed as a TCP port in the 1-65535 range, or a *KeyError
 // wrapping ErrMissingKey or ErrInvalidPort.
 func RequirePort(lookup Lookup, key string) (int, error) {
