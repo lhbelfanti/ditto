@@ -73,13 +73,18 @@ func MakeSelectOne[T any](db Connection, fn pgx.RowToFunc[T]) SelectOne[T] {
 	}
 }
 
-// MakeInsert creates an Insert[T] backed by db.QueryRow + Scan for a single scalar return.
+// MakeInsert creates an Insert[T] backed by db.QueryRow + Scan for a single scalar return. A
+// statement that returns no row, such as an UPDATE whose WHERE matches nothing, fails with ErrNoRows.
 func MakeInsert[T any](db Connection) Insert[T] {
 	return func(ctx context.Context, query string, args ...any) (T, error) {
 		var result T
 		err := db.QueryRow(ctx, query, args...).Scan(&result)
 		if err != nil {
 			var zero T
+			if errors.Is(err, pgx.ErrNoRows) {
+				return zero, fmt.Errorf("%w: %w", ErrNoRows, err)
+			}
+
 			return zero, fmt.Errorf("%w: %w", ErrQuery, err)
 		}
 
