@@ -38,18 +38,18 @@ const (
 	defaultShutdownTimeout time.Duration = 5 * time.Second
 )
 
-// WithMiddleware returns a copy of o that also decorates the handler with m. The first middleware
+// WithMiddleware returns a copy of o that also decorates the handler with middleware. The first middleware
 // added is the outermost, so it sees the request first.
-func (o Options) WithMiddleware(m Middleware) Options {
-	o.middleware = append(append([]Middleware(nil), o.middleware...), m)
+func (o Options) WithMiddleware(middleware Middleware) Options {
+	o.middleware = append(append([]Middleware(nil), o.middleware...), middleware)
 	return o
 }
 
-// WithRouteMiddleware returns a copy of o that also decorates the service's routes with m, but not
-// the system routes. A path no route matches still goes through m. The first one added is the
+// WithRouteMiddleware returns a copy of o that also decorates the service's routes with middleware, but not
+// the system routes. A path no route matches still goes through middleware. The first one added is the
 // outermost, and every WithMiddleware entry runs before it.
-func (o Options) WithRouteMiddleware(m Middleware) Options {
-	o.routes = append(append([]Middleware(nil), o.routes...), m)
+func (o Options) WithRouteMiddleware(middleware Middleware) Options {
+	o.routes = append(append([]Middleware(nil), o.routes...), middleware)
 	return o
 }
 

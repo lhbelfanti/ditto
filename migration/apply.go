@@ -11,7 +11,7 @@ import (
 // MakeApply wraps runner with deterministic, credential-safe failure attribution: on failure it
 // extracts the allowlisted PostgreSQL SQLSTATE (never the raw driver error) and, when the failure
 // happened during file execution, the name of the file that failed.
-func MakeApply(runner Runner, findPendingFile PendingFileFinder) Apply {
+func MakeApply(runner Runner, pendingFileFinder PendingFileFinder) Apply {
 	return func(ctx context.Context) error {
 		err := runner(ctx)
 		if err == nil {
@@ -24,7 +24,7 @@ func MakeApply(runner Runner, findPendingFile PendingFileFinder) Apply {
 			return &ApplyError{Code: code, cause: err}
 		}
 
-		file, attribErr := findPendingFile(ctx)
+		file, attribErr := pendingFileFinder(ctx)
 		if attribErr != nil {
 			return &ApplyError{Code: code, AttributionUnavailable: true, cause: err}
 		}

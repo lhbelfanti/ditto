@@ -10,7 +10,7 @@ import (
 )
 
 // RequireSession rejects a request that has no valid bearer session, puts the session's user ID in the context, and blocks writes from read-only sessions.
-func RequireSession(getSession GetSessionByToken) func(http.Handler) http.Handler {
+func RequireSession(getSessionByToken GetSessionByToken) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -27,7 +27,7 @@ func RequireSession(getSession GetSessionByToken) func(http.Handler) http.Handle
 				return
 			}
 
-			session, err := getSession(ctx, token)
+			session, err := getSessionByToken(ctx, token)
 			if err != nil {
 				response.Send(ctx, w, http.StatusUnauthorized, ErrMsgInvalidSession, nil, fmt.Errorf("%w: %w", ErrInvalidSession, err))
 				return

@@ -57,8 +57,8 @@ type (
 )
 
 // WithDatabasePing mounts GET /database/ping/v1.
-func (s *SystemRoutes) WithDatabasePing(dbPing DatabasePing) *SystemRoutes {
-	s.mux.HandleFunc("GET /database/ping/v1", databasePingHandlerV1(dbPing))
+func (s *SystemRoutes) WithDatabasePing(databasePing DatabasePing) *SystemRoutes {
+	s.mux.HandleFunc("GET /database/ping/v1", databasePingHandlerV1(databasePing))
 	return s
 }
 
