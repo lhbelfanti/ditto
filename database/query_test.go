@@ -118,6 +118,18 @@ func TestInsert_failsWhenQueryFails(t *testing.T) {
 	assert.ErrorIs(t, got, want)
 }
 
+func TestInsert_failsWhenNoRowIsReturned(t *testing.T) {
+	mockRow := database.MockRowFailing(pgx.ErrNoRows)
+	mockConn := database.MockQueryRowConnection(mockRow)
+
+	insert := database.MakeInsert[int](mockConn)
+
+	want := database.ErrNoRows
+	_, got := insert(context.Background(), "UPDATE t SET a = 1 WHERE id = 0 RETURNING id")
+
+	assert.ErrorIs(t, got, want)
+}
+
 func TestDelete_success(t *testing.T) {
 	mockConn := database.MockExecConnection(nil)
 
