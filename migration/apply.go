@@ -14,22 +14,22 @@ import (
 func MakeApply(runner Runner, pendingFileFinder PendingFileFinder) Apply {
 	return func(ctx context.Context) error {
 		err := runner(ctx)
-		if err == nil {
-			return nil
+		if err != nil {
+			code := pgErrorCode(err)
+
+			if !errors.Is(err, ErrFailedToExecute) {
+				return &ApplyError{Code: code, cause: err}
+			}
+
+			file, attribErr := pendingFileFinder(ctx)
+			if attribErr != nil {
+				return &ApplyError{Code: code, AttributionUnavailable: true, cause: err}
+			}
+
+			return &ApplyError{File: file, Code: code, cause: err}
 		}
 
-		code := pgErrorCode(err)
-
-		if !errors.Is(err, ErrFailedToExecute) {
-			return &ApplyError{Code: code, cause: err}
-		}
-
-		file, attribErr := pendingFileFinder(ctx)
-		if attribErr != nil {
-			return &ApplyError{Code: code, AttributionUnavailable: true, cause: err}
-		}
-
-		return &ApplyError{File: file, Code: code, cause: err}
+		return nil
 	}
 }
 
