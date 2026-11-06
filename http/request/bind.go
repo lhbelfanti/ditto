@@ -59,8 +59,8 @@ func Bind[D any](r *http.Request) (D, error) {
 	return dto, nil
 }
 
-// parse fills every field of section with the param named by its tag, read with lookup.
-func parse(section reflect.Value, tag string, lookup lookupParam) error {
+// parse fills every field of section with the param named by its tag, read with lookupParam.
+func parse(section reflect.Value, tag string, lookupParam lookupParam) error {
 	if section.Kind() != reflect.Struct {
 		return fmt.Errorf("%w: %s is not a struct", ErrInvalidDTO, section.Type())
 	}
@@ -76,7 +76,7 @@ func parse(section reflect.Value, tag string, lookup lookupParam) error {
 		target := section.Field(i)
 		optional := target.Kind() == reflect.Pointer
 
-		raw := strings.TrimSpace(lookup(name))
+		raw := strings.TrimSpace(lookupParam(name))
 		if raw == "" {
 			if optional {
 				continue

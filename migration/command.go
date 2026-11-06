@@ -12,9 +12,9 @@ const (
 )
 
 // MakeDispatch creates a Dispatch that runs the command named by args[0], defaulting to
-// CommandApply when args is empty, through the injected apply and runStatus. Unknown commands or
+// CommandApply when args is empty, through the injected apply and statusRunner. Unknown commands or
 // extra arguments return ErrUnknownCommand instead of running anything.
-func MakeDispatch(apply Apply, runStatus StatusRunner) Dispatch {
+func MakeDispatch(apply Apply, statusRunner StatusRunner) Dispatch {
 	return func(ctx context.Context, args []string) error {
 		if len(args) > 1 {
 			return ErrUnknownCommand
@@ -32,7 +32,7 @@ func MakeDispatch(apply Apply, runStatus StatusRunner) Dispatch {
 				return fmt.Errorf("%w: %w", ErrFailedToRunApply, err)
 			}
 		case CommandStatus:
-			err := runStatus(ctx)
+			err := statusRunner(ctx)
 			if err != nil {
 				return fmt.Errorf("%w: %w", ErrFailedToRunStatus, err)
 			}
