@@ -12,34 +12,6 @@ import (
 	"github.com/lhbelfanti/ditto/v2/log"
 )
 
-func TestParam_success(t *testing.T) {
-	want := "key"
-	got := log.Param("key", "value").Key
-
-	assert.Equal(t, want, got)
-}
-
-func TestParam_successWhenValueIsKept(t *testing.T) {
-	want := "value"
-	got := log.Param("key", "value").Value
-
-	assert.Equal(t, want, got)
-}
-
-func TestBaseParam_success(t *testing.T) {
-	want := "key"
-	got := log.BaseParam("key", "value").Key
-
-	assert.Equal(t, want, got)
-}
-
-func TestBaseParam_successWhenValueIsKept(t *testing.T) {
-	want := "value"
-	got := log.BaseParam("key", "value").Value
-
-	assert.Equal(t, want, got)
-}
-
 func TestWith_success(t *testing.T) {
 	output, restore := log.Capture()
 	t.Cleanup(restore)

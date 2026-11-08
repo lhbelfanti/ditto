@@ -76,3 +76,15 @@ func TestRabbitMQBroker_processDelivery_failsWhenProcessorFails(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestRabbitMQBroker_releaseSlot_success(t *testing.T) {
+	b := &RabbitMQBroker{semaphore: make(chan struct{}, 1)}
+	b.semaphore <- struct{}{}
+
+	b.releaseSlot()
+
+	want := 0
+	got := len(b.semaphore)
+
+	assert.Equal(t, want, got)
+}

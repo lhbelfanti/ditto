@@ -21,10 +21,8 @@ func TestMockSequenceRoundTripper_success(t *testing.T) {
 	)
 	_, _ = client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
-	second, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
-
-	want := "done"
-	got := second.Body
+	want := _http.Response{Body: "done", Status: "200 OK", StatusCode: http.StatusOK}
+	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
 	assert.Equal(t, want, got)
 }
@@ -36,10 +34,8 @@ func TestMockSequenceRoundTripper_successWhenResultHasHeaders(t *testing.T) {
 		mockHTTPResult,
 	)
 
-	first, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
-
-	want := "1"
-	got := first.Header.Get("Retry-After")
+	want := _http.Response{Status: "429 Too Many Requests", StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": []string{"1"}}}
+	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
 	assert.Equal(t, want, got)
 }
@@ -90,10 +86,8 @@ func TestMockSequenceClient_success(t *testing.T) {
 	mockHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusOK, Body: "done"}
 	client, _ := _http.MockSequenceClient(mockHTTPResult)
 
-	response, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
-
-	want := "done"
-	got := response.Body
+	want := _http.Response{Body: "done", Status: "200 OK", StatusCode: http.StatusOK}
+	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
 	assert.Equal(t, want, got)
 }
@@ -105,8 +99,13 @@ func TestMockSequenceClient_successWhenReadingTheRecordedRequests(t *testing.T) 
 	request.WithHeader("Authorization", "Bearer token")
 	_, _ = request.Call(context.Background())
 
-	want := "Bearer token"
-	got := transport.Requests()[0].Header.Get("Authorization")
+	headers := []http.Header{}
+	for _, req := range transport.Requests() {
+		headers = append(headers, req.Header)
+	}
+
+	want := []http.Header{{"Authorization": []string{"Bearer token"}}}
+	got := headers
 
 	assert.Equal(t, want, got)
 }

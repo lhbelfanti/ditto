@@ -141,7 +141,8 @@ assert.Equal(t, want, got)
 
 `Header` leaves out the `Content-Type: application/json` that `Send` sets, and is nil when no other header
 is left, so a `want` names only the headers the handler sets itself, such as `Set-Cookie` or `Location`.
-A body that `Send` did not write, such as the page of a redirect, stays as it is in `Body`. Use
+A body that `Send` did not write, such as the page of a redirect, or whose `code` is not the status, stays
+as it is in `Body`. Use
 `response.Read[any]` for a response without data.
 
 ## `RegisterSystemRoutes`

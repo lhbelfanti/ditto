@@ -20,11 +20,11 @@ func TestSend_success(t *testing.T) {
 		message string
 		data    any
 		err     error
-		want    string
+		want    response.Recorded[any]
 	}{
-		{name: "WithData", code: http.StatusOK, message: "Request successful", data: map[string]string{"key": "value"}, want: `{"code":200,"message":"Request successful","data":{"key":"value"}}`},
-		{name: "WithoutData", code: http.StatusNoContent, message: "No content", want: `{"code":204,"message":"No content"}`},
-		{name: "WithAnErrorThatStaysOutOfTheBody", code: http.StatusUnauthorized, message: "Unauthorized access", err: errors.New("secret cause"), want: `{"code":401,"message":"Unauthorized access"}`},
+		{name: "WithData", code: http.StatusOK, message: "Request successful", data: map[string]string{"key": "value"}, want: response.Recorded[any]{Status: http.StatusOK, Message: "Request successful", Data: map[string]any{"key": "value"}}},
+		{name: "WithoutData", code: http.StatusNoContent, message: "No content", want: response.Recorded[any]{Status: http.StatusNoContent, Message: "No content"}},
+		{name: "WithAnErrorThatStaysOutOfTheBody", code: http.StatusUnauthorized, message: "Unauthorized access", err: errors.New("secret cause"), want: response.Recorded[any]{Status: http.StatusUnauthorized, Message: "Unauthorized access"}},
 	}
 
 	for _, tt := range tests {
@@ -33,9 +33,9 @@ func TestSend_success(t *testing.T) {
 
 			response.Send(context.Background(), w, tt.code, tt.message, tt.data, tt.err)
 
-			got := w.Body.String()
+			got := response.Read[any](w)
 
-			assert.JSONEq(t, tt.want, got)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

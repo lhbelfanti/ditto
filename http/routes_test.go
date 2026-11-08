@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	_http "github.com/lhbelfanti/ditto/v2/http"
+	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
 func TestRegisterSystemRoutes_success(t *testing.T) {
@@ -18,8 +19,8 @@ func TestRegisterSystemRoutes_success(t *testing.T) {
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
-	want := http.StatusOK
-	got := w.Code
+	want := response.Recorded[any]{Status: http.StatusOK, Message: "pong"}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }
@@ -32,8 +33,12 @@ func TestRegisterSystemRoutes_successWhenDatabasePingIsNotOptedIn(t *testing.T) 
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
-	want := http.StatusNotFound
-	got := w.Code
+	want := response.Recorded[any]{
+		Status: http.StatusNotFound,
+		Header: http.Header{"Content-Type": {"text/plain; charset=utf-8"}, "X-Content-Type-Options": {"nosniff"}},
+		Body:   "404 page not found\n",
+	}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }
@@ -46,8 +51,12 @@ func TestMountSystemRoutes_successWhenPingIsNil(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	want := http.StatusNotFound
-	got := rec.Code
+	want := response.Recorded[any]{
+		Status: http.StatusNotFound,
+		Header: http.Header{"Content-Type": {"text/plain; charset=utf-8"}, "X-Content-Type-Options": {"nosniff"}},
+		Body:   "404 page not found\n",
+	}
+	got := response.Read[any](rec)
 
 	assert.Equal(t, want, got)
 }
@@ -60,8 +69,8 @@ func TestMountSystemRoutes_successWhenPingIsSet(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	want := http.StatusOK
-	got := rec.Code
+	want := response.Recorded[any]{Status: http.StatusOK, Message: "pong"}
+	got := response.Read[any](rec)
 
 	assert.Equal(t, want, got)
 }

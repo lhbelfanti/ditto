@@ -149,7 +149,7 @@ func (b *RabbitMQBroker) InitMessageConsumer(concurrentMessages int, processor P
 // requeueing on failure, then releases its semaphore slot and its in-flight mark.
 func (b *RabbitMQBroker) processDelivery(d amqp091.Delivery) {
 	defer b.inFlight.Done()
-	defer func() { <-b.semaphore }()
+	defer b.releaseSlot()
 
 	ctx := context.Background()
 
@@ -167,6 +167,11 @@ func (b *RabbitMQBroker) processDelivery(d amqp091.Delivery) {
 	if ackErr != nil {
 		log.Warn(log.With(ctx, log.Param("cause", ackErr)), "failed to acknowledge the message")
 	}
+}
+
+// releaseSlot frees the semaphore slot a delivery took.
+func (b *RabbitMQBroker) releaseSlot() {
+	<-b.semaphore
 }
 
 // EnqueueMessage publishes a message to the broker.
@@ -203,10 +208,7 @@ func (b *RabbitMQBroker) CloseConnection() {
 	})
 
 	done := make(chan struct{})
-	go func() {
-		b.inFlight.Wait()
-		close(done)
-	}()
+	go waitInFlight(&b.inFlight, done)
 
 	select {
 	case <-done:

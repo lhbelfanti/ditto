@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
@@ -63,57 +62,19 @@ func TestRabbitMQBroker_InitMessageConsumer_successWhenTwoMessagesAndLimitIsOne(
 		mockSecondDelivery,
 	)
 	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, mockMessages)
-	started := make(chan struct{}, 2)
-	release := make(chan struct{})
-	done := make(chan struct{})
-	var got error
-	mockProcessor := broker.MockBlockingProcessor(started, release, nil)
-	go func() {
-		got = b.InitMessageConsumer(1, mockProcessor)
-		close(done)
-	}()
-
-	select {
-	case <-started:
-	case <-time.After(2 * time.Second):
-		t.Fatal("first processor never started")
-	}
-
-	select {
-	case <-started:
-		t.Fatal("a second processor started while the first was still running")
-	case <-time.After(50 * time.Millisecond):
-	}
-
-	close(release)
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("consumer did not finish")
-	}
-
-	b.CloseConnection()
+	t.Cleanup(b.CloseConnection)
 
 	want := broker.ErrConsumerChannelClosed
+	got := b.InitMessageConsumer(1, broker.MockSerialProcessor(t))
 
 	assert.ErrorIs(t, got, want)
 }
 
 func TestRabbitMQBroker_InitMessageConsumer_successWhenStoppedViaCloseConnection(t *testing.T) {
 	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, make(chan amqp091.Delivery))
-	done := make(chan struct{})
-	var got error
-	go func() {
-		got = b.InitMessageConsumer(1, broker.MockProcessor(nil))
-		close(done)
-	}()
-
 	b.CloseConnection()
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("consumer did not stop after CloseConnection")
-	}
+
+	got := b.InitMessageConsumer(1, broker.MockProcessor(nil))
 
 	assert.NoError(t, got)
 }
@@ -141,20 +102,9 @@ func TestRabbitMQBroker_InitMessageConsumer_failsWhenConcurrencyIsInvalid(t *tes
 
 func TestRabbitMQBroker_InitMessageConsumer_failsWhenBrokerIsProducer(t *testing.T) {
 	b := broker.MockRabbitMQBroker(nil, "", false, nil)
-	done := make(chan struct{})
-	var got error
-	go func() {
-		got = b.InitMessageConsumer(1, broker.MockProcessor(nil))
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("InitMessageConsumer blocked on a nil messages channel")
-	}
 
 	want := broker.ErrNotAConsumer
+	got := b.InitMessageConsumer(1, broker.MockProcessor(nil))
 
 	assert.ErrorIs(t, got, want)
 }
@@ -185,47 +135,13 @@ func TestRabbitMQBroker_CloseConnection_successWhenProcessingIsInFlight(t *testi
 	messages <- amqp091.Delivery{DeliveryTag: 1, Acknowledger: captureAck}
 	b := broker.MockRabbitMQBroker(&broker.MockChannel{}, "work", true, messages)
 	started := make(chan struct{})
-	release := make(chan struct{})
-	consumerDone := make(chan struct{})
-	mockProcessor := broker.MockBlockingProcessor(started, release, nil)
-	go func() {
-		_ = b.InitMessageConsumer(1, mockProcessor)
-		close(consumerDone)
-	}()
+	go b.InitMessageConsumer(1, broker.MockSlowProcessor(started))
+	<-started
 
-	select {
-	case <-started:
-	case <-time.After(2 * time.Second):
-		t.Fatal("processor never started")
-	}
+	b.CloseConnection()
 
-	closed := make(chan struct{})
-	go func() {
-		b.CloseConnection()
-		close(closed)
-	}()
-
-	select {
-	case <-closed:
-		t.Fatal("CloseConnection returned before in-flight processing finished")
-	case <-time.After(50 * time.Millisecond):
-	}
-
-	close(release)
-	select {
-	case <-closed:
-	case <-time.After(2 * time.Second):
-		t.Fatal("CloseConnection did not finish after processing completed")
-	}
-
-	select {
-	case <-consumerDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("consumer remained blocked after shutdown")
-	}
-
-	want := uint64(1)
-	got := <-captureAck.Acks
+	want := 1
+	got := len(captureAck.Acks)
 
 	assert.Equal(t, want, got)
 }

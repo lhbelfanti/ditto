@@ -12,13 +12,23 @@ import (
 	"time"
 )
 
-// RunningService is a Run started in the background by StartService, reachable at BaseURL.
-type RunningService struct {
-	BaseURL string
-	done    chan error
-	client  *http.Client
-	stopped bool
-}
+type (
+	// RunningService is a Run started in the background by StartService, reachable at BaseURL.
+	RunningService struct {
+		BaseURL string
+		done    chan error
+		client  *http.Client
+		stopped bool
+	}
+
+	// Reply is what a RunningService answered, without the Date and Content-Length headers the server adds. Header is
+	// nil when nothing else is left.
+	Reply struct {
+		Status int
+		Header http.Header
+		Body   string
+	}
+)
 
 // MockMux returns a mux that answers GET pattern with status.
 func MockMux(pattern string, status int) *http.ServeMux {
@@ -109,16 +119,28 @@ func (m *RunningService) waitUntilStarted(t *testing.T) error {
 	}
 }
 
-// Get requests path on the service and returns the response with its body drained, or an empty response if the request fails.
-func (m *RunningService) Get(path string) *http.Response {
+// Get requests path on the service and returns its reply, or an empty Reply if the request fails.
+func (m *RunningService) Get(path string) Reply {
 	resp, err := m.client.Get(m.BaseURL + path)
 	if err != nil {
-		return &http.Response{}
+		return Reply{}
 	}
 
-	_, _ = io.Copy(io.Discard, resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
-	return resp
+
+	header := resp.Header.Clone()
+	header.Del("Date")
+	header.Del("Content-Length")
+	if len(header) == 0 {
+		header = nil
+	}
+
+	return Reply{
+		Status: resp.StatusCode,
+		Header: header,
+		Body:   string(body),
+	}
 }
 
 // Stop sends SIGINT to this process and returns the error Run returned after its graceful shutdown. Calling it again returns nil.

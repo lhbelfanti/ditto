@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/http/middleware"
+	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
 func TestAuth_success(t *testing.T) {
@@ -24,8 +25,8 @@ func TestAuth_success(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := "42"
-	got := w.Body.String()
+	want := response.Recorded[any]{Status: http.StatusOK, Body: "42"}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }
@@ -42,9 +43,9 @@ func TestAuth_failsWhenAuthorizationHeaderMissing(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := `{"code":401,"message":"` + middleware.ErrMsgMissingAuthHeader + `"}` + "\n"
+	want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgMissingAuthHeader}
 	wantCalls := 0
-	got := w.Body.String()
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)
@@ -63,9 +64,9 @@ func TestAuth_failsWhenSchemeIsNotBearer(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
+	want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgInvalidToken}
 	wantCalls := 0
-	got := w.Body.String()
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)
@@ -84,9 +85,9 @@ func TestAuth_failsWhenAuthorizationHeaderIsMalformed(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
+	want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgInvalidToken}
 	wantCalls := 0
-	got := w.Body.String()
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)
@@ -105,9 +106,9 @@ func TestAuth_failsWhenBearerTokenIsEmpty(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
+	want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgInvalidToken}
 	wantCalls := 0
-	got := w.Body.String()
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)
@@ -126,9 +127,9 @@ func TestAuth_failsWhenTokenLookupFails(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidToken + `"}` + "\n"
+	want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgInvalidToken}
 	wantCalls := 0
-	got := w.Body.String()
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)

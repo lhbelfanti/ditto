@@ -8,8 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-
-	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 type (
@@ -138,12 +136,7 @@ func (r *Request) Call(ctx context.Context) (Response, error) {
 		return Response{}, fmt.Errorf("%w: %w", ErrFailedToExecuteRequest, err)
 	}
 
-	defer func(body io.ReadCloser) {
-		closeErr := body.Close()
-		if closeErr != nil {
-			log.Warn(log.With(ctx, log.Param("cause", closeErr)), "failed to close the response body")
-		}
-	}(resp.Body)
+	defer closeBody(ctx, resp.Body)
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/http/middleware"
+	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
 func TestRequireSession_success(t *testing.T) {
@@ -21,8 +22,8 @@ func TestRequireSession_success(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := "42"
-	got := w.Body.String()
+	want := response.Recorded[any]{Status: http.StatusOK, Body: "42"}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }
@@ -39,8 +40,8 @@ func TestRequireSession_successWhenCalledTwice(t *testing.T) {
 	handler.ServeHTTP(first, req)
 	handler.ServeHTTP(second, req)
 
-	want := []int{http.StatusOK, http.StatusOK}
-	got := []int{first.Code, second.Code}
+	want := []response.Recorded[any]{{Status: http.StatusOK}, {Status: http.StatusOK}}
+	got := []response.Recorded[any]{response.Read[any](first), response.Read[any](second)}
 
 	assert.Equal(t, want, got)
 }
@@ -55,9 +56,9 @@ func TestRequireSession_failsWhenAuthorizationHeaderMissing(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := `{"code":401,"message":"` + middleware.ErrMsgMissingAuthHeader + `"}` + "\n"
+	want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgMissingAuthHeader}
 	wantCalls := 0
-	got := w.Body.String()
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)
@@ -75,9 +76,9 @@ func TestRequireSession_failsWhenBearerTokenMalformed(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		want := `{"code":401,"message":"` + middleware.ErrMsgInvalidSession + `"}` + "\n"
+		want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgInvalidSession}
 		wantCalls := 0
-		got := w.Body.String()
+		got := response.Read[any](w)
 
 		assert.Equal(t, want, got)
 		assert.Equal(t, wantCalls, gotCalls)
@@ -94,9 +95,9 @@ func TestRequireSession_failsWhenSessionLookupFails(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := `{"code":401,"message":"` + middleware.ErrMsgInvalidSession + `"}` + "\n"
+	want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgInvalidSession}
 	wantCalls := 0
-	got := w.Body.String()
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)
@@ -114,9 +115,9 @@ func TestRequireSession_failsWhenSessionHasNoUser(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		want := http.StatusUnauthorized
+		want := response.Recorded[any]{Status: http.StatusUnauthorized, Message: middleware.ErrMsgInvalidSession}
 		wantCalls := 0
-		got := w.Code
+		got := response.Read[any](w)
 
 		assert.Equal(t, want, got)
 		assert.Equal(t, wantCalls, gotCalls)
@@ -135,9 +136,9 @@ func TestRequireSession_failsWhenReadOnlySessionWrites(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		want := `{"code":403,"message":"` + middleware.ErrMsgReadOnlySession + `"}` + "\n"
+		want := response.Recorded[any]{Status: http.StatusForbidden, Message: middleware.ErrMsgReadOnlySession}
 		wantCalls := 0
-		got := w.Body.String()
+		got := response.Read[any](w)
 
 		assert.Equal(t, want, got)
 		assert.Equal(t, wantCalls, gotCalls)
@@ -156,9 +157,9 @@ func TestRequireSession_successWhenReadOnlySessionReads(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		want := http.StatusOK
+		want := response.Recorded[any]{Status: http.StatusOK}
 		wantCalls := 1
-		got := w.Code
+		got := response.Read[any](w)
 
 		assert.Equal(t, want, got)
 		assert.Equal(t, wantCalls, gotCalls)
@@ -176,9 +177,9 @@ func TestRequireSession_successWhenSessionCanWrite(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := http.StatusOK
+	want := response.Recorded[any]{Status: http.StatusOK}
 	wantCalls := 1
-	got := w.Code
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)

@@ -27,9 +27,7 @@ func Listen(ctx context.Context, addr string, handler http.Handler, shutdownTime
 // shutdown's own error otherwise.
 func GracefulShutdown(ctx context.Context, serve Serve, shutdown Shutdown, timeout time.Duration) error {
 	serveErr := make(chan error, 1)
-	go func() {
-		serveErr <- serve()
-	}()
+	go runServe(serve, serveErr)
 
 	select {
 	case err := <-serveErr:
@@ -53,4 +51,9 @@ func GracefulShutdown(ctx context.Context, serve Serve, shutdown Shutdown, timeo
 
 		return nil
 	}
+}
+
+// runServe runs serve and sends the error it returns to serveErr.
+func runServe(serve Serve, serveErr chan<- error) {
+	serveErr <- serve()
 }

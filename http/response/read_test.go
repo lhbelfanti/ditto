@@ -64,3 +64,15 @@ func TestRead_successWhenTheJSONBodyIsInvalid(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestRead_successWhenTheCodeIsNotTheStatus(t *testing.T) {
+	w := httptest.NewRecorder()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.WriteString(`{"code":500,"message":"pong"}`)
+
+	want := response.Recorded[any]{Status: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: `{"code":500,"message":"pong"}`}
+	got := response.Read[any](w)
+
+	assert.Equal(t, want, got)
+}

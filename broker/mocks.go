@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/stretchr/testify/assert"
 )
 
 type (
@@ -150,15 +153,6 @@ func MockRecordingProcessor(bodies chan<- []byte, err error) Processor {
 	}
 }
 
-// MockBlockingProcessor returns a Processor that signals started, waits for release to close, and returns err.
-func MockBlockingProcessor(started chan<- struct{}, release <-chan struct{}, err error) Processor {
-	return func(context.Context, []byte) error {
-		started <- struct{}{}
-		<-release
-		return err
-	}
-}
-
 // MockClosedMessages returns a delivery channel already holding deliveries and already closed, as if the connection dropped.
 func MockClosedMessages(deliveries ...amqp091.Delivery) <-chan amqp091.Delivery {
 	messages := make(chan amqp091.Delivery, len(deliveries))
@@ -186,4 +180,28 @@ func MockConnection(t *testing.T) *amqp091.Connection {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	return conn
+}
+
+// MockSerialProcessor returns a Processor that takes a moment to process each message and reports to t a call
+// that starts while another one is still running.
+func MockSerialProcessor(t *testing.T) Processor {
+	var running atomic.Int32
+
+	return func(context.Context, []byte) error {
+		assert.Equal(t, int32(1), running.Add(1), "a second processor started while the first was still running")
+		time.Sleep(50 * time.Millisecond)
+		running.Add(-1)
+
+		return nil
+	}
+}
+
+// MockSlowProcessor returns a Processor that signals started and then takes a moment before it returns nil.
+func MockSlowProcessor(started chan<- struct{}) Processor {
+	return func(context.Context, []byte) error {
+		started <- struct{}{}
+		time.Sleep(50 * time.Millisecond)
+
+		return nil
+	}
 }

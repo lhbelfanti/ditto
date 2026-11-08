@@ -52,9 +52,9 @@ func TestCheck_failsWhenPingErrorCarriesCredentials(t *testing.T) {
 	check := database.MakeCheck(mockPing, time.Second)
 
 	want := database.ErrDatabaseUnavailable.Error()
-	got := check(context.Background()).Error()
+	got := check(context.Background())
 
-	assert.Equal(t, want, got)
+	assert.EqualError(t, got, want)
 }
 
 func TestRequireEnv_success(t *testing.T) {
