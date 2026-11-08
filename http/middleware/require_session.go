@@ -9,7 +9,8 @@ import (
 	"github.com/lhbelfanti/ditto/v2/log"
 )
 
-// RequireSession rejects a request that has no valid bearer session, puts the session's user ID in the context, and blocks writes from read-only sessions.
+// RequireSession rejects a request that has no valid bearer session, puts the session's user ID in the context, and blocks writes from read-only
+// sessions.
 func RequireSession(getSessionByToken GetSessionByToken) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
