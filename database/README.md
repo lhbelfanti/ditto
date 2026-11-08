@@ -229,7 +229,7 @@ All `Make*` helpers return typed sentinel errors on failure:
 | `database.ErrQuery` | `db.Query`, `db.QueryRow`, or `db.Exec` returned an error |
 | `database.ErrCollect` | `CollectRows`, or the row collection of `SelectOne`, failed after a successful query |
 | `database.ErrFailedToScanRows` | `MakeCollectRows` could not scan the rows into `T` |
-| `database.ErrNoRows` | `SelectOne` found no matching row (`pgx.ErrNoRows`) |
+| `database.ErrNoRows` | `SelectOne` found no matching row, or the statement of `Insert` returned none (`pgx.ErrNoRows`) |
 | `database.ErrInvalidNumeric` | `ParseNumeric` got text that is not a finite number |
 | `database.ErrUnexpectedArguments` | `MockDeleteExpecting` or `MockUpdateExpecting` received arguments other than the expected ones |
 | `database.ErrAdminNotConfigured` | `OpenAdmin` found no `POSTGRES_ADMIN_USER`/`POSTGRES_ADMIN_PASS` |
@@ -244,7 +244,11 @@ Use `errors.Is` to handle them in domain code:
 
 ```go
 result, err := selectOne(ctx, query, id)
-if errors.Is(err, database.ErrNoRows) {
-    return DAO{}, ErrNotFound
+if err != nil {
+    if errors.Is(err, database.ErrNoRows) {
+        return DAO{}, fmt.Errorf("%w: %w", ErrNotFound, err)
+    }
+
+    return DAO{}, fmt.Errorf("%w: %w", ErrCantSelect, err)
 }
 ```

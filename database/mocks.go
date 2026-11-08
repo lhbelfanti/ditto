@@ -147,10 +147,11 @@ func (t *MockPgxTx) CopyFrom(ctx context.Context, tableName pgx.Identifier, colu
 	return args.Get(0).(int64), args.Error(1)
 }
 
-// SendBatch returns the configured batch results.
+// SendBatch returns the configured batch results, or nil when none is configured.
 func (t *MockPgxTx) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 	args := t.Called(ctx, b)
-	return args.Get(0).(pgx.BatchResults)
+	results, _ := args.Get(0).(pgx.BatchResults)
+	return results
 }
 
 // LargeObjects returns the configured large objects handle.
@@ -414,6 +415,31 @@ func MockQueryConnection(rows *MockPgxRows, err error) *MockPostgresConnection {
 	return conn
 }
 
+// MockBeginConnection returns a connection whose Begin returns tx and err.
+func MockBeginConnection(tx *MockPgxTx, err error) *MockPostgresConnection {
+	conn := &MockPostgresConnection{}
+	conn.On("Begin", mock.Anything).Return(tx, err)
+	return conn
+}
+
+// MockTxFailing returns a transaction whose every method that returns an error fails with err, and whose other
+// methods return zero values.
+func MockTxFailing(err error) *MockPgxTx {
+	tx := &MockPgxTx{}
+	tx.On("Begin", mock.Anything).Return((*MockPgxTx)(nil), err)
+	tx.On("Commit", mock.Anything).Return(err)
+	tx.On("Rollback", mock.Anything).Return(err)
+	tx.On("CopyFrom", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(0), err)
+	tx.On("SendBatch", mock.Anything, mock.Anything).Return(nil)
+	tx.On("LargeObjects").Return(pgx.LargeObjects{})
+	tx.On("Prepare", mock.Anything, mock.Anything, mock.Anything).Return((*pgconn.StatementDescription)(nil), err)
+	tx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag{}, err)
+	tx.On("Query", mock.Anything, mock.Anything, mock.Anything).Return((*MockPgxRows)(nil), err)
+	tx.On("QueryRow", mock.Anything, mock.Anything, mock.Anything).Return(MockRowFailing(err))
+	tx.On("Conn").Return((*pgx.Conn)(nil))
+	return tx
+}
+
 // MockQueryRowConnection returns a connection whose QueryRow returns row.
 func MockQueryRowConnection(row *MockPgxRow) *MockPostgresConnection {
 	conn := &MockPostgresConnection{}
@@ -446,6 +472,11 @@ func MockFailingRows(err error) *MockPgxRows {
 	rows.On("Next").Return(false)
 	rows.On("Close").Return()
 	rows.On("Err").Return(err)
+	rows.On("CommandTag").Return(pgconn.CommandTag{})
+	rows.On("FieldDescriptions").Return([]pgconn.FieldDescription(nil))
+	rows.On("Values").Return([]any(nil), err)
+	rows.On("RawValues").Return([][]byte(nil))
+	rows.On("Conn").Return((*pgx.Conn)(nil))
 	return rows
 }
 
@@ -461,6 +492,12 @@ func MockRowFailing(err error) *MockPgxRow {
 	row := &MockPgxRow{}
 	row.On("Scan", mock.Anything).Return(err)
 	return row
+}
+
+// CaptureTestingT returns a *testing.T apart from the running test, so a mock that reports a failure through it
+// leaves the running test untouched.
+func CaptureTestingT() *testing.T {
+	return &testing.T{}
 }
 
 // MockExecFormatted returns an ExecFormatted that always returns err.
