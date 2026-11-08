@@ -188,6 +188,15 @@ func TestCollectRows_successWhenFnIsNil(t *testing.T) {
 	assert.Empty(t, got)
 }
 
+func TestCollectRows_failsWhenRowsFail(t *testing.T) {
+	collect := database.MakeCollectRows(pgx.RowTo[string])
+
+	want := database.ErrFailedToScanRows
+	_, got := collect(database.MockFailingRows(pgx.ErrTxClosed))
+
+	assert.ErrorIs(t, got, want)
+}
+
 func TestExecFormatted_success(t *testing.T) {
 	mockSelectOneOp := database.MockSelectOne("CREATE ROLE svc LOGIN", nil)
 	mockUpdateOp := database.MockUpdate(nil)
