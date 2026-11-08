@@ -35,8 +35,9 @@ func Revoke(run *verification.Run) {
 }
 ```
 
-The first failed step stops the journey and records why. A journey that panics, for example on an index out
-of range after a body it did not expect, fails the same way. The next journey still runs.
+The first failed step stops the journey and records why, as an error that wraps one of the sentinels of
+`errors.go`. A journey that panics, for example on an index out of range after a body it did not expect,
+fails the same way. The next journey still runs.
 
 ## Driving the journeys
 
@@ -59,7 +60,9 @@ if report.Failed() {
 
 ## Evidence
 
-Each step keeps its URL, its headers and its JSON bodies in `Exchange`. Bearer tokens, cookies, and the
-`token`, `code`, `state`, `nonce`, `password` and `secret` fields and query params, among others, are
-replaced with `<redacted>`, also in a `Location` header and in nested objects. A body that is not JSON is left
-out, since a redirect page can repeat the values of its URL. `WriteReport` saves the report as `report.json`.
+Each journey sends through its own copy of the client, whose transport records what each request carried and
+what came back. A step keeps that exchange: its method, its URL with the query, its headers and its JSON
+bodies, as the connection saw them. Bearer tokens, cookies, and the `token`, `code`, `state`, `nonce`,
+`password` and `secret` fields and query params, among others, are replaced with `<redacted>`, also in a
+`Location` header and in nested objects. A body that is not JSON is left out, since a redirect page can repeat
+the values of its URL. `WriteReport` saves the report as `report.json`, with each failure as its message.
