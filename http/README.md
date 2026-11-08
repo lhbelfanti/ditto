@@ -1,7 +1,7 @@
 # http
 
 The `http` package covers six concerns for a service's HTTP layer: a standardized JSON response
-envelope (`response`), reading and checking a request (`request.Bind`), a thin synchronous client (`CustomClient`), ditto's own system routes
+envelope (`response`, and `response.Read` to compare it whole in a test), reading and checking a request (`request.Bind`), a thin synchronous client (`CustomClient`), ditto's own system routes
 (`RegisterSystemRoutes`), bounded graceful shutdown (`GracefulShutdown`), and four middlewares
 (`middleware.Auth`/`RequireSession`/`CORS`/`RequestID`).
 
@@ -119,6 +119,30 @@ It reads path, query and body in that order, each in field order, and returns th
 
 Every param error names the part and the param (`invalid path: missing param: accountID`), so the
 handler can answer the 400 with `err.Error()`.
+
+## `response.Read`
+
+A handler test compares the whole response the handler wrote, not only its status. `response.Read[T]`
+reads the recorder back as a `Recorded[T]`: the status, the headers, and the body of `Send` with its data
+decoded as `T`:
+
+```go
+handler(w, request)
+
+want := response.Recorded[username.SetResponseDTOV1]{
+    Status:  http.StatusOK,
+    Message: "username set",
+    Data:    username.SetResponseDTOV1{Username: "ana"},
+}
+got := response.Read[username.SetResponseDTOV1](w)
+
+assert.Equal(t, want, got)
+```
+
+`Header` leaves out the `Content-Type: application/json` that `Send` sets, and is nil when no other header
+is left, so a `want` names only the headers the handler sets itself, such as `Set-Cookie` or `Location`.
+A body that `Send` did not write, such as the page of a redirect, stays as it is in `Body`. Use
+`response.Read[any]` for a response without data.
 
 ## `RegisterSystemRoutes`
 
