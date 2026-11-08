@@ -113,9 +113,7 @@ func MockTx(cfg MockTxConfig) *database.MockPgxTx {
 
 // MockConnection returns a connection whose Begin returns tx and beginErr.
 func MockConnection(tx *database.MockPgxTx, beginErr error) *database.MockPostgresConnection {
-	conn := &database.MockPostgresConnection{}
-	conn.On("Begin", mock.Anything).Return(tx, beginErr)
-	return conn
+	return database.MockBeginConnection(tx, beginErr)
 }
 
 // MockClosedWriter returns a writer whose every Write fails with io.ErrClosedPipe.
