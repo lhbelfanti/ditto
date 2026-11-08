@@ -22,9 +22,40 @@ func TestSend_success(t *testing.T) {
 		err     error
 		want    response.Recorded[any]
 	}{
-		{name: "WithData", code: http.StatusOK, message: "Request successful", data: map[string]string{"key": "value"}, want: response.Recorded[any]{Status: http.StatusOK, Message: "Request successful", Data: map[string]any{"key": "value"}}},
-		{name: "WithoutData", code: http.StatusNoContent, message: "No content", want: response.Recorded[any]{Status: http.StatusNoContent, Message: "No content"}},
-		{name: "WithAnErrorThatStaysOutOfTheBody", code: http.StatusUnauthorized, message: "Unauthorized access", err: errors.New("secret cause"), want: response.Recorded[any]{Status: http.StatusUnauthorized, Message: "Unauthorized access"}},
+		{
+			name:    "WithData",
+			code:    http.StatusOK,
+			message: "Request successful",
+			data: map[string]string{
+				"key": "value",
+			},
+			want: response.Recorded[any]{
+				Status:  http.StatusOK,
+				Message: "Request successful",
+				Data: map[string]any{
+					"key": "value",
+				},
+			},
+		},
+		{
+			name:    "WithoutData",
+			code:    http.StatusNoContent,
+			message: "No content",
+			want: response.Recorded[any]{
+				Status:  http.StatusNoContent,
+				Message: "No content",
+			},
+		},
+		{
+			name:    "WithAnErrorThatStaysOutOfTheBody",
+			code:    http.StatusUnauthorized,
+			message: "Unauthorized access",
+			err:     errors.New("secret cause"),
+			want: response.Recorded[any]{
+				Status:  http.StatusUnauthorized,
+				Message: "Unauthorized access",
+			},
+		},
 	}
 
 	for _, tt := range tests {

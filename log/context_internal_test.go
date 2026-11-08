@@ -27,10 +27,17 @@ func TestWithContextParams_success(t *testing.T) {
 		{name: "Error", ctx: With(context.Background(), Param("error", errors.New("boom"))), want: `{"error":"boom"}`},
 		{
 			name: "Slices",
-			ctx:  With(context.Background(), Param("strings", []string{"a", "b"}), Param("ints", []int{1, 2}), Param("floats", []float64{1.5}), Param("bytes", []byte("value"))),
+			ctx: With(context.Background(), Param("strings", []string{
+				"a",
+				"b",
+			}), Param("ints", []int{1, 2}), Param("floats", []float64{1.5}), Param("bytes", []byte("value"))),
 			want: `{"strings":["a","b"],"ints":[1,2],"floats":[1.5],"bytes":"value"}`,
 		},
-		{name: "Time", ctx: With(context.Background(), Param("time", time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))), want: `{"time":"2026-01-02T03:04:05Z"}`},
+		{
+			name: "Time",
+			ctx:  With(context.Background(), Param("time", time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))),
+			want: `{"time":"2026-01-02T03:04:05Z"}`,
+		},
 		{name: "OtherType", ctx: With(context.Background(), Param("map", map[string]int{"a": 1})), want: `{"map":{"a":1}}`},
 	}
 

@@ -25,10 +25,12 @@ func TestReport_Failed_successWhenEveryJourneyPasses(t *testing.T) {
 }
 
 func TestReport_Summary_success(t *testing.T) {
-	report := verification.Report{Results: []verification.Result{
-		{Journey: "health.ping", Steps: []verification.Step{{Route: "GET /ping/v1"}}},
-		{Journey: "session.revoke", Failure: "boom"},
-	}}
+	report := verification.Report{
+		Results: []verification.Result{
+			{Journey: "health.ping", Steps: []verification.Step{{Route: "GET /ping/v1"}}},
+			{Journey: "session.revoke", Failure: "boom"},
+		},
+	}
 
 	want := "PASS health.ping (1 steps)\nFAIL session.revoke: boom\n2 journeys, 1 failed\n"
 	got := report.Summary()

@@ -18,10 +18,14 @@ func TestRead_success(t *testing.T) {
 	response.Send(context.Background(), w, http.StatusOK, "username set", mockData, nil)
 
 	want := response.Recorded[map[string]string]{
-		Status:  http.StatusOK,
-		Header:  http.Header{"Set-Cookie": {"session=abc"}},
+		Status: http.StatusOK,
+		Header: http.Header{
+			"Set-Cookie": {"session=abc"},
+		},
 		Message: "username set",
-		Data:    map[string]string{"username": "ana"},
+		Data: map[string]string{
+			"username": "ana",
+		},
 	}
 	got := response.Read[map[string]string](w)
 
@@ -45,8 +49,11 @@ func TestRead_successWhenTheBodyIsNotJSON(t *testing.T) {
 
 	want := response.Recorded[any]{
 		Status: http.StatusFound,
-		Header: http.Header{"Content-Type": {"text/html; charset=utf-8"}, "Location": {"https://accounts.example.com/authorize"}},
-		Body:   "<a href=\"https://accounts.example.com/authorize\">Found</a>.\n\n",
+		Header: http.Header{
+			"Content-Type": {"text/html; charset=utf-8"},
+			"Location":     {"https://accounts.example.com/authorize"},
+		},
+		Body: "<a href=\"https://accounts.example.com/authorize\">Found</a>.\n\n",
 	}
 	got := response.Read[any](w)
 
@@ -71,7 +78,13 @@ func TestRead_successWhenTheCodeIsNotTheStatus(t *testing.T) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.WriteString(`{"code":500,"message":"pong"}`)
 
-	want := response.Recorded[any]{Status: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: `{"code":500,"message":"pong"}`}
+	want := response.Recorded[any]{
+		Status: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": {"application/json"},
+		},
+		Body: `{"code":500,"message":"pong"}`,
+	}
 	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)

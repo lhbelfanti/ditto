@@ -16,9 +16,11 @@ import (
 
 func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
 	mockExpectedRequest := _http.MockExpectedRequest{
-		URL:    "http://example.test",
-		Header: http.Header{"Content-Type": {"application/json"}},
-		Body:   `{"symbol":"BTC/USDT"}`,
+		URL: "http://example.test",
+		Header: http.Header{
+			"Content-Type": {"application/json"},
+		},
+		Body: `{"symbol":"BTC/USDT"}`,
 	}
 	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodPost, "http://example.test")
@@ -63,7 +65,14 @@ func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 	mockHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: mockHeader}
 	client, _ := _http.MockSequenceClient(mockHTTPResult)
 
-	want := _http.Response{Status: "429 Too Many Requests", StatusCode: http.StatusTooManyRequests, Header: http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}}
+	want := _http.Response{
+		Status:     "429 Too Many Requests",
+		StatusCode: http.StatusTooManyRequests,
+		Header: http.Header{
+			"X-Mbx-Used-Weight-1m": {"42"},
+			"Retry-After":          {"5"},
+		},
+	}
 	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
 	assert.Equal(t, want, got)
@@ -117,9 +126,12 @@ func TestRequest_WithQueryParam_successWhenTheURLAlreadyHasAQuery(t *testing.T) 
 
 func TestRequest_WithBody_success(t *testing.T) {
 	mockExpectedRequest := _http.MockExpectedRequest{
-		URL:    "http://example.test",
-		Header: http.Header{"Authorization": {"Bearer token"}, "Content-Type": {"application/json"}},
-		Body:   `{"a":"b"}`,
+		URL: "http://example.test",
+		Header: http.Header{
+			"Authorization": {"Bearer token"},
+			"Content-Type":  {"application/json"},
+		},
+		Body: `{"a":"b"}`,
 	}
 	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodPost, "http://example.test")
@@ -133,9 +145,11 @@ func TestRequest_WithBody_success(t *testing.T) {
 
 func TestRequest_WithBody_successWhenTheBodyIsBytes(t *testing.T) {
 	mockExpectedRequest := _http.MockExpectedRequest{
-		URL:    "http://example.test",
-		Header: http.Header{"Content-Type": {"application/json"}},
-		Body:   `{"raw":true}`,
+		URL: "http://example.test",
+		Header: http.Header{
+			"Content-Type": {"application/json"},
+		},
+		Body: `{"raw":true}`,
 	}
 	client := _http.MockClientExpecting(mockExpectedRequest)
 	request := client.NewRequest(http.MethodPost, "http://example.test")

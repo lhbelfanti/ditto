@@ -25,12 +25,18 @@ func TestRun_send_success(t *testing.T) {
 			ctx:     context.Background(),
 			client:  mockClient,
 			baseURL: "http://app",
-			result: Result{Steps: []Step{{
-				Route:    "GET /accounts/{id}/v1",
-				Want:     http.StatusOK,
-				Got:      http.StatusOK,
-				Exchange: Exchange{URL: "http://app/accounts/42/v1"},
-			}}},
+			result: Result{
+				Steps: []Step{
+					{
+						Route: "GET /accounts/{id}/v1",
+						Want:  http.StatusOK,
+						Got:   http.StatusOK,
+						Exchange: Exchange{
+							URL: "http://app/accounts/42/v1",
+						},
+					},
+				},
+			},
 		},
 	}
 	got := []any{response, run}
@@ -41,7 +47,17 @@ func TestRun_send_success(t *testing.T) {
 func TestRun_send_successWhenTheRequestHasAHeaderATokenAndABody(t *testing.T) {
 	mockResult := _http.MockHTTPResult{StatusCode: http.StatusOK}
 	mockClient, _ := _http.MockSequenceClient(mockResult)
-	mockRequest := Request{Route: "PUT /accounts/me/v1", Token: "session", Header: map[string]string{"Accept": "application/json"}, Body: map[string]string{"name": "Ana"}, Status: http.StatusOK}
+	mockRequest := Request{
+		Route: "PUT /accounts/me/v1",
+		Token: "session",
+		Header: map[string]string{
+			"Accept": "application/json",
+		},
+		Body: map[string]string{
+			"name": "Ana",
+		},
+		Status: http.StatusOK,
+	}
 	run := &Run{ctx: context.Background(), client: mockClient, baseURL: "http://app"}
 
 	run.send(mockRequest, false)
@@ -50,16 +66,25 @@ func TestRun_send_successWhenTheRequestHasAHeaderATokenAndABody(t *testing.T) {
 		ctx:     context.Background(),
 		client:  mockClient,
 		baseURL: "http://app",
-		result: Result{Steps: []Step{{
-			Route: "PUT /accounts/me/v1",
-			Want:  http.StatusOK,
-			Got:   http.StatusOK,
-			Exchange: Exchange{
-				URL:           "http://app/accounts/me/v1",
-				RequestHeader: map[string]string{"Accept": "application/json", "Authorization": redacted},
-				RequestBody:   map[string]any{"name": "Ana"},
+		result: Result{
+			Steps: []Step{
+				{
+					Route: "PUT /accounts/me/v1",
+					Want:  http.StatusOK,
+					Got:   http.StatusOK,
+					Exchange: Exchange{
+						URL: "http://app/accounts/me/v1",
+						RequestHeader: map[string]string{
+							"Accept":        "application/json",
+							"Authorization": redacted,
+						},
+						RequestBody: map[string]any{
+							"name": "Ana",
+						},
+					},
+				},
 			},
-		}}},
+		},
 	}
 	got := run
 
@@ -82,7 +107,17 @@ func TestRun_send_failsWhenASetupStepAnswersAnotherStatus(t *testing.T) {
 		client:  mockClient,
 		baseURL: "http://app",
 		result: Result{
-			Steps:   []Step{{Route: "GET /accounts/{id}/v1", Want: http.StatusOK, Got: http.StatusFound, Setup: true, Exchange: Exchange{URL: "http://app/accounts/42/v1"}}},
+			Steps: []Step{
+				{
+					Route: "GET /accounts/{id}/v1",
+					Want:  http.StatusOK,
+					Got:   http.StatusFound,
+					Setup: true,
+					Exchange: Exchange{
+						URL: "http://app/accounts/42/v1",
+					},
+				},
+			},
 			Failure: "unexpected status: GET /accounts/{id}/v1 answered 302, want 200",
 		},
 	}

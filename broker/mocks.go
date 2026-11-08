@@ -47,7 +47,9 @@ func MockEnqueue(err error) MessageBroker {
 // MockRabbitMQBroker builds a RabbitMQBroker over channel without dialing RabbitMQ. A nil channel builds a producer-only broker.
 func MockRabbitMQBroker(channel *MockChannel, queueName string, consumer bool, messages <-chan amqp091.Delivery) *RabbitMQBroker {
 	b := &RabbitMQBroker{
-		queue:    amqp091.Queue{Name: queueName},
+		queue: amqp091.Queue{
+			Name: queueName,
+		},
 		consumer: consumer,
 		messages: messages,
 	}
@@ -164,7 +166,8 @@ func MockClosedMessages(deliveries ...amqp091.Delivery) <-chan amqp091.Delivery 
 	return messages
 }
 
-// MockConnection returns a connection to the RabbitMQ server in DITTO_TEST_RABBITMQ_URL, closed when the test ends, and skips the test when the variable is unset.
+// MockConnection returns a connection to the RabbitMQ server in DITTO_TEST_RABBITMQ_URL, closed when the test ends, and skips the test when the
+// variable is unset.
 func MockConnection(t *testing.T) *amqp091.Connection {
 	t.Helper()
 	url := os.Getenv("DITTO_TEST_RABBITMQ_URL")

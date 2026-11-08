@@ -8,7 +8,16 @@ import (
 )
 
 func TestResolve_success(t *testing.T) {
-	request := Request{Route: "DELETE /accounts/{id}/sessions/{session}/v1", Params: map[string]string{"id": "42", "session": "a b"}, Query: url.Values{"confirm": {"true"}}}
+	request := Request{
+		Route: "DELETE /accounts/{id}/sessions/{session}/v1",
+		Params: map[string]string{
+			"id":      "42",
+			"session": "a b",
+		},
+		Query: url.Values{
+			"confirm": {"true"},
+		},
+	}
 
 	method, target, err := resolve(request, "http://app/")
 

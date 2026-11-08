@@ -144,7 +144,8 @@ func MockMigrationFile(t *testing.T, content string) string {
 	return filepath.Join(dir, "001_a.sql")
 }
 
-// MockPostgresPool returns a pool on the database in DITTO_TEST_DATABASE_URL with the migration tables dropped, and skips the test when the variable is unset.
+// MockPostgresPool returns a pool on the database in DITTO_TEST_DATABASE_URL with the migration tables dropped, and skips the test when the variable
+// is unset.
 func MockPostgresPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	dsn := os.Getenv("DITTO_TEST_DATABASE_URL")

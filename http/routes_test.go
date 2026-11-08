@@ -35,8 +35,11 @@ func TestRegisterSystemRoutes_successWhenDatabasePingIsNotOptedIn(t *testing.T) 
 
 	want := response.Recorded[any]{
 		Status: http.StatusNotFound,
-		Header: http.Header{"Content-Type": {"text/plain; charset=utf-8"}, "X-Content-Type-Options": {"nosniff"}},
-		Body:   "404 page not found\n",
+		Header: http.Header{
+			"Content-Type":           {"text/plain; charset=utf-8"},
+			"X-Content-Type-Options": {"nosniff"},
+		},
+		Body: "404 page not found\n",
 	}
 	got := response.Read[any](w)
 
@@ -53,8 +56,11 @@ func TestMountSystemRoutes_successWhenPingIsNil(t *testing.T) {
 
 	want := response.Recorded[any]{
 		Status: http.StatusNotFound,
-		Header: http.Header{"Content-Type": {"text/plain; charset=utf-8"}, "X-Content-Type-Options": {"nosniff"}},
-		Body:   "404 page not found\n",
+		Header: http.Header{
+			"Content-Type":           {"text/plain; charset=utf-8"},
+			"X-Content-Type-Options": {"nosniff"},
+		},
+		Body: "404 page not found\n",
 	}
 	got := response.Read[any](rec)
 

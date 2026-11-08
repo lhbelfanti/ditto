@@ -80,7 +80,11 @@ func StartServiceWith(t *testing.T, opts Options) *RunningService {
 		service := &RunningService{
 			BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port),
 			done:    make(chan error, 1),
-			client:  &http.Client{Transport: &http.Transport{DisableKeepAlives: true}},
+			client: &http.Client{
+				Transport: &http.Transport{
+					DisableKeepAlives: true,
+				},
+			},
 		}
 		go func() { service.done <- Run(opts) }()
 		t.Cleanup(func() { _ = service.Stop() })

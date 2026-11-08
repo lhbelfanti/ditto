@@ -13,13 +13,25 @@ import (
 )
 
 func TestBind_success(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPut, "/accounts/Nebula?limit=20&from=2026-01-02T03:04:05Z&done=true", strings.NewReader(`{"role":"administrator"}`))
+	req := httptest.NewRequest(
+		http.MethodPut,
+		"/accounts/Nebula?limit=20&from=2026-01-02T03:04:05Z&done=true",
+		strings.NewReader(`{"role":"administrator"}`),
+	)
 	req.SetPathValue("username", " Nebula ")
 
 	want := request.MockRequestDTO{
-		Path:  request.MockAccountPath{Username: "Nebula"},
-		Query: request.MockEventsQuery{Limit: 20, From: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), Done: true},
-		Body:  request.MockBody{Role: "administrator"},
+		Path: request.MockAccountPath{
+			Username: "Nebula",
+		},
+		Query: request.MockEventsQuery{
+			Limit: 20,
+			From:  time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC),
+			Done:  true,
+		},
+		Body: request.MockBody{
+			Role: "administrator",
+		},
 	}
 	got, _ := request.Bind[request.MockRequestDTO](req)
 

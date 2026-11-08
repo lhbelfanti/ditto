@@ -58,7 +58,15 @@ func TestOptions_WithRouteMiddleware_successWhenNoRouteMatches(t *testing.T) {
 	opts := app.Options{Mux: mockMux}.WithRouteMiddleware(mockRoute)
 	service := app.StartServiceWith(t, opts)
 
-	want := app.Reply{Status: http.StatusNotFound, Header: http.Header{"Content-Type": {"text/plain; charset=utf-8"}, "X-Content-Type-Options": {"nosniff"}, "X-Order": {"route"}}, Body: "404 page not found\n"}
+	want := app.Reply{
+		Status: http.StatusNotFound,
+		Header: http.Header{
+			"Content-Type":           {"text/plain; charset=utf-8"},
+			"X-Content-Type-Options": {"nosniff"},
+			"X-Order":                {"route"},
+		},
+		Body: "404 page not found\n",
+	}
 	got := service.Get("/missing")
 
 	assert.Equal(t, want, got)

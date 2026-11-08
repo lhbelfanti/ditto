@@ -92,7 +92,10 @@ func TestRunner_successWhenRunIsRepeated(t *testing.T) {
 	_ = runner(context.Background())
 
 	want := map[string]int{"mig_audit": 1, "migrations": 2}
-	got := map[string]int{"mig_audit": migration.MockRowCount(t, mockPool, "mig_audit"), "migrations": migration.MockRowCount(t, mockPool, "migrations")}
+	got := map[string]int{
+		"mig_audit":  migration.MockRowCount(t, mockPool, "mig_audit"),
+		"migrations": migration.MockRowCount(t, mockPool, "migrations"),
+	}
 
 	assert.Equal(t, want, got)
 }
@@ -144,7 +147,10 @@ func TestRunner_failsWhenFileFailsAfterCreatingATable(t *testing.T) {
 	_ = runner(context.Background())
 
 	want := map[string]any{"mig_partial exists": false, "migrations rows": 0}
-	got := map[string]any{"mig_partial exists": migration.MockTableInDatabase(t, mockPool, "mig_partial"), "migrations rows": migration.MockRowCount(t, mockPool, "migrations")}
+	got := map[string]any{
+		"mig_partial exists": migration.MockTableInDatabase(t, mockPool, "mig_partial"),
+		"migrations rows":    migration.MockRowCount(t, mockPool, "migrations"),
+	}
 
 	assert.Equal(t, want, got)
 }

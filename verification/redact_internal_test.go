@@ -14,10 +14,18 @@ func TestRedact_success(t *testing.T) {
 	response := _http.Response{Header: http.Header{"Location": {"/done?code=xyz"}}, Body: "<html></html>"}
 
 	want := Exchange{
-		URL:            "http://app/callback?code=%3Credacted%3E&next=%2Fhome",
-		RequestHeader:  map[string]string{"Authorization": "<redacted>", "Cookie": "<redacted>"},
-		RequestBody:    map[string]any{"name": "Ana", "password": "<redacted>"},
-		ResponseHeader: map[string]string{"Location": "/done?code=%3Credacted%3E"},
+		URL: "http://app/callback?code=%3Credacted%3E&next=%2Fhome",
+		RequestHeader: map[string]string{
+			"Authorization": "<redacted>",
+			"Cookie":        "<redacted>",
+		},
+		RequestBody: map[string]any{
+			"name":     "Ana",
+			"password": "<redacted>",
+		},
+		ResponseHeader: map[string]string{
+			"Location": "/done?code=%3Credacted%3E",
+		},
 	}
 	got := redact("http://app/callback?code=xyz&next=/home", request, response)
 

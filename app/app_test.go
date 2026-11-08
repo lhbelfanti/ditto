@@ -38,7 +38,14 @@ func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {
 func TestRun_successWhenLivenessRouteIsMounted(t *testing.T) {
 	service := app.StartService(t)
 
-	want := app.Reply{Status: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "X-Order": {"outer", "inner"}}, Body: `{"code":200,"message":"pong"}` + "\n"}
+	want := app.Reply{
+		Status: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": {"application/json"},
+			"X-Order":      {"outer", "inner"},
+		},
+		Body: `{"code":200,"message":"pong"}` + "\n",
+	}
 	got := service.Get("/ping/v1")
 
 	assert.Equal(t, want, got)
@@ -56,7 +63,15 @@ func TestRun_successWhenServiceRoutesAreMounted(t *testing.T) {
 func TestRun_successWhenDatabaseIsDisabled(t *testing.T) {
 	service := app.StartService(t)
 
-	want := app.Reply{Status: http.StatusNotFound, Header: http.Header{"Content-Type": {"text/plain; charset=utf-8"}, "X-Content-Type-Options": {"nosniff"}, "X-Order": {"outer", "inner"}}, Body: "404 page not found\n"}
+	want := app.Reply{
+		Status: http.StatusNotFound,
+		Header: http.Header{
+			"Content-Type":           {"text/plain; charset=utf-8"},
+			"X-Content-Type-Options": {"nosniff"},
+			"X-Order":                {"outer", "inner"},
+		},
+		Body: "404 page not found\n",
+	}
 	got := service.Get("/database/ping/v1")
 
 	assert.Equal(t, want, got)
