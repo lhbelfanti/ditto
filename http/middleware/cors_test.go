@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/http/middleware"
+	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
 func TestCORS_successWhenOriginIsAllowed(t *testing.T) {
@@ -71,9 +72,18 @@ func TestCORS_successWhenRequestIsPreflight(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	want := http.StatusNoContent
+	want := response.Recorded[any]{
+		Status: http.StatusNoContent,
+		Header: http.Header{
+			"Access-Control-Allow-Credentials": {"true"},
+			"Access-Control-Allow-Headers":     {"Authorization, Content-Type"},
+			"Access-Control-Allow-Methods":     {"GET, POST, PUT, DELETE, OPTIONS"},
+			"Access-Control-Max-Age":           {"86400"},
+			"Vary":                             {"Origin"},
+		},
+	}
 	wantCalls := 0
-	got := w.Result().StatusCode
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 	assert.Equal(t, wantCalls, gotCalls)

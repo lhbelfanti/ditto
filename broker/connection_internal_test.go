@@ -38,3 +38,14 @@ func TestCloseLateDial_successWhenDialFailed(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestDialAsync_success(t *testing.T) {
+	done := make(chan dialResult, 1)
+
+	dialAsync("not-a-valid-url", done)
+
+	want := 1
+	got := len(done)
+
+	assert.Equal(t, want, got)
+}

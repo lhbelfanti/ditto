@@ -6,8 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/lhbelfanti/ditto/v2/database"
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 func TestBeginLocked_success(t *testing.T) {
@@ -147,4 +151,29 @@ func TestApplyFile_failsWhenCommittingTheFileFails(t *testing.T) {
 	got := applyFile(context.Background(), mockDB, mockFile)
 
 	assert.ErrorIs(t, got, want)
+}
+
+func TestRollback_success(t *testing.T) {
+	output, restore := log.Capture()
+	t.Cleanup(restore)
+	mockTx := database.MockTxFailing(pgx.ErrTxClosed)
+
+	rollback(context.Background(), mockTx)
+
+	got := output.Entries()
+
+	assert.Empty(t, got)
+}
+
+func TestRollback_successWhenRollbackFails(t *testing.T) {
+	output, restore := log.Capture()
+	t.Cleanup(restore)
+	mockTx := database.MockTxFailing(errors.New("boom"))
+
+	rollback(context.Background(), mockTx)
+
+	want := []map[string]any{{"level": "warn", "message": "failed to roll back the migration transaction", "cause": "boom"}}
+	got := output.Entries()
+
+	assert.Equal(t, want, got)
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	_http "github.com/lhbelfanti/ditto/v2/http"
+	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
 func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
@@ -29,27 +30,21 @@ func TestRequest_Call_successWhenBodyIsJSON(t *testing.T) {
 }
 
 func TestRequest_Call_successWhenResponseHasBody(t *testing.T) {
-	mockServer := _http.MockServer(http.StatusOK, nil, `{"ok":true}`)
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
+	mockHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusOK, Body: `{"ok":true}`}
+	client, _ := _http.MockSequenceClient(mockHTTPResult)
 
-	resp, _ := client.NewRequest(http.MethodGet, mockServer.URL).Call(context.Background())
-
-	want := `{"ok":true}`
-	got := resp.Body
+	want := _http.Response{Body: `{"ok":true}`, Status: "200 OK", StatusCode: http.StatusOK}
+	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
 	assert.Equal(t, want, got)
 }
 
 func TestRequest_Call_successWhenResponseHasStatus(t *testing.T) {
-	mockServer := _http.MockServer(http.StatusOK, nil, "")
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
+	mockHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusOK}
+	client, _ := _http.MockSequenceClient(mockHTTPResult)
 
-	resp, _ := client.NewRequest(http.MethodGet, mockServer.URL).Call(context.Background())
-
-	want := "200 OK"
-	got := resp.Status
+	want := _http.Response{Status: "200 OK", StatusCode: http.StatusOK}
+	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
 	assert.Equal(t, want, got)
 }
@@ -65,28 +60,11 @@ func TestRequest_Call_successWhenBodyIsNil(t *testing.T) {
 
 func TestRequest_Call_successWhenResponseHasHeaders(t *testing.T) {
 	mockHeader := http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}
-	mockServer := _http.MockServer(http.StatusTooManyRequests, mockHeader, "")
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
+	mockHTTPResult := _http.MockHTTPResult{StatusCode: http.StatusTooManyRequests, Header: mockHeader}
+	client, _ := _http.MockSequenceClient(mockHTTPResult)
 
-	resp, _ := client.NewRequest(http.MethodGet, mockServer.URL).Call(context.Background())
-
-	want := "42"
-	got := resp.Header.Get("X-MBX-USED-WEIGHT-1M")
-
-	assert.Equal(t, want, got)
-}
-
-func TestRequest_Call_successWhenResponseHasRetryAfterHeader(t *testing.T) {
-	mockHeader := http.Header{"Retry-After": {"5"}}
-	mockServer := _http.MockServer(http.StatusTooManyRequests, mockHeader, "")
-	defer mockServer.Close()
-	client := _http.NewClient(5 * time.Second)
-
-	resp, _ := client.NewRequest(http.MethodGet, mockServer.URL).Call(context.Background())
-
-	want := http.StatusTooManyRequests
-	got := resp.StatusCode
+	want := _http.Response{Status: "429 Too Many Requests", StatusCode: http.StatusTooManyRequests, Header: http.Header{"X-Mbx-Used-Weight-1m": {"42"}, "Retry-After": {"5"}}}
+	got, _ := client.NewRequest(http.MethodGet, "http://example.test").Call(context.Background())
 
 	assert.Equal(t, want, got)
 }
@@ -210,8 +188,8 @@ func TestSystemRoutes_WithDatabasePing_success(t *testing.T) {
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
-	want := http.StatusOK
-	got := w.Code
+	want := response.Recorded[any]{Status: http.StatusOK, Message: "pong"}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }
@@ -225,8 +203,8 @@ func TestSystemRoutes_WithDatabasePing_failsWhenPingFails(t *testing.T) {
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
-	want := http.StatusServiceUnavailable
-	got := w.Code
+	want := response.Recorded[any]{Status: http.StatusServiceUnavailable, Message: _http.ErrMsgDatabaseUnavailable}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }
@@ -242,8 +220,8 @@ func TestSystemRoutes_WithDatabasePing_failsWhenPingFailsWithSensitiveError(t *t
 
 	mux.ServeHTTP(w, req)
 
-	want := `{"code":503,"message":"` + _http.ErrMsgDatabaseUnavailable + `"}` + "\n"
-	got := w.Body.String()
+	want := response.Recorded[any]{Status: http.StatusServiceUnavailable, Message: _http.ErrMsgDatabaseUnavailable}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }

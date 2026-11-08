@@ -4,16 +4,15 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDeclareQueue_success(t *testing.T) {
 	mockChannel := &MockChannel{}
 
-	queue, _ := declareQueue(mockChannel, "work")
-
-	want := "work"
-	got := queue.Name
+	want := amqp091.Queue{Name: "work"}
+	got, _ := declareQueue(mockChannel, "work")
 
 	assert.Equal(t, want, got)
 }

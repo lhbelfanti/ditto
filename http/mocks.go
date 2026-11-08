@@ -39,6 +39,12 @@ type (
 		Body   string
 	}
 
+	// MockFailingBody is a response body whose Close fails with Err.
+	MockFailingBody struct {
+		io.Reader
+		Err error
+	}
+
 	// MockExpectingTransport answers only the request it expects, with its result.
 	MockExpectingTransport struct {
 		expected MockExpectedRequest
@@ -182,4 +188,9 @@ func (m *MockExpectingTransport) RoundTrip(req *http.Request) (*http.Response, e
 		Body:       io.NopCloser(strings.NewReader(m.result.Body)),
 		Header:     m.result.Header,
 	}, nil
+}
+
+// Close fails with the error of the body.
+func (m MockFailingBody) Close() error {
+	return m.Err
 }

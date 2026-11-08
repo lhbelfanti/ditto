@@ -1,9 +1,6 @@
 package verification
 
-import (
-	"net/http"
-	"net/http/httptest"
-)
+import "net/http"
 
 // MockRequest returns a request for GET /accounts/{id}/v1 with the id 42, that expects a 200.
 func MockRequest() Request {
@@ -57,9 +54,9 @@ func MockPanickingJourney(id string, value any) Journey {
 	}}
 }
 
-// MockRedirectServer returns a server that answers every request with a redirect to /next.
-func MockRedirectServer() *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/next", http.StatusFound)
-	}))
+// MockFailingJourney returns a journey that fails with err.
+func MockFailingJourney(id string, err error) Journey {
+	return Journey{ID: id, Prove: func(run *Run) {
+		run.fail(err)
+	}}
 }

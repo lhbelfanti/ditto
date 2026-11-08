@@ -38,8 +38,8 @@ func TestRun_successWhenServerStartsAndShutsDown(t *testing.T) {
 func TestRun_successWhenLivenessRouteIsMounted(t *testing.T) {
 	service := app.StartService(t)
 
-	want := http.StatusOK
-	got := service.Get("/ping/v1").StatusCode
+	want := app.Reply{Status: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "X-Order": {"outer", "inner"}}, Body: `{"code":200,"message":"pong"}` + "\n"}
+	got := service.Get("/ping/v1")
 
 	assert.Equal(t, want, got)
 }
@@ -47,17 +47,8 @@ func TestRun_successWhenLivenessRouteIsMounted(t *testing.T) {
 func TestRun_successWhenServiceRoutesAreMounted(t *testing.T) {
 	service := app.StartService(t)
 
-	want := http.StatusTeapot
-	got := service.Get("/items/v1").StatusCode
-
-	assert.Equal(t, want, got)
-}
-
-func TestRun_successWhenTwoMiddlewareAreAdded(t *testing.T) {
-	service := app.StartService(t)
-
-	want := []string{"outer", "inner"}
-	got := service.Get("/items/v1").Header.Values("X-Order")
+	want := app.Reply{Status: http.StatusTeapot, Header: http.Header{"X-Order": {"outer", "inner"}}}
+	got := service.Get("/items/v1")
 
 	assert.Equal(t, want, got)
 }
@@ -65,8 +56,8 @@ func TestRun_successWhenTwoMiddlewareAreAdded(t *testing.T) {
 func TestRun_successWhenDatabaseIsDisabled(t *testing.T) {
 	service := app.StartService(t)
 
-	want := http.StatusNotFound
-	got := service.Get("/database/ping/v1").StatusCode
+	want := app.Reply{Status: http.StatusNotFound, Header: http.Header{"Content-Type": {"text/plain; charset=utf-8"}, "X-Content-Type-Options": {"nosniff"}, "X-Order": {"outer", "inner"}}, Body: "404 page not found\n"}
+	got := service.Get("/database/ping/v1")
 
 	assert.Equal(t, want, got)
 }

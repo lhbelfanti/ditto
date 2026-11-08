@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/lhbelfanti/ditto/v2/http/response"
 )
 
 func TestPingHandlerV1_success(t *testing.T) {
@@ -16,8 +18,8 @@ func TestPingHandlerV1_success(t *testing.T) {
 
 	handler(w, req)
 
-	want := http.StatusOK
-	got := w.Code
+	want := response.Recorded[any]{Status: http.StatusOK, Message: "pong"}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }
@@ -30,8 +32,8 @@ func TestDatabasePingHandlerV1_success(t *testing.T) {
 
 	handler(w, req)
 
-	want := http.StatusOK
-	got := w.Code
+	want := response.Recorded[any]{Status: http.StatusOK, Message: "pong"}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }
@@ -44,8 +46,8 @@ func TestDatabasePingHandlerV1_failsWhenPingFails(t *testing.T) {
 
 	handler(w, req)
 
-	want := http.StatusServiceUnavailable
-	got := w.Code
+	want := response.Recorded[any]{Status: http.StatusServiceUnavailable, Message: ErrMsgDatabaseUnavailable}
+	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
 }

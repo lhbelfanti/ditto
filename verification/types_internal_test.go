@@ -19,8 +19,21 @@ func TestRun_send_success(t *testing.T) {
 
 	response := run.send(mockRequest, false)
 
-	want := []any{http.StatusOK, "pong", []Step{{Route: "GET /accounts/{id}/v1", Want: http.StatusOK, Got: http.StatusOK, Exchange: Exchange{URL: "http://app/accounts/42/v1"}}}}
-	got := []any{response.StatusCode, response.Body, run.result.Steps}
+	want := []any{
+		_http.Response{Body: "pong", Status: "200 OK", StatusCode: http.StatusOK},
+		&Run{
+			ctx:     context.Background(),
+			client:  mockClient,
+			baseURL: "http://app",
+			result: Result{Steps: []Step{{
+				Route:    "GET /accounts/{id}/v1",
+				Want:     http.StatusOK,
+				Got:      http.StatusOK,
+				Exchange: Exchange{URL: "http://app/accounts/42/v1"},
+			}}},
+		},
+	}
+	got := []any{response, run}
 
 	assert.Equal(t, want, got)
 }
@@ -33,12 +46,22 @@ func TestRun_send_successWhenTheRequestHasAHeaderATokenAndABody(t *testing.T) {
 
 	run.send(mockRequest, false)
 
-	want := Exchange{
-		URL:           "http://app/accounts/me/v1",
-		RequestHeader: map[string]string{"Accept": "application/json", "Authorization": redacted},
-		RequestBody:   map[string]any{"name": "Ana"},
+	want := &Run{
+		ctx:     context.Background(),
+		client:  mockClient,
+		baseURL: "http://app",
+		result: Result{Steps: []Step{{
+			Route: "PUT /accounts/me/v1",
+			Want:  http.StatusOK,
+			Got:   http.StatusOK,
+			Exchange: Exchange{
+				URL:           "http://app/accounts/me/v1",
+				RequestHeader: map[string]string{"Accept": "application/json", "Authorization": redacted},
+				RequestBody:   map[string]any{"name": "Ana"},
+			},
+		}}},
 	}
-	got := run.result.Steps[0].Exchange
+	got := run
 
 	assert.Equal(t, want, got)
 }
@@ -47,28 +70,38 @@ func TestRun_send_failsWhenASetupStepAnswersAnotherStatus(t *testing.T) {
 	mockResult := _http.MockHTTPResult{StatusCode: http.StatusFound}
 	mockClient, _ := _http.MockSequenceClient(mockResult)
 	mockRequest := MockRequest()
+	mockJourney := MockSetupJourney("signin", mockRequest)
 	run := &Run{ctx: context.Background(), client: mockClient, baseURL: "http://app"}
 	done := make(chan struct{})
 
-	go func() { defer close(done); run.send(mockRequest, true) }()
+	go runJourney(run, mockJourney.Prove, done)
 	<-done
 
-	want := "unexpected status: GET /accounts/{id}/v1 answered 302, want 200"
-	got := run.result.Failure
+	want := &Run{
+		ctx:     context.Background(),
+		client:  mockClient,
+		baseURL: "http://app",
+		result: Result{
+			Steps:   []Step{{Route: "GET /accounts/{id}/v1", Want: http.StatusOK, Got: http.StatusFound, Setup: true, Exchange: Exchange{URL: "http://app/accounts/42/v1"}}},
+			Failure: "unexpected status: GET /accounts/{id}/v1 answered 302, want 200",
+		},
+	}
+	got := run
 
 	assert.Equal(t, want, got)
 }
 
 func TestRun_fail_success(t *testing.T) {
 	mockErr := errors.New("boom")
+	mockJourney := MockFailingJourney("account.get", mockErr)
 	run := &Run{}
 	done := make(chan struct{})
 
-	go func() { defer close(done); run.fail(mockErr) }()
+	go runJourney(run, mockJourney.Prove, done)
 	<-done
 
-	want := "boom"
-	got := run.result.Failure
+	want := &Run{result: Result{Failure: "boom"}}
+	got := run
 
 	assert.Equal(t, want, got)
 }

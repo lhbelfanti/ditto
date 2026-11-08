@@ -21,11 +21,7 @@ func TestInit_failsWhenErrorIsPassed(t *testing.T) {
 	output, restore := log.Capture()
 	t.Cleanup(restore)
 	initErr := errors.New("database: boom")
-	var recovered any
-	func() {
-		defer func() { recovered = recover() }()
-		setup.Init("test", initErr)
-	}()
+	recovered := setup.CapturePanic(func() { setup.Init("test", initErr) })
 
 	want := []any{initErr, []map[string]any{{"level": "error", "message": "failed to initialize a dependency", "error": "database: boom"}}}
 	got := []any{recovered, output.Entries()}
@@ -34,20 +30,16 @@ func TestInit_failsWhenErrorIsPassed(t *testing.T) {
 }
 
 func TestMust_success(t *testing.T) {
-	assert.NotPanics(t, func() {
-		setup.Must(nil)
-	})
+	got := setup.CapturePanic(func() { setup.Must(nil) })
+
+	assert.Nil(t, got)
 }
 
 func TestMust_failsWhenErrorIsPassed(t *testing.T) {
 	output, restore := log.Capture()
 	t.Cleanup(restore)
 	initErr := errors.New("database: boom")
-	var recovered any
-	func() {
-		defer func() { recovered = recover() }()
-		setup.Must(initErr)
-	}()
+	recovered := setup.CapturePanic(func() { setup.Must(initErr) })
 
 	want := []any{initErr, []map[string]any{{"level": "error", "message": "failed to initialize a dependency", "error": "database: boom"}}}
 	got := []any{recovered, output.Entries()}

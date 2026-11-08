@@ -60,8 +60,16 @@ func TestDrive_successWhenAJourneyDecodesItsResponse(t *testing.T) {
 
 	drive := verification.MakeDrive(mockClient, "http://app")
 
-	want := false
-	got := drive(context.Background(), mockJourneys).Failed()
+	want := verification.Report{Results: []verification.Result{{
+		Journey: "account.get",
+		Steps: []verification.Step{{
+			Route:    "GET /accounts/{id}/v1",
+			Want:     http.StatusOK,
+			Got:      http.StatusOK,
+			Exchange: verification.Exchange{URL: "http://app/accounts/42/v1", ResponseBody: map[string]any{"id": float64(42)}},
+		}},
+	}}}
+	got := drive(context.Background(), mockJourneys)
 
 	assert.Equal(t, want, got)
 }
@@ -93,8 +101,12 @@ func TestDrive_failsWhenTheRequestCantBeSent(t *testing.T) {
 
 	drive := verification.MakeDrive(mockClient, "http://app")
 
-	want := `can't send the request: failed to execute request: Get "http://app/accounts/42/v1": boom`
-	got := drive(context.Background(), mockJourneys).Results[0].Failure
+	want := verification.Report{Results: []verification.Result{{
+		Journey: "account.get",
+		Steps:   []verification.Step{{Route: "GET /accounts/{id}/v1", Want: http.StatusOK, Exchange: verification.Exchange{URL: "http://app/accounts/42/v1"}}},
+		Failure: `can't send the request: failed to execute request: Get "http://app/accounts/42/v1": boom`,
+	}}}
+	got := drive(context.Background(), mockJourneys)
 
 	assert.Equal(t, want, got)
 }
@@ -121,8 +133,12 @@ func TestDrive_failsWhenTheBodyIsNotJSON(t *testing.T) {
 
 	drive := verification.MakeDrive(mockClient, "http://app")
 
-	want := "can't decode the response body: invalid character 'p' looking for beginning of value"
-	got := drive(context.Background(), mockJourneys).Results[0].Failure
+	want := verification.Report{Results: []verification.Result{{
+		Journey: "health.ping",
+		Steps:   []verification.Step{{Route: "GET /accounts/{id}/v1", Want: http.StatusOK, Got: http.StatusOK, Exchange: verification.Exchange{URL: "http://app/accounts/42/v1"}}},
+		Failure: "can't decode the response body: invalid character 'p' looking for beginning of value",
+	}}}
+	got := drive(context.Background(), mockJourneys)
 
 	assert.Equal(t, want, got)
 }

@@ -14,8 +14,8 @@ func TestRunJourney_success(t *testing.T) {
 	go runJourney(run, mockJourney.Prove, done)
 	<-done
 
-	want := Result{Journey: "health.ping"}
-	got := run.result
+	want := &Run{result: Result{Journey: "health.ping"}}
+	got := run
 
 	assert.Equal(t, want, got)
 }
@@ -28,8 +28,19 @@ func TestRunJourney_successWhenTheJourneyPanics(t *testing.T) {
 	go runJourney(run, mockJourney.Prove, done)
 	<-done
 
-	want := Result{Journey: "health.ping", Failure: "journey panicked: boom"}
-	got := run.result
+	want := &Run{result: Result{Journey: "health.ping", Failure: "journey panicked: boom"}}
+	got := run
+
+	assert.Equal(t, want, got)
+}
+
+func TestRecordPanic_success(t *testing.T) {
+	run := &Run{result: Result{Journey: "health.ping"}}
+
+	recordPanic(run)
+
+	want := &Run{result: Result{Journey: "health.ping"}}
+	got := run
 
 	assert.Equal(t, want, got)
 }
