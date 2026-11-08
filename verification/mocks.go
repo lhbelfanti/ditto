@@ -1,6 +1,20 @@
 package verification
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+	"time"
+
+	_http "github.com/lhbelfanti/ditto/v2/http"
+)
+
+// MockClient returns the client NewClient creates, with its requests answered by results in sequence.
+func MockClient(results ..._http.MockHTTPResult) *_http.CustomClient {
+	client := NewClient(time.Second)
+	client.HTTPClient.Transport = _http.MockSequenceRoundTripper(results...)
+
+	return client
+}
 
 // MockRequest returns a request for GET /accounts/{id}/v1 with the id 42, that expects a 200.
 func MockRequest() Request {
@@ -59,4 +73,10 @@ func MockFailingJourney(id string, err error) Journey {
 	return Journey{ID: id, Prove: func(run *Run) {
 		run.fail(err)
 	}}
+}
+
+// MockDecodeError returns the error encoding/json gives for body when it is not JSON.
+func MockDecodeError(body string) error {
+	var target any
+	return json.Unmarshal([]byte(body), &target)
 }

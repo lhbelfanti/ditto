@@ -2,10 +2,9 @@ package verification
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/lhbelfanti/ditto/v2/http"
 )
 
 const redacted string = "<redacted>"
@@ -27,35 +26,32 @@ var (
 	sensitiveHeaders = map[string]bool{"authorization": true, "cookie": true, "set-cookie": true}
 )
 
-// redact builds the evidence of a request sent to target and its response, with the sensitive values replaced.
-// A body that is not JSON is left out, since a redirect page can repeat the values of its URL.
-func redact(target string, request Request, response http.Response) Exchange {
-	requestHeader := make(map[string]string, len(request.Header)+1)
-	for key, value := range request.Header {
-		requestHeader[key] = value
+// redact builds the evidence of req, sent with requestBody, and of resp, read as responseBody, with the sensitive
+// values replaced. resp is nil when the request got no answer. A body that is not JSON is left out, since a
+// redirect page can repeat the values of its URL.
+func redact(req *http.Request, requestBody []byte, resp *http.Response, responseBody []byte) Exchange {
+	exchange := Exchange{
+		Method:        req.Method,
+		URL:           redactURL(req.URL.String()),
+		RequestHeader: redactHeader(flatten(req.Header)),
+		RequestBody:   redactJSON(requestBody),
+	}
+	if resp != nil {
+		exchange.ResponseHeader = redactHeader(flatten(resp.Header))
+		exchange.ResponseBody = redactJSON(responseBody)
 	}
 
-	if request.Token != "" {
-		requestHeader["Authorization"] = "Bearer " + request.Token
+	return exchange
+}
+
+// flatten joins the values of each header with ", ".
+func flatten(header http.Header) map[string]string {
+	flat := make(map[string]string, len(header))
+	for key, values := range header {
+		flat[key] = strings.Join(values, ", ")
 	}
 
-	responseHeader := make(map[string]string, len(response.Header))
-	for key, values := range response.Header {
-		responseHeader[key] = strings.Join(values, ", ")
-	}
-
-	requestBody, raw := request.Body.([]byte)
-	if !raw {
-		requestBody, _ = json.Marshal(request.Body)
-	}
-
-	return Exchange{
-		URL:            redactURL(target),
-		RequestHeader:  redactHeader(requestHeader),
-		RequestBody:    redactJSON(requestBody),
-		ResponseHeader: redactHeader(responseHeader),
-		ResponseBody:   redactJSON([]byte(response.Body)),
-	}
+	return flat
 }
 
 // redactURL replaces the values of the sensitive query params of raw, or all of raw when it is not a URL.
