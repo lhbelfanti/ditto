@@ -2,6 +2,7 @@ package migration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/lhbelfanti/ditto/v2/database"
+	"github.com/lhbelfanti/ditto/v2/log"
 )
 
 // MakeRunner returns a Runner that applies all *.sql files from migrationsDir in lexicographic
@@ -64,19 +66,15 @@ func beginLocked(ctx context.Context, db database.Connection) (_ pgx.Tx, err err
 		return nil, fmt.Errorf("%w: %w", ErrFailedToBeginTransaction, err)
 	}
 
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
-	}()
-
 	_, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", migrationLockKey)
 	if err != nil {
+		rollback(ctx, tx)
 		return nil, fmt.Errorf("%w: %w", ErrFailedToLockMigrations, err)
 	}
 
 	_, err = tx.Exec(ctx, createTable)
 	if err != nil {
+		rollback(ctx, tx)
 		return nil, fmt.Errorf("%w: %w", ErrFailedToCreateTable, err)
 	}
 
@@ -90,7 +88,7 @@ func applyFile(ctx context.Context, db database.Connection, file string) error {
 		return fmt.Errorf("%w: %w", ErrFailedToPrepareFile, err)
 	}
 
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer rollback(ctx, tx)
 
 	name := filepath.Base(file)
 
@@ -131,4 +129,16 @@ func applyFile(ctx context.Context, db database.Connection, file string) error {
 	}
 
 	return nil
+}
+
+// rollback ends tx, and logs a failure at Warn. After a Commit, pgx answers pgx.ErrTxClosed, which is not a failure.
+func rollback(ctx context.Context, tx pgx.Tx) {
+	err := tx.Rollback(ctx)
+	if err != nil {
+		if errors.Is(err, pgx.ErrTxClosed) {
+			return
+		}
+
+		log.Warn(log.With(ctx, log.Param("cause", err)), "failed to roll back the migration transaction")
+	}
 }

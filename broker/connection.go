@@ -14,15 +14,18 @@ func closeLateDial(done <-chan dialResult) {
 	}
 }
 
+// dialAsync dials url and sends the connection, or the error, to done.
+func dialAsync(url string, done chan<- dialResult) {
+	conn, err := amqp091.Dial(url)
+	done <- dialResult{conn, err}
+}
+
 // dial connects to RabbitMQ at the given URL, bounded by ctx. amqp091.Dial itself has no
 // context-aware variant, so it runs in a goroutine raced against ctx.Done(); if ctx wins, any
 // connection the dial still goes on to establish is closed in the background rather than leaked.
 func dial(ctx context.Context, url string) (*amqp091.Connection, error) {
 	done := make(chan dialResult, 1)
-	go func() {
-		conn, err := amqp091.Dial(url)
-		done <- dialResult{conn, err}
-	}()
+	go dialAsync(url, done)
 
 	select {
 	case r := <-done:
