@@ -6,12 +6,16 @@ The `verify-<app>` skill of each service launches the instance; this package dri
 
 ## A journey
 
-A journey is a `Prove` function with the ID its feature card gives it. It calls the methods of `*Run`:
+A journey is a `Prove` function with the ID its feature card gives it. It builds its requests with ditto's own
+request, and calls the methods of `*Run`:
 
-- `Do` sends a request as a step of the journey. `Route` is the route as the router registers it, with its
-  placeholders, and `Params` fills them. The step fails when the answer is not `Status`.
-- `Send` sends a request that only prepares the journey, such as a sign-in. Its step is marked `Setup`, and it
-  fails only when `Status` is set and the answer is another one.
+- `NewRequest(method, url)` creates the request, a ditto `*http.Request`, with `WithHeader`, `WithQueryParam`
+  and `WithBody` as usual. `URL(path)` puts the base URL of the instance before a path that starts with `/`,
+  and leaves the full URL of another service, such as `http://google-mock/authorize`, as it is.
+- `Do(request, status)` sends a request as a step of the journey. The step fails when the answer is not
+  `status`.
+- `Setup(request, status)` sends a request that only prepares the journey, such as a sign-in. Its step is
+  marked `Setup`, and it also fails when the answer is not `status`.
 - `Decode` reads a JSON body, and `Require` checks a condition on it.
 
 ```go
@@ -20,18 +24,20 @@ func Revoke(run *verification.Run) {
 	ana := signIn(run, "ana@example.com")
 	second := signIn(run, "ana@example.com")
 
+	list := run.NewRequest(http.MethodGet, run.URL("/accounts/me/sessions/v1"))
+	list.WithHeader("Authorization", "Bearer "+ana)
+
 	var sessions SessionsDTO
-	response := run.Do(verification.Request{Route: "GET /accounts/me/sessions/v1", Token: ana, Status: http.StatusOK})
-	run.Decode(response, &sessions)
+	run.Decode(run.Do(list, http.StatusOK), &sessions)
 	run.Require(len(sessions.Sessions) == 2, "the second sign-in is not listed")
 
-	run.Do(verification.Request{
-		Route:  "DELETE /accounts/me/sessions/{id}/v1",
-		Params: map[string]string{"id": sessions.Sessions[1].ID},
-		Token:  ana,
-		Status: http.StatusOK,
-	})
-	run.Do(verification.Request{Route: "GET /sessions/current/v1", Token: second, Status: http.StatusUnauthorized})
+	revoke := run.NewRequest(http.MethodDelete, run.URL("/accounts/me/sessions/"+sessions.Sessions[1].ID+"/v1"))
+	revoke.WithHeader("Authorization", "Bearer "+ana)
+	run.Do(revoke, http.StatusOK)
+
+	current := run.NewRequest(http.MethodGet, run.URL("/sessions/current/v1"))
+	current.WithHeader("Authorization", "Bearer "+second)
+	run.Do(current, http.StatusUnauthorized)
 }
 ```
 
@@ -41,9 +47,7 @@ fails the same way. The next journey still runs.
 
 ## Driving the journeys
 
-`MakeDrive` proves the journeys in order and returns a `Report` with the steps of each one. Routes that start
-with `/` go to the base URL of the instance; a route with a full URL, such as `GET http://google-mock/authorize`,
-goes to that service.
+`MakeDrive` proves the journeys in order and returns a `Report` with the steps of each one.
 
 ```go
 drive := verification.MakeDrive(verification.NewClient(10*time.Second), baseURL)
