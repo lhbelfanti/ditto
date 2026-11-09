@@ -106,12 +106,14 @@ func redactJSON(body []byte) any {
 	return redactValue(value)
 }
 
-// redactValue replaces the sensitive fields of value, at any depth.
+// redactValue replaces the string values of the sensitive fields of value, at any depth. A number stays, such as the
+// code of the envelope Send writes.
 func redactValue(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, field := range typed {
-			if sensitiveKeys[strings.ToLower(key)] {
+			_, isString := field.(string)
+			if isString && sensitiveKeys[strings.ToLower(key)] {
 				typed[key] = redacted
 				continue
 			}
