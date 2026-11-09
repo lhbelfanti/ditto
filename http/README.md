@@ -10,13 +10,15 @@ line at a time, and sends it with `Call`:
 
 ```go
 request := httpClient.NewRequest(http.MethodGet, url)
-request.WithHeader("Authorization", "Bearer "+token)
+request.WithBearer(token)
 request.WithQueryParam("pair", pair)
 response, err := request.Call(ctx)
 ```
 
 `WithBody` sends a `[]byte` as it is and any other value as its JSON, with `Content-Type:
-application/json`. `WithQueryParam` adds to the query the endpoint already has.
+application/json`. `WithQueryParam` adds to the query the endpoint already has. `WithBearer` sets the
+`Authorization: Bearer` header. `WithCookies(response)` sends back the cookies an earlier response set,
+the way a browser does, and `response.Cookie(name)` returns the value of one of them.
 
 For client tests that need a response sequence (for example, 429 followed by 200), build the client
 with `MockSequenceClient`, passing one `MockHTTPResult` per request. It returns the client and the
@@ -143,7 +145,8 @@ assert.Equal(t, want, got)
 is left, so a `want` names only the headers the handler sets itself, such as `Set-Cookie` or `Location`.
 A body that `Send` did not write, such as the page of a redirect, or whose `code` is not the status, stays
 as it is in `Body`. Use
-`response.Read[any]` for a response without data.
+`response.Read[any]` for a response without data. `response.Body[T]` is the body `Send` writes, for a
+client that decodes it.
 
 ## `RegisterSystemRoutes`
 
