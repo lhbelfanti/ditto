@@ -16,7 +16,7 @@ func Read[T any](w *httptest.ResponseRecorder) Recorded[T] {
 		return Recorded[T]{Status: w.Code, Header: nilWhenEmpty(header), Body: w.Body.String()}
 	}
 
-	var body sentBody[T]
+	var body Body[T]
 	err := json.Unmarshal(w.Body.Bytes(), &body)
 	if err != nil || body.Code != w.Code {
 		return Recorded[T]{Status: w.Code, Header: nilWhenEmpty(header), Body: w.Body.String()}

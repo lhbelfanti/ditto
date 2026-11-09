@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type (
@@ -74,6 +75,26 @@ func (c *CustomClient) NewRequest(method, endpoint string) *Request {
 // WithHeader sets a header on the request, replacing any value it already has.
 func (r *Request) WithHeader(key, value string) {
 	r.header.Set(key, value)
+}
+
+// WithBearer sets the Authorization header to the bearer token.
+func (r *Request) WithBearer(token string) {
+	r.header.Set("Authorization", "Bearer "+token)
+}
+
+// WithCookies sets the Cookie header to the cookies response set, the way a browser sends them back.
+func (r *Request) WithCookies(response Response) {
+	cookies := (&http.Response{Header: response.Header}).Cookies()
+	if len(cookies) == 0 {
+		return
+	}
+
+	pairs := make([]string, 0, len(cookies))
+	for _, cookie := range cookies {
+		pairs = append(pairs, cookie.Name+"="+cookie.Value)
+	}
+
+	r.header.Set("Cookie", strings.Join(pairs, "; "))
 }
 
 // WithQueryParam adds a query param to the request, after the ones the url already has.
@@ -149,4 +170,15 @@ func (r *Request) Call(ctx context.Context) (Response, error) {
 		StatusCode: resp.StatusCode,
 		Header:     resp.Header,
 	}, nil
+}
+
+// Cookie returns the value of the cookie name that the response set, or "" when it set none.
+func (r Response) Cookie(name string) string {
+	for _, cookie := range (&http.Response{Header: r.Header}).Cookies() {
+		if cookie.Name == name {
+			return cookie.Value
+		}
+	}
+
+	return ""
 }
