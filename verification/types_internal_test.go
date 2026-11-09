@@ -13,14 +13,31 @@ import (
 	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
+func TestRun_URL_success(t *testing.T) {
+	run := &Run{baseURL: "http://app/"}
+
+	want := "http://app/accounts/42/v1"
+	got := run.URL("/accounts/42/v1")
+
+	assert.Equal(t, want, got)
+}
+
+func TestRun_URL_successWhenThePathIsAFullURL(t *testing.T) {
+	run := &Run{baseURL: "http://app"}
+
+	want := "http://google-mock/authorize"
+	got := run.URL("http://google-mock/authorize")
+
+	assert.Equal(t, want, got)
+}
+
 func TestRun_send_success(t *testing.T) {
 	mockResult := _http.MockHTTPResult{StatusCode: http.StatusOK, Body: "pong"}
 	mockClient := MockClient(mockResult)
 	recording, recordingTransport := newRecordingClient(mockClient)
-	mockRequest := MockRequest()
 	run := &Run{ctx: context.Background(), client: recording, recorder: recordingTransport, baseURL: "http://app"}
 
-	response := run.send(mockRequest, false)
+	response := run.send(run.NewRequest(http.MethodGet, "http://app/ping/v1"), http.StatusOK, true)
 
 	want := []any{
 		_http.Response{Body: "pong", Status: "200 OK", StatusCode: http.StatusOK},
@@ -30,10 +47,10 @@ func TestRun_send_success(t *testing.T) {
 			recorder: recordingTransport,
 			baseURL:  "http://app",
 			result: Result{Steps: []Step{{
-				Route:    "GET /accounts/{id}/v1",
 				Want:     http.StatusOK,
 				Got:      http.StatusOK,
-				Exchange: Exchange{Method: http.MethodGet, URL: "http://app/accounts/42/v1"},
+				Setup:    true,
+				Exchange: Exchange{Method: http.MethodGet, URL: "http://app/ping/v1"},
 			}}},
 		},
 	}
@@ -42,49 +59,11 @@ func TestRun_send_success(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestRun_send_successWhenTheRequestHasAHeaderATokenAndABody(t *testing.T) {
-	mockResult := _http.MockHTTPResult{StatusCode: http.StatusOK}
-	mockClient := MockClient(mockResult)
-	recording, recordingTransport := newRecordingClient(mockClient)
-	mockRequest := Request{
-		Route:  "PUT /accounts/me/v1",
-		Token:  "session",
-		Header: map[string]string{"Accept": "application/json"},
-		Body:   map[string]string{"name": "Ana"},
-		Status: http.StatusOK,
-	}
-	run := &Run{ctx: context.Background(), client: recording, recorder: recordingTransport, baseURL: "http://app"}
-
-	run.send(mockRequest, false)
-
-	want := &Run{
-		ctx:      context.Background(),
-		client:   recording,
-		recorder: recordingTransport,
-		baseURL:  "http://app",
-		result: Result{Steps: []Step{{
-			Route: "PUT /accounts/me/v1",
-			Want:  http.StatusOK,
-			Got:   http.StatusOK,
-			Exchange: Exchange{
-				Method:        http.MethodPut,
-				URL:           "http://app/accounts/me/v1",
-				RequestHeader: map[string]string{"Accept": "application/json", "Authorization": redacted, "Content-Type": "application/json"},
-				RequestBody:   map[string]any{"name": "Ana"},
-			},
-		}}},
-	}
-	got := run
-
-	assert.Equal(t, want, got)
-}
-
-func TestRun_send_failsWhenASetupStepAnswersAnotherStatus(t *testing.T) {
+func TestRun_send_failsWhenTheStepAnswersAnotherStatus(t *testing.T) {
 	mockResult := _http.MockHTTPResult{StatusCode: http.StatusFound}
 	mockClient := MockClient(mockResult)
+	mockJourney := MockSetupJourney("signin", "/auth/google/v1", http.StatusOK)
 	recording, recordingTransport := newRecordingClient(mockClient)
-	mockRequest := MockRequest()
-	mockJourney := MockSetupJourney("signin", mockRequest)
 	run := &Run{ctx: context.Background(), client: recording, recorder: recordingTransport, baseURL: "http://app"}
 	done := make(chan struct{})
 
@@ -98,13 +77,12 @@ func TestRun_send_failsWhenASetupStepAnswersAnotherStatus(t *testing.T) {
 		baseURL:  "http://app",
 		result: Result{
 			Steps: []Step{{
-				Route:    "GET /accounts/{id}/v1",
 				Want:     http.StatusOK,
 				Got:      http.StatusFound,
 				Setup:    true,
-				Exchange: Exchange{Method: http.MethodGet, URL: "http://app/accounts/42/v1"},
+				Exchange: Exchange{Method: http.MethodGet, URL: "http://app/auth/google/v1"},
 			}},
-			Failure: fmt.Errorf("%w: GET /accounts/{id}/v1 answered 302, want 200", ErrUnexpectedStatus),
+			Failure: fmt.Errorf("%w: GET http://app/auth/google/v1 answered 302, want 200", ErrUnexpectedStatus),
 		},
 	}
 	got := run
@@ -114,7 +92,7 @@ func TestRun_send_failsWhenASetupStepAnswersAnotherStatus(t *testing.T) {
 
 func TestRun_fail_success(t *testing.T) {
 	mockErr := errors.New("boom")
-	mockJourney := MockFailingJourney("account.get", mockErr)
+	mockJourney := MockFailingJourney("health.ping", mockErr)
 	run := &Run{}
 	done := make(chan struct{})
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"runtime"
 	"strings"
 	"sync"
@@ -26,22 +25,9 @@ type (
 	// Drive proves every journey in order and reports the steps each one took.
 	Drive func(ctx context.Context, journeys []Journey) Report
 
-	// Request is one request of a journey. Route is "METHOD /path/{param}/v1" for a route of the app, or
-	// "METHOD http://host/path" for another service; Params fills its {param} placeholders.
-	Request struct {
-		Route  string
-		Params map[string]string
-		Query  url.Values
-		Token  string
-		Header map[string]string
-		Body   any
-		Status int
-	}
-
-	// Step is a request a journey sent: its route, the status the journey expects, the status it got and the
-	// exchange the connection carried. A setup step prepares the journey and is not part of its feature card.
+	// Step is a request a journey sent: the status the journey expects, the status it got and the exchange the
+	// connection carried. A setup step prepares the journey and is not part of its feature card.
 	Step struct {
-		Route    string   `json:"route"`
 		Want     int      `json:"want"`
 		Got      int      `json:"got"`
 		Setup    bool     `json:"setup,omitempty"`
@@ -71,7 +57,7 @@ type (
 		Results []Result
 	}
 
-	// Run is the journey being proved: Prove calls its methods to send requests and check their answers.
+	// Run is the journey being proved: Prove builds its requests with NewRequest and sends them with Do and Setup.
 	Run struct {
 		ctx      context.Context
 		client   *_http.CustomClient
@@ -100,15 +86,30 @@ type (
 	}
 )
 
-// Do sends request as a step of the journey, and stops the journey when the answer is not request.Status.
-func (r *Run) Do(request Request) _http.Response {
-	return r.send(request, false)
+// URL returns the URL of path on the app: a path that starts with "/" goes to the base URL of the instance, and a
+// full URL, of another service, is returned as it is.
+func (r *Run) URL(path string) string {
+	if strings.HasPrefix(path, "/") {
+		return strings.TrimSuffix(r.baseURL, "/") + path
+	}
+
+	return path
 }
 
-// Send sends request to prepare the journey, such as a sign-in. It stops the journey only when request.Status
-// is set and the answer is another one.
-func (r *Run) Send(request Request) _http.Response {
-	return r.send(request, true)
+// NewRequest creates a request sent through the connection of the journey, so that its step keeps the exchange.
+func (r *Run) NewRequest(method, url string) *_http.Request {
+	return r.client.NewRequest(method, url)
+}
+
+// Do sends request as a step of the journey, and stops the journey when the answer is not status.
+func (r *Run) Do(request *_http.Request, status int) _http.Response {
+	return r.send(request, status, false)
+}
+
+// Setup sends request to prepare the journey, such as a sign-in, and stops the journey when the answer is not
+// status. Its step is marked as a setup step.
+func (r *Run) Setup(request *_http.Request, status int) _http.Response {
+	return r.send(request, status, true)
 }
 
 // Decode reads the JSON body of response into target, and stops the journey when it can't.
@@ -126,40 +127,18 @@ func (r *Run) Require(condition bool, reason string) {
 	}
 }
 
-// send sends request and records it as a step, setup or not.
-func (r *Run) send(request Request, setup bool) _http.Response {
-	method, target, err := resolve(request, r.baseURL)
-	if err != nil {
-		r.fail(fmt.Errorf("%w: %w", ErrInvalidRequest, err))
-	}
-
-	outgoing := r.client.NewRequest(method, target)
-	for key, value := range request.Header {
-		outgoing.WithHeader(key, value)
-	}
-
-	if request.Token != "" {
-		outgoing.WithHeader("Authorization", "Bearer "+request.Token)
-	}
-
-	if request.Body != nil {
-		outgoing.WithBody(request.Body)
-	}
-
-	response, err := outgoing.Call(r.ctx)
-	r.result.Steps = append(r.result.Steps, Step{
-		Route:    request.Route,
-		Want:     request.Status,
-		Got:      response.StatusCode,
-		Setup:    setup,
-		Exchange: r.recorder.take(),
-	})
+// send sends request and records it as a step, setup or not, with the exchange the recorder kept.
+func (r *Run) send(request *_http.Request, status int, setup bool) _http.Response {
+	response, err := request.Call(r.ctx)
+	step := Step{Want: status, Got: response.StatusCode, Setup: setup, Exchange: r.recorder.take()}
+	r.result.Steps = append(r.result.Steps, step)
 	if err != nil {
 		r.fail(fmt.Errorf("%w: %w", ErrCantSendRequest, err))
 	}
 
-	if (!setup || request.Status != 0) && response.StatusCode != request.Status {
-		r.fail(fmt.Errorf("%w: %s answered %d, want %d", ErrUnexpectedStatus, request.Route, response.StatusCode, request.Status))
+	if response.StatusCode != status {
+		exchange := step.Exchange
+		r.fail(fmt.Errorf("%w: %s %s answered %d, want %d", ErrUnexpectedStatus, exchange.Method, exchange.URL, response.StatusCode, status))
 	}
 
 	return response

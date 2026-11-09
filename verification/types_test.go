@@ -47,7 +47,7 @@ func TestReport_MarshalJSON_success(t *testing.T) {
 	}}
 
 	want := `{"results":[` +
-		`{"journey":"health.ping","steps":[{"route":"","want":200,"got":200,"exchange":{"method":"","url":""}}]},` +
+		`{"journey":"health.ping","steps":[{"want":200,"got":200,"exchange":{"method":"","url":""}}]},` +
 		`{"journey":"session.revoke","steps":null,"failure":"boom"}]}`
 	got, _ := report.MarshalJSON()
 

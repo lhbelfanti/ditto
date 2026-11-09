@@ -16,40 +16,37 @@ func MockClient(results ..._http.MockHTTPResult) *_http.CustomClient {
 	return client
 }
 
-// MockRequest returns a request for GET /accounts/{id}/v1 with the id 42, that expects a 200.
-func MockRequest() Request {
-	return MockRequestWith("GET /accounts/{id}/v1", http.StatusOK)
-}
-
-// MockRequestWith returns a request for route with the id 42, that expects status.
-func MockRequestWith(route string, status int) Request {
-	return Request{
-		Route:  route,
-		Params: map[string]string{"id": "42"},
-		Status: status,
-	}
-}
-
-// MockJourney returns a journey that sends each request as a step.
-func MockJourney(id string, requests ...Request) Journey {
+// MockJourney returns a journey that sends GET path as a step and expects status.
+func MockJourney(id string, path string, status int) Journey {
 	return Journey{ID: id, Prove: func(run *Run) {
-		for _, request := range requests {
-			run.Do(request)
-		}
+		run.Do(run.NewRequest(http.MethodGet, run.URL(path)), status)
 	}}
 }
 
-// MockSetupJourney returns a journey that sends request to prepare itself, and then nothing else.
-func MockSetupJourney(id string, request Request) Journey {
+// MockSetupJourney returns a journey that sends GET path to prepare itself, expecting status, and then nothing else.
+func MockSetupJourney(id string, path string, status int) Journey {
 	return Journey{ID: id, Prove: func(run *Run) {
-		run.Send(request)
+		run.Setup(run.NewRequest(http.MethodGet, run.URL(path)), status)
 	}}
 }
 
-// MockDecodingJourney returns a journey that sends request as a step and decodes its body into target.
-func MockDecodingJourney(id string, request Request, target any) Journey {
+// MockSendingJourney returns a journey that sends PUT path as a step with a bearer token, an Accept header and
+// body, and expects a 200.
+func MockSendingJourney(id string, path string, body any) Journey {
 	return Journey{ID: id, Prove: func(run *Run) {
-		response := run.Do(request)
+		request := run.NewRequest(http.MethodPut, run.URL(path))
+		request.WithHeader("Authorization", "Bearer session")
+		request.WithHeader("Accept", "application/json")
+		request.WithBody(body)
+		run.Do(request, http.StatusOK)
+	}}
+}
+
+// MockDecodingJourney returns a journey that sends GET path as a step, expecting a 200, and decodes its body into
+// target.
+func MockDecodingJourney(id string, path string, target any) Journey {
+	return Journey{ID: id, Prove: func(run *Run) {
+		response := run.Do(run.NewRequest(http.MethodGet, run.URL(path)), http.StatusOK)
 		run.Decode(response, target)
 	}}
 }
