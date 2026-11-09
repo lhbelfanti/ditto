@@ -8,6 +8,29 @@ import (
 	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
+type (
+	// MockedJourney is a journey whose Setup runs setup and whose Steps are steps.
+	MockedJourney struct {
+		setup MockSetup
+		steps []Step
+	}
+
+	// MockSetup is what the Setup of a MockedJourney does.
+	MockSetup func(verifier *Verifier)
+)
+
+// Setup runs the setup of the mock, when it has one.
+func (m *MockedJourney) Setup(verifier *Verifier) {
+	if m.setup != nil {
+		m.setup(verifier)
+	}
+}
+
+// Steps returns the steps of the mock.
+func (m *MockedJourney) Steps() []Step {
+	return m.steps
+}
+
 // MockClient returns the client NewClient creates, with its requests answered by results in sequence.
 func MockClient(results ..._http.MockHTTPResult) *_http.CustomClient {
 	client := NewClient(time.Second)
@@ -16,59 +39,40 @@ func MockClient(results ..._http.MockHTTPResult) *_http.CustomClient {
 	return client
 }
 
-// MockJourney returns a journey that sends GET path as a step and expects status.
-func MockJourney(id string, path string, status int) Journey {
-	return Journey{ID: id, Prove: func(run *Run) {
-		run.Do(run.NewRequest(http.MethodGet, run.URL(path)), status)
-	}}
+// MockJourney returns a journey without setup that sends steps.
+func MockJourney(steps ...Step) *MockedJourney {
+	return &MockedJourney{steps: steps}
 }
 
-// MockSetupJourney returns a journey that sends GET path to prepare itself, expecting status, and then nothing else.
-func MockSetupJourney(id string, path string, status int) Journey {
-	return Journey{ID: id, Prove: func(run *Run) {
-		run.Setup(run.NewRequest(http.MethodGet, run.URL(path)), status)
-	}}
+// MockSettingUpJourney returns a journey whose Setup sends GET path expecting status, and that then sends steps.
+func MockSettingUpJourney(path string, status int, steps ...Step) *MockedJourney {
+	return &MockedJourney{
+		setup: func(verifier *Verifier) {
+			verifier.Send(verifier.NewRequest(http.MethodGet, verifier.URL(path)), status)
+		},
+		steps: steps,
+	}
 }
 
-// MockSendingJourney returns a journey that sends PUT path as a step with a bearer token, an Accept header and
-// body, and expects a 200.
-func MockSendingJourney(id string, path string, body any) Journey {
-	return Journey{ID: id, Prove: func(run *Run) {
-		request := run.NewRequest(http.MethodPut, run.URL(path))
-		request.WithHeader("Authorization", "Bearer session")
-		request.WithHeader("Accept", "application/json")
-		request.WithBody(body)
-		run.Do(request, http.StatusOK)
-	}}
-}
-
-// MockDecodingJourney returns a journey that sends GET path as a step, expecting a 200, and decodes its body into
+// MockDecodingJourney returns a journey whose Setup sends GET path, expecting a 200, and decodes its body into
 // target.
-func MockDecodingJourney(id string, path string, target any) Journey {
-	return Journey{ID: id, Prove: func(run *Run) {
-		response := run.Do(run.NewRequest(http.MethodGet, run.URL(path)), http.StatusOK)
-		run.Decode(response, target)
+func MockDecodingJourney(path string, target any) *MockedJourney {
+	return &MockedJourney{setup: func(verifier *Verifier) {
+		verifier.Decode(verifier.Send(verifier.NewRequest(http.MethodGet, verifier.URL(path)), http.StatusOK), target)
 	}}
 }
 
-// MockRequiringJourney returns a journey that requires condition, with reason.
-func MockRequiringJourney(id string, condition bool, reason string) Journey {
-	return Journey{ID: id, Prove: func(run *Run) {
-		run.Require(condition, reason)
-	}}
-}
-
-// MockPanickingJourney returns a journey that panics with value.
-func MockPanickingJourney(id string, value any) Journey {
-	return Journey{ID: id, Prove: func(_ *Run) {
+// MockPanickingJourney returns a journey whose Setup panics with value.
+func MockPanickingJourney(value any) *MockedJourney {
+	return &MockedJourney{setup: func(_ *Verifier) {
 		panic(value)
 	}}
 }
 
-// MockFailingJourney returns a journey that fails with err.
-func MockFailingJourney(id string, err error) Journey {
-	return Journey{ID: id, Prove: func(run *Run) {
-		run.fail(err)
+// MockFailingJourney returns a journey whose Setup fails with err.
+func MockFailingJourney(err error) *MockedJourney {
+	return &MockedJourney{setup: func(verifier *Verifier) {
+		verifier.fail(err)
 	}}
 }
 
@@ -76,4 +80,36 @@ func MockFailingJourney(id string, err error) Journey {
 func MockDecodeError(body string) error {
 	var target any
 	return json.Unmarshal([]byte(body), &target)
+}
+
+// MockValues returns path values that are always values.
+func MockValues(values map[string]string) Values {
+	return func() map[string]string {
+		return values
+	}
+}
+
+// MockWithHeader returns a With that sets the header key to value.
+func MockWithHeader(key, value string) With {
+	return func(request *_http.Request) {
+		request.WithHeader(key, value)
+	}
+}
+
+// MockChecker returns a Checker that answers err for any data.
+func MockChecker[T any](err error) Checker[T] {
+	return func(_ T) error {
+		return err
+	}
+}
+
+// MockCard returns a feature card with the journey session.revoke-one, whose table is table, followed by a
+// journey that is not driven, with a table of its own.
+func MockCard(table string) string {
+	return "# Sessions\n\n" +
+		"### session.revoke-one — Revoke one session\n\n" +
+		"Setup: two sessions of one person.\n\n" +
+		table + "\n" +
+		"### session.other — Not driven\n\n" +
+		"| # | Request | Status | Proves |\n|---|---|---|---|\n| 1 | `GET /other/v1` | 200 | stays |\n"
 }

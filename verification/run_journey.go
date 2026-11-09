@@ -2,19 +2,22 @@ package verification
 
 import "fmt"
 
-// runJourney runs prove on its own goroutine, so that a failed step can stop it with runtime.Goexit, and records a
-// panic as its failure.
-func runJourney(run *Run, prove Prove, done chan<- struct{}) {
+// runJourney sets journey up and sends its steps in order, on its own goroutine, so that a failed step can stop it
+// with runtime.Goexit. It records a panic as the failure of the journey.
+func runJourney(verifier *Verifier, journey Journey, done chan<- struct{}) {
 	defer close(done)
-	defer recordPanic(run)
+	defer recordPanic(verifier)
 
-	prove(run)
+	journey.Setup(verifier)
+	for _, step := range journey.Steps() {
+		verifier.prove(step)
+	}
 }
 
-// recordPanic records as the failure of run what the deferring journey panicked with.
-func recordPanic(run *Run) {
+// recordPanic records as the failure of verifier what the deferring journey panicked with.
+func recordPanic(verifier *Verifier) {
 	recovered := recover()
 	if recovered != nil {
-		run.result.Failure = fmt.Errorf("%w: %v", ErrJourneyPanicked, recovered)
+		verifier.result.Failure = fmt.Errorf("%w: %v", ErrJourneyPanicked, recovered)
 	}
 }
