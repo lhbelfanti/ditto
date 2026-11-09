@@ -93,3 +93,12 @@ func TestRedactValue_success(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestRedactValue_successWhenTheSensitiveValueIsNotAString(t *testing.T) {
+	value := map[string]any{"code": float64(200), "data": map[string]any{"token": "abc"}}
+
+	want := map[string]any{"code": float64(200), "data": map[string]any{"token": redacted}}
+	got := redactValue(value)
+
+	assert.Equal(t, want, got)
+}

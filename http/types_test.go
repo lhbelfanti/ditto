@@ -115,6 +115,58 @@ func TestRequest_WithQueryParam_successWhenTheURLAlreadyHasAQuery(t *testing.T) 
 	assert.NoError(t, got)
 }
 
+func TestRequest_WithBearer_success(t *testing.T) {
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{"Authorization": {"Bearer token"}}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
+	request := client.NewRequest(http.MethodGet, "http://example.test")
+	request.WithBearer("token")
+
+	_, got := request.Call(context.Background())
+
+	assert.NoError(t, got)
+}
+
+func TestRequest_WithCookies_success(t *testing.T) {
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{"Cookie": {"state=abc; nonce=xyz"}}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
+	mockResponse := _http.Response{Header: http.Header{"Set-Cookie": {"state=abc; Path=/; HttpOnly", "nonce=xyz; Path=/"}}}
+	request := client.NewRequest(http.MethodGet, "http://example.test")
+	request.WithCookies(mockResponse)
+
+	_, got := request.Call(context.Background())
+
+	assert.NoError(t, got)
+}
+
+func TestRequest_WithCookies_successWhenTheResponseSetNoCookie(t *testing.T) {
+	mockExpectedRequest := _http.MockExpectedRequest{URL: "http://example.test", Header: http.Header{}}
+	client := _http.MockClientExpecting(mockExpectedRequest)
+	request := client.NewRequest(http.MethodGet, "http://example.test")
+	request.WithCookies(_http.Response{Header: http.Header{}})
+
+	_, got := request.Call(context.Background())
+
+	assert.NoError(t, got)
+}
+
+func TestResponse_Cookie_success(t *testing.T) {
+	response := _http.Response{Header: http.Header{"Set-Cookie": {"state=; Max-Age=0", "session=token; Path=/; HttpOnly"}}}
+
+	want := "token"
+	got := response.Cookie("session")
+
+	assert.Equal(t, want, got)
+}
+
+func TestResponse_Cookie_successWhenTheCookieIsNotSet(t *testing.T) {
+	response := _http.Response{Header: http.Header{"Set-Cookie": {"state=; Max-Age=0"}}}
+
+	want := ""
+	got := response.Cookie("session")
+
+	assert.Equal(t, want, got)
+}
+
 func TestRequest_WithBody_success(t *testing.T) {
 	mockExpectedRequest := _http.MockExpectedRequest{
 		URL:    "http://example.test",

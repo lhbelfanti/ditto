@@ -2,12 +2,31 @@ package verification_test
 
 import (
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lhbelfanti/ditto/v2/verification"
 )
+
+func TestStep_Request_success(t *testing.T) {
+	step := verification.Step{Method: http.MethodDelete, Path: "/accounts/me/sessions/{id}/v1"}
+
+	want := "DELETE /accounts/me/sessions/{id}/v1"
+	got := step.Request()
+
+	assert.Equal(t, want, got)
+}
+
+func TestStep_Request_successWhenTheStepHasAQuery(t *testing.T) {
+	step := verification.Step{Method: http.MethodGet, Path: "/usernames/v1", Query: map[string]string{"username": "ana", "a": "b c"}}
+
+	want := "GET /usernames/v1?a=b+c&username=ana"
+	got := step.Request()
+
+	assert.Equal(t, want, got)
+}
 
 func TestReport_Failed_success(t *testing.T) {
 	mockErr := errors.New("boom")
@@ -29,11 +48,11 @@ func TestReport_Failed_successWhenEveryJourneyPasses(t *testing.T) {
 func TestReport_Summary_success(t *testing.T) {
 	mockErr := errors.New("boom")
 	report := verification.Report{Results: []verification.Result{
-		{Journey: "health.ping", Steps: []verification.Step{{Want: 200, Got: 200}}},
+		{Journey: "health.ping", Records: []verification.Record{{Want: 200, Got: 200}}},
 		{Journey: "session.revoke", Failure: mockErr},
 	}}
 
-	want := "PASS health.ping (1 steps)\nFAIL session.revoke: boom\n2 journeys, 1 failed\n"
+	want := "PASS health.ping (1 requests)\nFAIL session.revoke: boom\n2 journeys, 1 failed\n"
 	got := report.Summary()
 
 	assert.Equal(t, want, got)
@@ -42,13 +61,13 @@ func TestReport_Summary_success(t *testing.T) {
 func TestReport_MarshalJSON_success(t *testing.T) {
 	mockErr := errors.New("boom")
 	report := verification.Report{Results: []verification.Result{
-		{Journey: "health.ping", Steps: []verification.Step{{Want: 200, Got: 200}}},
+		{Journey: "health.ping", Records: []verification.Record{{Want: 200, Got: 200}}},
 		{Journey: "session.revoke", Failure: mockErr},
 	}}
 
 	want := `{"results":[` +
-		`{"journey":"health.ping","steps":[{"want":200,"got":200,"exchange":{"method":"","url":""}}]},` +
-		`{"journey":"session.revoke","steps":null,"failure":"boom"}]}`
+		`{"journey":"health.ping","records":[{"want":200,"got":200,"exchange":{"method":"","url":""}}]},` +
+		`{"journey":"session.revoke","records":null,"failure":"boom"}]}`
 	got, _ := report.MarshalJSON()
 
 	assert.Equal(t, want, string(got))
