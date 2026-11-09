@@ -14,8 +14,8 @@ type (
 		Body    string
 	}
 
-	// sentBody is the body Send writes, read back with its data decoded as T.
-	sentBody[T any] struct {
+	// Body is the body Send writes, read back with its data decoded as T.
+	Body[T any] struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 		Data    T      `json:"data"`
