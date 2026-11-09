@@ -5,31 +5,40 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	_http "github.com/lhbelfanti/ditto/v2/http"
 )
 
 func TestRedact_success(t *testing.T) {
-	request := Request{Token: "session", Header: map[string]string{"Cookie": "state=abc"}, Body: map[string]string{"name": "Ana", "password": "pw"}}
-	response := _http.Response{Header: http.Header{"Location": {"/done?code=xyz"}}, Body: "<html></html>"}
+	req, _ := http.NewRequest(http.MethodPost, "http://app/callback?code=xyz&next=/home", nil)
+	req.Header.Set("Authorization", "Bearer session")
+	req.Header.Set("Cookie", "state=abc")
+	resp := &http.Response{Header: http.Header{"Location": {"/done?code=xyz"}}}
 
 	want := Exchange{
+		Method:         http.MethodPost,
 		URL:            "http://app/callback?code=%3Credacted%3E&next=%2Fhome",
-		RequestHeader:  map[string]string{"Authorization": "<redacted>", "Cookie": "<redacted>"},
-		RequestBody:    map[string]any{"name": "Ana", "password": "<redacted>"},
+		RequestHeader:  map[string]string{"Authorization": redacted, "Cookie": redacted},
+		RequestBody:    map[string]any{"name": "Ana", "password": redacted},
 		ResponseHeader: map[string]string{"Location": "/done?code=%3Credacted%3E"},
 	}
-	got := redact("http://app/callback?code=xyz&next=/home", request, response)
+	got := redact(req, []byte(`{"name":"Ana","password":"pw"}`), resp, []byte("<html></html>"))
 
 	assert.Equal(t, want, got)
 }
 
-func TestRedact_successWhenTheBodyIsRaw(t *testing.T) {
-	request := Request{Body: []byte(`{"code":"xyz"}`)}
-	response := _http.Response{}
+func TestRedact_successWhenThereIsNoResponse(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "http://app/ping/v1", nil)
 
-	want := Exchange{URL: "http://app/token", RequestBody: map[string]any{"code": redacted}}
-	got := redact("http://app/token", request, response)
+	want := Exchange{Method: http.MethodGet, URL: "http://app/ping/v1"}
+	got := redact(req, nil, nil, nil)
+
+	assert.Equal(t, want, got)
+}
+
+func TestFlatten_success(t *testing.T) {
+	header := http.Header{"Vary": {"Origin", "Accept"}}
+
+	want := map[string]string{"Vary": "Origin, Accept"}
+	got := flatten(header)
 
 	assert.Equal(t, want, got)
 }

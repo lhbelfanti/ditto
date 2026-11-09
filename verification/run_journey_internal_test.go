@@ -1,6 +1,7 @@
 package verification
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,7 +29,7 @@ func TestRunJourney_successWhenTheJourneyPanics(t *testing.T) {
 	go runJourney(run, mockJourney.Prove, done)
 	<-done
 
-	want := &Run{result: Result{Journey: "health.ping", Failure: "journey panicked: boom"}}
+	want := &Run{result: Result{Journey: "health.ping", Failure: fmt.Errorf("%w: %v", ErrJourneyPanicked, "boom")}}
 	got := run
 
 	assert.Equal(t, want, got)

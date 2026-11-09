@@ -15,6 +15,6 @@ func runJourney(run *Run, prove Prove, done chan<- struct{}) {
 func recordPanic(run *Run) {
 	recovered := recover()
 	if recovered != nil {
-		run.result.Failure = fmt.Sprintf("%v: %v", ErrJourneyPanicked, recovered)
+		run.result.Failure = fmt.Errorf("%w: %v", ErrJourneyPanicked, recovered)
 	}
 }
