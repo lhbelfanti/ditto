@@ -148,6 +148,8 @@ as it is in `Body`. Use
 `response.Read[any]` for a response without data. `response.Body[T]` is the body `Send` writes, for a
 client that decodes it.
 
+A handler that redirects has its whole response built by `response.MockRedirected(location, cookies...)`: status 302, the page `http.Redirect` writes, the `Location` and the `Set-Cookie` values in order.
+
 ## `RegisterSystemRoutes`
 
 ```go
