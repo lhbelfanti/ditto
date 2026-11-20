@@ -30,3 +30,23 @@ func TestMockRedirected_successWhenNoCookiesAreSet(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+
+func TestMockRedirectedWith_success(t *testing.T) {
+	w := httptest.NewRecorder()
+	http.Redirect(w, httptest.NewRequest(http.MethodGet, "/", nil), "/home", http.StatusMovedPermanently)
+
+	want := response.MockRedirectedWith(http.StatusMovedPermanently, "/home")
+	got := response.Read[any](w)
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockRedirectedWith_successWhenStatusIsPermanentRedirect(t *testing.T) {
+	w := httptest.NewRecorder()
+	http.Redirect(w, httptest.NewRequest(http.MethodGet, "/", nil), "/home", http.StatusPermanentRedirect)
+
+	want := response.MockRedirectedWith(http.StatusPermanentRedirect, "/home")
+	got := response.Read[any](w)
+
+	assert.Equal(t, want, got)
+}
