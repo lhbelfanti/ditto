@@ -23,3 +23,45 @@ func MockRedirected(location string, cookies ...string) Recorded[any] {
 		Body:   fmt.Sprintf("<a href=\"%s\">Found</a>.\n\n", html.EscapeString(location)),
 	}
 }
+
+// MockOK returns the Recorded of a handler that answers 200 with message and data.
+func MockOK[T any](message string, data T) Recorded[T] {
+	return Recorded[T]{
+		Status:  http.StatusOK,
+		Message: message,
+		Data:    data,
+	}
+}
+
+// MockCreated returns the Recorded of a handler that answers 201 with message and data.
+func MockCreated[T any](message string, data T) Recorded[T] {
+	return Recorded[T]{
+		Status:  http.StatusCreated,
+		Message: message,
+		Data:    data,
+	}
+}
+
+// MockBadRequest returns the Recorded of a handler that answers 400 with message and no data.
+func MockBadRequest(message string) Recorded[any] {
+	return Recorded[any]{
+		Status:  http.StatusBadRequest,
+		Message: message,
+	}
+}
+
+// MockNotFound returns the Recorded of a handler that answers 404 with message and no data.
+func MockNotFound(message string) Recorded[any] {
+	return Recorded[any]{
+		Status:  http.StatusNotFound,
+		Message: message,
+	}
+}
+
+// MockInternalServerError returns the Recorded of a handler that answers 500 with message and no data.
+func MockInternalServerError(message string) Recorded[any] {
+	return Recorded[any]{
+		Status:  http.StatusInternalServerError,
+		Message: message,
+	}
+}
