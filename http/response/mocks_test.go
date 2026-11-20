@@ -1,6 +1,8 @@
 package response_test
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,6 +28,58 @@ func TestMockRedirected_successWhenNoCookiesAreSet(t *testing.T) {
 	http.Redirect(w, httptest.NewRequest(http.MethodGet, "/", nil), "/home", http.StatusFound)
 
 	want := response.MockRedirected("/home")
+	got := response.Read[any](w)
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockOK_success(t *testing.T) {
+	mockData := map[string]int{"id": 1}
+	w := httptest.NewRecorder()
+	response.Send(context.Background(), w, http.StatusOK, "updated", mockData, nil)
+
+	want := response.MockOK("updated", mockData)
+	got := response.Read[map[string]int](w)
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockCreated_success(t *testing.T) {
+	mockData := map[string]int{"id": 1}
+	w := httptest.NewRecorder()
+	response.Send(context.Background(), w, http.StatusCreated, "created", mockData, nil)
+
+	want := response.MockCreated("created", mockData)
+	got := response.Read[map[string]int](w)
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockBadRequest_success(t *testing.T) {
+	w := httptest.NewRecorder()
+	response.Send(context.Background(), w, http.StatusBadRequest, "invalid id", nil, errors.New("cause"))
+
+	want := response.MockBadRequest("invalid id")
+	got := response.Read[any](w)
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockNotFound_success(t *testing.T) {
+	w := httptest.NewRecorder()
+	response.Send(context.Background(), w, http.StatusNotFound, "account not found", nil, errors.New("cause"))
+
+	want := response.MockNotFound("account not found")
+	got := response.Read[any](w)
+
+	assert.Equal(t, want, got)
+}
+
+func TestMockInternalServerError_success(t *testing.T) {
+	w := httptest.NewRecorder()
+	response.Send(context.Background(), w, http.StatusInternalServerError, "can't update account", nil, errors.New("cause"))
+
+	want := response.MockInternalServerError("can't update account")
 	got := response.Read[any](w)
 
 	assert.Equal(t, want, got)
