@@ -6,15 +6,9 @@ import (
 	"net/http"
 )
 
-// MockRedirected returns the Recorded that http.Redirect writes for a GET with status 302 to location.
+// MockRedirected returns the Recorded that http.Redirect with status 302 writes for a GET to location.
 // The cookies are the Set-Cookie values the handler set before redirecting, in order.
 func MockRedirected(location string, cookies ...string) Recorded[any] {
-	return MockRedirectedWith(http.StatusFound, location, cookies...)
-}
-
-// MockRedirectedWith returns the Recorded that http.Redirect writes for a GET with the given redirect status
-// (301, 302, 303, 307 or 308) to location. The page of the body names the status, as http.Redirect does.
-func MockRedirectedWith(status int, location string, cookies ...string) Recorded[any] {
 	header := http.Header{
 		"Content-Type": {"text/html; charset=utf-8"},
 		"Location":     {location},
@@ -24,8 +18,8 @@ func MockRedirectedWith(status int, location string, cookies ...string) Recorded
 	}
 
 	return Recorded[any]{
-		Status: status,
+		Status: http.StatusFound,
 		Header: header,
-		Body:   fmt.Sprintf("<a href=\"%s\">%s</a>.\n\n", html.EscapeString(location), http.StatusText(status)),
+		Body:   fmt.Sprintf("<a href=\"%s\">Found</a>.\n\n", html.EscapeString(location)),
 	}
 }
