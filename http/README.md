@@ -150,6 +150,8 @@ client that decodes it.
 
 A handler that redirects has its whole response built by `response.MockRedirected(location, cookies...)`: status 302, the page `http.Redirect` writes, the `Location` and the `Set-Cookie` values in order.
 
+A handler that answers through `Send` has its whole response built by `response.MockOK(message, data)` for 200, `response.MockCreated(message, data)` for 201 and `response.MockBadRequest(message)`, `response.MockNotFound(message)` and `response.MockInternalServerError(message)` for the answers without data.
+
 ## `RegisterSystemRoutes`
 
 ```go
