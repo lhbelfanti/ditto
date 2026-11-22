@@ -7,11 +7,13 @@ import (
 	"time"
 )
 
-// ErrMockReadFailure is the error that MockFailingBody fails with.
-var ErrMockReadFailure = errors.New("mock body can't be read")
+var (
+	// ErrMockReadFailure is the error that MockFailingBody fails with.
+	ErrMockReadFailure = errors.New("mock body can't be read")
 
-// ErrMockInvalidBody is the error that MockInvalidBody and MockInvalidPointerBody return from IsValid.
-var ErrMockInvalidBody = errors.New("mock body is not valid")
+	// ErrMockInvalidBody is the error that MockInvalidBody and MockInvalidPointerBody return from IsValid.
+	ErrMockInvalidBody = errors.New("mock body is not valid")
+)
 
 type (
 	// MockBody is a request body whose IsValid, with a value receiver, always passes.
