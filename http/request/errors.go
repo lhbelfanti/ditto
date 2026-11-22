@@ -12,4 +12,6 @@ var (
 	ErrNotABool     = errors.New("not a bool")
 	ErrNotATime     = errors.New("not an RFC 3339 time")
 	ErrInvalidDTO   = errors.New("invalid request DTO")
+	ErrBodyTooLarge = errors.New("body too large")
+	ErrCantReadBody = errors.New("can't read the body")
 )
