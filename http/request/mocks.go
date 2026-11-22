@@ -2,11 +2,18 @@ package request
 
 import (
 	"errors"
+	"io"
+	"testing/iotest"
 	"time"
 )
 
-// ErrMockInvalidBody is the error that MockInvalidBody and MockInvalidPointerBody return from IsValid.
-var ErrMockInvalidBody = errors.New("mock body is not valid")
+var (
+	// ErrMockReadFailure is the error that MockFailingBody fails with.
+	ErrMockReadFailure = errors.New("mock body can't be read")
+
+	// ErrMockInvalidBody is the error that MockInvalidBody and MockInvalidPointerBody return from IsValid.
+	ErrMockInvalidBody = errors.New("mock body is not valid")
+)
 
 type (
 	// MockBody is a request body whose IsValid, with a value receiver, always passes.
@@ -115,4 +122,9 @@ func (MockInvalidBody) IsValid() error {
 // IsValid returns ErrMockInvalidBody.
 func (*MockInvalidPointerBody) IsValid() error {
 	return ErrMockInvalidBody
+}
+
+// MockFailingBody returns a request body that fails with ErrMockReadFailure as soon as it is read.
+func MockFailingBody() io.Reader {
+	return iotest.ErrReader(ErrMockReadFailure)
 }

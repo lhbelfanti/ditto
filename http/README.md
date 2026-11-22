@@ -40,6 +40,12 @@ mockResult := _http.MockHTTPResult{StatusCode: http.StatusOK, Body: `{"code":200
 client := _http.MockClientAnswering(mockExpectedRequest, mockResult)
 ```
 
+## `request.ReadBody`
+
+`request.ReadBody(w, r, limit)` reads a raw body, such as an uploaded file, that `Bind` does not decode. A body larger
+than `limit` bytes stops the read and returns `request.ErrBodyTooLarge`, so the handler can answer `413`; any other
+failure returns `request.ErrCantReadBody`.
+
 ## `request.Bind`
 
 ```go
